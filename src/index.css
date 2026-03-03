@@ -1,0 +1,114 @@
+@import url('https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@300;400;500;600;700&display=swap');
+
+@import "tailwindcss/base";
+@import "tailwindcss/components";
+@import "tailwindcss/utilities";
+
+@layer base {
+  :root {
+    --background: 240 10% 98%;
+    --foreground: 240 10% 10%;
+
+    --card: 0 0% 100%;
+    --card-foreground: 240 10% 10%;
+
+    --popover: 0 0% 100%;
+    --popover-foreground: 240 10% 10%;
+
+    /* Primary: Electric Indigo to Violet */
+    --primary: 250 84% 67%;
+    --primary-foreground: 0 0% 100%;
+
+    --secondary: 240 4.8% 95.9%;
+    --secondary-foreground: 240 5.9% 10%;
+
+    --muted: 240 4.8% 95.9%;
+    --muted-foreground: 240 3.8% 46.1%;
+
+    --accent: 250 84% 95%;
+    --accent-foreground: 250 84% 40%;
+
+    --destructive: 0 84.2% 60.2%;
+    --destructive-foreground: 0 0% 98%;
+
+    --border: 240 5.9% 90%;
+    --input: 240 5.9% 90%;
+    --ring: 250 84% 67%;
+
+    --radius: 1rem;
+  }
+
+  /* Default to a sleek, dark aesthetic */
+  .dark,
+  :root {
+    /* Deep space / Midnight blue background */
+    --background: 230 25% 4%;
+    --foreground: 210 40% 98%;
+
+    --card: 230 25% 6%;
+    --card-foreground: 210 40% 98%;
+
+    --popover: 230 25% 6%;
+    --popover-foreground: 210 40% 98%;
+
+    /* Primary: Vibrant Violet/Indigo */
+    --primary: 260 85% 65%;
+    --primary-foreground: 0 0% 100%;
+
+    --secondary: 230 25% 12%;
+    --secondary-foreground: 210 40% 98%;
+
+    --muted: 230 25% 12%;
+    --muted-foreground: 220 20% 65%;
+
+    --accent: 260 40% 20%;
+    --accent-foreground: 260 85% 75%;
+
+    --destructive: 0 62.8% 30.6%;
+    --destructive-foreground: 210 40% 98%;
+
+    --border: 230 25% 15%;
+    --input: 230 25% 18%;
+    --ring: 260 85% 65%;
+  }
+}
+
+@layer base {
+  * {
+    border-color: hsl(var(--border));
+  }
+
+  body {
+    @apply bg-background text-foreground font-sans antialiased overflow-hidden selection:bg-primary/30 selection:text-primary-foreground;
+  }
+}
+
+@layer utilities {
+
+  /* Premium Glassmorphism Utilities */
+  .glass {
+    @apply bg-white/5 dark:bg-black/10 backdrop-blur-xl border border-white/20 dark:border-white/10;
+    box-shadow: 0 8px 32px 0 rgba(0, 0, 0, 0.3);
+  }
+
+  .glass-panel {
+    @apply bg-white/5 dark:bg-[#151522]/40 backdrop-blur-2xl border border-white/10 dark:border-white/5 shadow-2xl;
+  }
+
+  .glass-input {
+    @apply bg-black/20 dark:bg-black/40 backdrop-blur-md border border-white/10 dark:border-white/5 focus-within:border-primary/50 focus-within:bg-black/30 transition-all duration-300 shadow-inner;
+  }
+
+  .text-glow {
+    text-shadow: 0 0 20px rgba(139, 92, 246, 0.5);
+  }
+
+  .icon-glow {
+    filter: drop-shadow(0 0 12px rgba(139, 92, 246, 0.4));
+  }
+}
+
+/* Tauri UI Utilities */
+.titlebar {
+  @apply h-10 w-full fixed top-0 flex items-center justify-between z-50 transition-colors duration-300;
+}
