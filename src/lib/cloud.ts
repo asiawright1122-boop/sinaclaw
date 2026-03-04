@@ -37,21 +37,26 @@ export const CLOUD_PROVIDERS: Record<CloudProvider, { label: string; icon: strin
 
 // ── OAuth 认证 ───────────────────────────────────────────
 
-/** 获取 OAuth 授权 URL，前端用系统浏览器打开 */
-export async function getAuthUrl(provider: CloudProvider, clientId: string): Promise<string> {
-    return invoke<string>("cloud_auth_url", { provider, clientId });
+/** 获取 OAuth 授权 URL（后端自带凭据） */
+export async function getAuthUrl(provider: CloudProvider): Promise<string> {
+    return invoke<string>("cloud_auth_url", { provider });
 }
 
-/** 用授权码换取 token 并获取账户信息 */
+/** 用授权码换取 token 并获取账户信息（兼容旧接口） */
 export async function authExchange(
     provider: CloudProvider,
-    clientId: string,
-    clientSecret: string,
+    _clientId: string,
+    _clientSecret: string,
     code: string,
 ): Promise<CloudAccount> {
     return invoke<CloudAccount>("cloud_auth_exchange", {
-        provider, clientId, clientSecret, code,
+        provider, clientId: "", clientSecret: "", code,
     });
+}
+
+/** 一键授权：打开浏览器 + 后端自动回调处理（推荐） */
+export async function startAuth(provider: CloudProvider): Promise<string> {
+    return invoke<string>("cloud_start_auth", { provider });
 }
 
 // ── 文件操作 ─────────────────────────────────────────────

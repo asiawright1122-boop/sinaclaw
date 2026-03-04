@@ -6,6 +6,7 @@
  * 不依赖 AI，纯硬编码逻辑。
  */
 import { invoke } from "@tauri-apps/api/core";
+import { Command } from '@tauri-apps/plugin-shell';
 import type { CommandResult } from "@/lib/tools";
 
 // ── 扫描结果类型 ─────────────────────────────────────────
@@ -17,8 +18,8 @@ export interface ScanItem {
     required: boolean;       // 是否为必需工具
     status: "checking" | "installed" | "missing" | "installing" | "installed_now" | "failed";
     version: string;
-    installCommand?: string; // 自动安装命令
-    installNote?: string;    // macOS 上通过 Homebrew 安装的提示
+    installCommand?: string; // (Retained for structure, but unused by sidecar)
+    installNote?: string;
 }
 
 export interface ScanResult {
@@ -32,72 +33,14 @@ export interface ScanResult {
 function getCheckList(): ScanItem[] {
     return [
         {
-            name: "node",
-            label: "Node.js",
-            icon: "🟢",
+            name: "node_sidecar",
+            label: "Sinaclaw 引擎",
+            icon: "⚙️",
             required: true,
             status: "checking",
             version: "",
-            installCommand: "brew install node",
-            installNote: "通过 Homebrew 自动安装",
-        },
-        {
-            name: "npm",
-            label: "npm",
-            icon: "📦",
-            required: true,
-            status: "checking",
-            version: "",
-            installCommand: "brew install node", // npm 随 node 附带
-            installNote: "Node.js 自带",
-        },
-        {
-            name: "git",
-            label: "Git",
-            icon: "🔀",
-            required: true,
-            status: "checking",
-            version: "",
-            installCommand: "xcode-select --install",
-            installNote: "通过 Xcode Command Line Tools 安装",
-        },
-        {
-            name: "yarn",
-            label: "Yarn",
-            icon: "🧶",
-            required: false,
-            status: "checking",
-            version: "",
-            installCommand: "npm install -g yarn",
-        },
-        {
-            name: "pnpm",
-            label: "pnpm",
-            icon: "⚡",
-            required: false,
-            status: "checking",
-            version: "",
-            installCommand: "npm install -g pnpm",
-        },
-        {
-            name: "rustc",
-            label: "Rust",
-            icon: "🦀",
-            required: false,
-            status: "checking",
-            version: "",
-            installCommand: "curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh -s -- -y",
-            installNote: "通过 rustup 安装",
-        },
-        {
-            name: "python3",
-            label: "Python 3",
-            icon: "🐍",
-            required: false,
-            status: "checking",
-            version: "",
-            installCommand: "brew install python3",
-        },
+            installNote: "内置执行引擎",
+        }
     ];
 }
 
@@ -109,116 +52,41 @@ export async function runEnvironmentScan(
     const items = getCheckList();
     onUpdate([...items]);
 
-    // 先检测 Homebrew（macOS 的包管理器，很多安装都依赖它）
-    const hasHomebrew = await checkToolInstalled("brew --version");
+    // 检测内置 Node Sidecar 引擎
+    const engineItem = items[0];
+    engineItem.status = "checking";
+    onUpdate([...items]);
 
-    // 逐一检测
-    for (const item of items) {
-        item.status = "checking";
-        onUpdate([...items]);
+    try {
+        // 利用 @tauri-apps/plugin-shell 的 Command API 唤起配置好的 node sidecar
+        // 注意：这里的标识符必须与 tauri.conf.json "externalBin" 内容完全一致也就是 "bin/node"
+        const sidecarCmd = Command.sidecar("bin/node", ["--version"]);
+        const output = await sidecarCmd.execute();
 
-        const versionCmd = `${item.name} --version`;
-        const result = await checkToolVersion(versionCmd);
-
-        if (result) {
-            item.status = "installed";
-            item.version = result;
+        if (output.code === 0 && output.stdout) {
+            engineItem.status = "installed";
+            engineItem.version = "built-in (Node)"; // output.stdout.trim() typically returns "v20.x.x"
         } else {
-            item.status = "missing";
+            console.error("Sidecar process error:", output.stderr);
+            engineItem.status = "failed";
+            engineItem.installNote = "无法唤起内置 Node: " + (output.stderr || "Native execution failed");
         }
-        onUpdate([...items]);
+    } catch (e: any) {
+        console.error("Sidecar error IPC:", e);
+        engineItem.status = "failed";
+        engineItem.installNote = "Sidecar IPC 调用错误: " + String(e);
     }
 
-    // 自动修复缺失的 **必需** 工具
-    const missingRequired = items.filter(i => i.required && i.status === "missing");
+    onUpdate([...items]);
 
-    for (const item of missingRequired) {
-        if (!item.installCommand) continue;
-
-        // 如果安装命令依赖 brew，先确保 Homebrew 已安装
-        if (item.installCommand.startsWith("brew") && !hasHomebrew) {
-            // 先安装 Homebrew
-            item.status = "installing";
-            item.installNote = "正在安装 Homebrew...";
-            onUpdate([...items]);
-
-            const brewResult = await runInstallCommand(
-                '/bin/bash -c "$(curl -fsSL https://raw.githubusercontent.com/Homebrew/install/HEAD/install.sh)"'
-            );
-            if (!brewResult) {
-                item.status = "failed";
-                item.installNote = "Homebrew 安装失败，请手动安装";
-                onUpdate([...items]);
-                continue;
-            }
-        }
-
-        item.status = "installing";
-        onUpdate([...items]);
-
-        const success = await runInstallCommand(item.installCommand);
-        if (success) {
-            // 验证安装
-            const version = await checkToolVersion(`${item.name} --version`);
-            if (version) {
-                item.status = "installed_now";
-                item.version = version;
-            } else {
-                item.status = "installed_now";
-                item.version = "刚安装";
-            }
-        } else {
-            item.status = "failed";
-        }
-        onUpdate([...items]);
-    }
-
-    const allGood = items.every(i => i.status === "installed" || i.status === "installed_now" || (!i.required && i.status === "missing"));
-    const hasRequired = items.filter(i => i.required).every(i => i.status === "installed" || i.status === "installed_now");
+    const allGood = items.every(i => i.status === "installed");
+    const hasRequired = items.filter(i => i.required).every(i => i.status === "installed");
 
     return { items, allGood, hasRequired };
 }
 
 // ── 环境扫描辅助函数 ─────────────────────────────────────
 
-async function checkToolInstalled(cmd: string): Promise<boolean> {
-    try {
-        const result = await invoke<CommandResult>("tool_run_command", {
-            command: cmd,
-            cwd: null,
-        });
-        return result.success;
-    } catch {
-        return false;
-    }
-}
-
-async function checkToolVersion(cmd: string): Promise<string | null> {
-    try {
-        const result = await invoke<CommandResult>("tool_run_command", {
-            command: cmd,
-            cwd: null,
-        });
-        if (result.success) {
-            return result.stdout.trim().split("\n")[0] || result.stderr.trim().split("\n")[0] || "已安装";
-        }
-        return null;
-    } catch {
-        return null;
-    }
-}
-
-async function runInstallCommand(cmd: string): Promise<boolean> {
-    try {
-        const result = await invoke<CommandResult>("tool_run_command", {
-            command: cmd,
-            cwd: null,
-        });
-        return result.success;
-    } catch {
-        return false;
-    }
-}
 
 // ── 项目级依赖健康检查 ───────────────────────────────────
 // 用于用户打开某个项目时自动扫描依赖状态

@@ -90,7 +90,7 @@ const config = {
                 "blob": "blob 7s infinite"
             },
             fontFamily: {
-                sans: ["'Plus Jakarta Sans'", "sans-serif"],
+                sans: ["'Inter'", "sans-serif"],
             },
             backgroundImage: {
                 'gradient-radial': 'radial-gradient(var(--tw-gradient-stops))',

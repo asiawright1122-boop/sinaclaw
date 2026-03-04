@@ -39,46 +39,73 @@ pub struct CloudTokens {
     pub expires_at: u64, // unix timestamp
 }
 
-// Token 缓存（运行时内存 + JSON 文件持久化）
+// Token 缓存（运行时内存 + macOS Keychain 持久化）
 use std::sync::Mutex;
 use once_cell::sync::Lazy;
 
+const KEYCHAIN_SERVICE: &str = "com.sinaclaw.cloud";
+
 static TOKEN_STORE: Lazy<Mutex<HashMap<String, CloudTokens>>> =
     Lazy::new(|| {
-        // 启动时尝试从磁盘加载已保存的 token
-        match load_tokens_from_disk() {
-            Ok(tokens) => Mutex::new(tokens),
-            Err(_) => Mutex::new(HashMap::new()),
+        // 启动时从 Keychain 加载已保存的 token
+        let mut map = HashMap::new();
+        for provider in &["google_drive", "onedrive", "dropbox"] {
+            if let Ok(tokens) = load_token_from_keychain(provider) {
+                map.insert(provider.to_string(), tokens);
+            }
         }
+        Mutex::new(map)
     });
 
-/// 获取 token 持久化文件路径
-fn get_tokens_file_path() -> Result<std::path::PathBuf, String> {
-    let home = std::env::var("HOME").map_err(|_| "无法获取 HOME 目录".to_string())?;
-    let dir = std::path::PathBuf::from(home).join(".sinaclaw");
-    std::fs::create_dir_all(&dir).map_err(|e| format!("创建目录失败: {}", e))?;
-    Ok(dir.join("cloud_tokens.json"))
-}
-
-/// 将当前内存中的 token 持久化到磁盘
-fn persist_tokens() -> Result<(), String> {
-    let store = TOKEN_STORE.lock().map_err(|e| format!("Lock 失败: {}", e))?;
-    let path = get_tokens_file_path()?;
-    let json = serde_json::to_string_pretty(&*store).map_err(|e| format!("序列化失败: {}", e))?;
-    std::fs::write(&path, json).map_err(|e| format!("写入失败: {}", e))?;
+/// 将 token 保存到 macOS Keychain
+fn save_token_to_keychain(provider: &str, tokens: &CloudTokens) -> Result<(), String> {
+    let entry = keyring::Entry::new(KEYCHAIN_SERVICE, provider)
+        .map_err(|e| format!("Keychain 错误: {}", e))?;
+    let json = serde_json::to_string(tokens)
+        .map_err(|e| format!("序列化失败: {}", e))?;
+    entry.set_password(&json)
+        .map_err(|e| format!("写入 Keychain 失败: {}", e))?;
     Ok(())
 }
 
-/// 从磁盘加载已保存的 token
-fn load_tokens_from_disk() -> Result<HashMap<String, CloudTokens>, String> {
-    let path = get_tokens_file_path()?;
-    if !path.exists() {
-        return Ok(HashMap::new());
-    }
-    let data = std::fs::read_to_string(&path).map_err(|e| format!("读取失败: {}", e))?;
-    let tokens: HashMap<String, CloudTokens> = serde_json::from_str(&data)
+/// 从 macOS Keychain 加载 token
+fn load_token_from_keychain(provider: &str) -> Result<CloudTokens, String> {
+    let entry = keyring::Entry::new(KEYCHAIN_SERVICE, provider)
+        .map_err(|e| format!("Keychain 错误: {}", e))?;
+    let json = entry.get_password()
+        .map_err(|e| format!("读取 Keychain 失败: {}", e))?;
+    let tokens: CloudTokens = serde_json::from_str(&json)
         .map_err(|e| format!("解析失败: {}", e))?;
     Ok(tokens)
+}
+
+/// 从 Keychain 删除 token
+fn delete_token_from_keychain(provider: &str) -> Result<(), String> {
+    let entry = keyring::Entry::new(KEYCHAIN_SERVICE, provider)
+        .map_err(|e| format!("Keychain 错误: {}", e))?;
+    let _ = entry.delete_credential(); // 不存在也不报错
+    Ok(())
+}
+
+// ── 编译时注入的 OAuth 凭据 ─────────────────────────────
+// 通过 .cargo/config.toml 的 [env] 注入，CI/CD 通过环境变量注入
+
+fn get_oauth_credentials(provider: &str) -> Result<(String, String), String> {
+    match provider {
+        "google_drive" => Ok((
+            option_env!("SINACLAW_GOOGLE_CLIENT_ID").unwrap_or("").to_string(),
+            option_env!("SINACLAW_GOOGLE_CLIENT_SECRET").unwrap_or("").to_string(),
+        )),
+        "onedrive" => Ok((
+            option_env!("SINACLAW_AZURE_CLIENT_ID").unwrap_or("").to_string(),
+            option_env!("SINACLAW_AZURE_CLIENT_SECRET").unwrap_or("").to_string(),
+        )),
+        "dropbox" => Ok((
+            option_env!("SINACLAW_DROPBOX_APP_KEY").unwrap_or("").to_string(),
+            option_env!("SINACLAW_DROPBOX_APP_SECRET").unwrap_or("").to_string(),
+        )),
+        _ => Err(format!("不支持的提供商: {}", provider)),
+    }
 }
 
 // ── OAuth2 配置 ──────────────────────────────────────────
@@ -114,14 +141,18 @@ fn get_oauth_config(provider: &str) -> Result<OAuthConfig, String> {
     }
 }
 
-// ── 命令 1: 获取 OAuth URL ───────────────────────────────
+// ── 命令 1: 获取 OAuth URL（后端自带凭据，前端无需传入）──
 
 #[tauri::command]
 pub async fn cloud_auth_url(
     provider: String,
-    client_id: String,
 ) -> Result<String, String> {
     let config = get_oauth_config(&provider)?;
+    let (client_id, _) = get_oauth_credentials(&provider)?;
+
+    if client_id.is_empty() {
+        return Err(format!("{} 的 OAuth 凭据尚未配置", provider));
+    }
 
     let scopes = config.scopes.join(" ");
     let url = format!(
@@ -135,23 +166,20 @@ pub async fn cloud_auth_url(
     Ok(url)
 }
 
-// ── 命令 2: 用 code 换 token ─────────────────────────────
+// ── 命令 2: 用 code 换 token（内部使用，后端自带凭据）────
 
-#[tauri::command]
-pub async fn cloud_auth_exchange(
-    provider: String,
-    client_id: String,
-    client_secret: String,
-    code: String,
+async fn exchange_code_for_token(
+    provider: &str,
+    code: &str,
 ) -> Result<CloudAccount, String> {
-    let config = get_oauth_config(&provider)?;
+    let config = get_oauth_config(provider)?;
+    let (client_id, client_secret) = get_oauth_credentials(provider)?;
 
     let client = reqwest::Client::new();
 
-    // 通用 token 请求
     let mut params = HashMap::new();
     params.insert("grant_type", "authorization_code");
-    params.insert("code", &code);
+    params.insert("code", code);
     params.insert("client_id", &client_id);
     params.insert("client_secret", &client_secret);
     params.insert("redirect_uri", config.redirect_uri);
@@ -167,6 +195,11 @@ pub async fn cloud_auth_exchange(
         .json()
         .await
         .map_err(|e| format!("Token 响应解析失败: {}", e))?;
+
+    if let Some(err) = body["error"].as_str() {
+        let desc = body["error_description"].as_str().unwrap_or("");
+        return Err(format!("OAuth 错误: {} - {}", err, desc));
+    }
 
     let access_token = body["access_token"]
         .as_str()
@@ -185,17 +218,172 @@ pub async fn cloud_auth_exchange(
             + expires_in,
     };
 
-    // 存储 token（内存 + 磁盘）
+    // 存储 token（内存 + Keychain）
     TOKEN_STORE
         .lock()
         .map_err(|e| format!("Token 存储失败: {}", e))?
-        .insert(provider.clone(), tokens);
-    let _ = persist_tokens();
+        .insert(provider.to_string(), tokens.clone());
+    let _ = save_token_to_keychain(provider, &tokens);
 
     // 获取用户信息
-    let account = get_account_info(&provider, &access_token).await?;
+    let account = get_account_info(provider, &access_token).await?;
 
     Ok(account)
+}
+
+// 兼容旧接口（前端仍可直接调用）
+#[tauri::command]
+pub async fn cloud_auth_exchange(
+    provider: String,
+    _client_id: String,
+    _client_secret: String,
+    code: String,
+) -> Result<CloudAccount, String> {
+    exchange_code_for_token(&provider, &code).await
+}
+
+// ── 命令 9: 一键授权（打开浏览器 + 启动回调服务器）───────
+
+#[tauri::command]
+pub async fn cloud_start_auth(
+    app_handle: tauri::AppHandle,
+    provider: String,
+) -> Result<String, String> {
+    let config = get_oauth_config(&provider)?;
+    let (client_id, _) = get_oauth_credentials(&provider)?;
+
+    if client_id.is_empty() {
+        return Err(format!("{} 的 OAuth 凭据尚未配置", provider));
+    }
+
+    let scopes = config.scopes.join(" ");
+    let url = format!(
+        "{}?client_id={}&redirect_uri={}&response_type=code&scope={}&access_type=offline&prompt=consent",
+        config.auth_url,
+        urlencoding::encode(&client_id),
+        urlencoding::encode(config.redirect_uri),
+        urlencoding::encode(&scopes),
+    );
+
+    // 在后台启动回调服务器
+    let provider_clone = provider.clone();
+    let app_clone = app_handle.clone();
+    tokio::spawn(async move {
+        if let Err(e) = run_oauth_callback_server(app_clone, &provider_clone).await {
+            eprintln!("OAuth 回调服务器错误: {}", e);
+        }
+    });
+
+    Ok(url)
+}
+
+/// 启动临时 HTTP 服务器接收 OAuth 回调
+async fn run_oauth_callback_server(
+    app_handle: tauri::AppHandle,
+    provider: &str,
+) -> Result<(), String> {
+    use tauri::Emitter;
+    use tokio::io::{AsyncReadExt, AsyncWriteExt};
+
+    let listener = tokio::net::TcpListener::bind("127.0.0.1:19726")
+        .await
+        .map_err(|e| format!("监听端口失败: {}", e))?;
+
+    // 等待一次连接（30秒超时）
+    let accept_result = tokio::time::timeout(
+        std::time::Duration::from_secs(300),
+        listener.accept()
+    ).await;
+
+    let (mut stream, _) = match accept_result {
+        Ok(Ok(conn)) => conn,
+        Ok(Err(e)) => return Err(format!("接受连接失败: {}", e)),
+        Err(_) => return Err("等待授权超时（5分钟）".to_string()),
+    };
+
+    // 读取 HTTP 请求
+    let mut buf = vec![0u8; 4096];
+    let n = stream.read(&mut buf).await.map_err(|e| format!("读取失败: {}", e))?;
+    let request = String::from_utf8_lossy(&buf[..n]);
+
+    // 解析 code 参数: GET /oauth/callback?code=xxx HTTP/1.1
+    let code = request
+        .lines()
+        .next()
+        .and_then(|line| line.split('?').nth(1))
+        .and_then(|query| {
+            query.split('&').find_map(|param| {
+                let mut parts = param.splitn(2, '=');
+                let key = parts.next()?;
+                let value = parts.next()?;
+                if key == "code" {
+                    // 去掉 " HTTP/1.1" 尾部
+                    Some(value.split_whitespace().next().unwrap_or(value).to_string())
+                } else {
+                    None
+                }
+            })
+        });
+
+    let (status, body_html) = match code {
+        Some(code) => {
+            // 用 code 换取 token
+            match exchange_code_for_token(provider, &code).await {
+                Ok(account) => {
+                    // 通知前端
+                    let _ = app_handle.emit("cloud-auth-complete", &account);
+                    (
+                        "200 OK",
+                        format!(
+                            "<html><body style='font-family:system-ui;text-align:center;padding:100px;background:#1a1a2e;color:#fff'>\
+                            <h1>✅ 授权成功</h1>\
+                            <p>已连接 <strong>{}</strong>（{}）</p>\
+                            <p style='color:#888'>你可以关闭此页面，返回 Sinaclaw</p>\
+                            <script>setTimeout(()=>window.close(),3000)</script>\
+                            </body></html>",
+                            provider, account.email
+                        )
+                    )
+                }
+                Err(e) => {
+                    let _ = app_handle.emit("cloud-auth-error", &e);
+                    (
+                        "500 Internal Server Error",
+                        format!(
+                            "<html><body style='font-family:system-ui;text-align:center;padding:100px;background:#1a1a2e;color:#fff'>\
+                            <h1>❌ 授权失败</h1>\
+                            <p style='color:#ff6b6b'>{}</p>\
+                            <p style='color:#888'>请关闭此页面，返回 Sinaclaw 重试</p>\
+                            </body></html>",
+                            e
+                        )
+                    )
+                }
+            }
+        }
+        None => {
+            let _ = app_handle.emit("cloud-auth-error", "未收到授权码");
+            (
+                "400 Bad Request",
+                "<html><body style='font-family:system-ui;text-align:center;padding:100px;background:#1a1a2e;color:#fff'>\
+                <h1>❌ 未收到授权码</h1>\
+                <p style='color:#888'>请关闭此页面，返回 Sinaclaw 重试</p>\
+                </body></html>".to_string()
+            )
+        }
+    };
+
+    // 返回 HTML 响应
+    let response = format!(
+        "HTTP/1.1 {}\r\nContent-Type: text/html; charset=utf-8\r\nContent-Length: {}\r\nConnection: close\r\n\r\n{}",
+        status,
+        body_html.len(),
+        body_html
+    );
+    let _ = stream.write_all(response.as_bytes()).await;
+    let _ = stream.flush().await;
+
+    Ok(())
 }
 
 // ── 命令 3: 列出文件 ─────────────────────────────────────
@@ -355,7 +543,7 @@ pub async fn cloud_disconnect(
         .lock()
         .map_err(|e| format!("操作失败: {}", e))?
         .remove(&provider);
-    let _ = persist_tokens();
+    let _ = delete_token_from_keychain(&provider);
     Ok(format!("✅ 已断开 {} 连接", provider))
 }
 
@@ -366,13 +554,97 @@ pub async fn cloud_disconnect(
 // ── Token 管理 ───────────────────────────────────────────
 
 fn get_valid_token(provider: &str) -> Result<String, String> {
-    let store = TOKEN_STORE
+    let mut store = TOKEN_STORE
         .lock()
         .map_err(|e| format!("Token 读取失败: {}", e))?;
+
+    // 若内存中没有，尝试从 Keychain 加载
+    if !store.contains_key(provider) {
+        if let Ok(tokens) = load_token_from_keychain(provider) {
+            store.insert(provider.to_string(), tokens);
+        }
+    }
+
     let tokens = store
         .get(provider)
         .ok_or_else(|| format!("未连接 {}，请先授权登录", provider))?;
+
+    // 检查是否过期（提前 5 分钟刷新）
+    let now = std::time::SystemTime::now()
+        .duration_since(std::time::UNIX_EPOCH)
+        .unwrap()
+        .as_secs();
+
+    if tokens.expires_at <= now + 300 {
+        // Token 即将过期，尝试刷新
+        if let Some(ref refresh_token) = tokens.refresh_token {
+            let refresh = refresh_token.clone();
+            let provider_str = provider.to_string();
+            drop(store); // 释放锁
+            // 同步刷新（阻塞当前线程）
+            if let Ok(new_tokens) = refresh_access_token_sync(&provider_str, &refresh) {
+                let mut store = TOKEN_STORE.lock()
+                    .map_err(|e| format!("Lock 失败: {}", e))?;
+                let access = new_tokens.access_token.clone();
+                store.insert(provider_str, new_tokens);
+                return Ok(access);
+            }
+        }
+        // 刷新失败但 token 可能还能用
+        let store = TOKEN_STORE.lock()
+            .map_err(|e| format!("Lock 失败: {}", e))?;
+        if let Some(t) = store.get(provider) {
+            return Ok(t.access_token.clone());
+        }
+        return Err(format!("Token 已过期且刷新失败，请重新连接 {}", provider));
+    }
+
     Ok(tokens.access_token.clone())
+}
+
+/// 使用 refresh_token 刷新 access_token
+fn refresh_access_token_sync(provider: &str, refresh_token: &str) -> Result<CloudTokens, String> {
+    let config = get_oauth_config(provider)?;
+    let (client_id, client_secret) = get_oauth_credentials(provider)?;
+
+    let client = reqwest::blocking::Client::new();
+    let mut params = HashMap::new();
+    params.insert("grant_type", "refresh_token");
+    params.insert("refresh_token", refresh_token);
+    params.insert("client_id", &client_id);
+    params.insert("client_secret", &client_secret);
+
+    let resp = client
+        .post(config.token_url)
+        .form(&params)
+        .send()
+        .map_err(|e| format!("刷新请求失败: {}", e))?;
+
+    let body: serde_json::Value = resp
+        .json()
+        .map_err(|e| format!("刷新响应解析失败: {}", e))?;
+
+    let access_token = body["access_token"]
+        .as_str()
+        .ok_or("刷新失败: 未获取到 access_token")?
+        .to_string();
+    let new_refresh = body["refresh_token"].as_str()
+        .map(|s| s.to_string())
+        .or_else(|| Some(refresh_token.to_string()));
+    let expires_in = body["expires_in"].as_u64().unwrap_or(3600);
+
+    let tokens = CloudTokens {
+        access_token,
+        refresh_token: new_refresh,
+        expires_at: std::time::SystemTime::now()
+            .duration_since(std::time::UNIX_EPOCH)
+            .unwrap()
+            .as_secs()
+            + expires_in,
+    };
+
+    let _ = save_token_to_keychain(provider, &tokens);
+    Ok(tokens)
 }
 
 // ── 用户信息 ─────────────────────────────────────────────

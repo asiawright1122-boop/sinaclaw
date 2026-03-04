@@ -8,6 +8,8 @@ use tauri_plugin_sql::{Migration, MigrationKind};
 
 mod tools;
 mod cloud;
+mod tools_extended;
+mod mcp;
 
 // ── 数据结构 ──────────────────────────────────────────────
 
@@ -451,6 +453,9 @@ pub fn run() {
         })
         .plugin(tauri_plugin_sql::Builder::default().add_migrations("sqlite:chat.db", migrations).build())
         .plugin(tauri_plugin_opener::init())
+        .plugin(tauri_plugin_shell::init())
+        .plugin(tauri_plugin_dialog::init())
+        .plugin(tauri_plugin_fs::init())
         .plugin(tauri_plugin_store::Builder::default().build())
         .invoke_handler(tauri::generate_handler![
             greet,
@@ -463,12 +468,21 @@ pub fn run() {
             tools::tool_install_dependency,
             cloud::cloud_auth_url,
             cloud::cloud_auth_exchange,
+            cloud::cloud_start_auth,
             cloud::cloud_list_files,
             cloud::cloud_download,
             cloud::cloud_upload,
             cloud::cloud_delete,
             cloud::cloud_get_status,
             cloud::cloud_disconnect,
+            tools::set_workspace,
+            tools::get_workspace,
+            tools::pick_folder,
+            tools_extended::tool_search_web,
+            tools_extended::tool_screenshot,
+            mcp::mcp_connect,
+            mcp::mcp_call_tool,
+            mcp::mcp_get_active_tools,
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");

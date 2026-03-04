@@ -8,6 +8,8 @@
  */
 import { sendMessage, onStreamChunk } from "@/lib/tauri";
 import { OPENCLAW_TOOLS, executeTool } from "@/lib/tools";
+import { skillManager } from "@/lib/skills";
+import { useMCPStore } from "@/store/mcpStore";
 
 // ── System Prompt ────────────────────────────────────────
 
@@ -61,6 +63,9 @@ const OPENCLAW_SYSTEM_PROMPT = `你是 OpenClaw — 一个内置于 Sinaclaw 桌
 2. 需要分析/修复文件时，先用 cloud_download 下载到本地，再用 read_file 读取
 3. 修复完成后用 cloud_upload 上传回云端
 4. provider 参数可选: google_drive / onedrive / dropbox
+
+## 执行外部任务 (MCP & Skills)
+除内置工具外，你还具备通过 MCP (Model Context Protocol) 插件系统、以及本地 Skills 脚本扩展能力操作外部服务（如 Notion, GitHub, Slack 等）的能力。你可以跨平台、跨应用完成用户交付的任务。
 
 ## 回复语言
 始终使用**中文**回复用户。`;
@@ -129,9 +134,11 @@ export async function runAgentLoop(params: {
 
     // Agent 循环：最多 10 轮工具调用（防止无限循环）
     const MAX_ROUNDS = 10;
+    const TOOL_TIMEOUT_MS = 60_000; // 工具执行超时 60 秒
 
     for (let round = 0; round < MAX_ROUNDS; round++) {
-        const result = await callLLMWithTools({
+        // LLM 调用（带重试）
+        const result = await callLLMWithRetry({
             messages,
             apiKey,
             provider,
@@ -149,25 +156,34 @@ export async function runAgentLoop(params: {
         }
 
         // LLM 请求调用工具 → 自动执行
-        // 先把 assistant 的 tool_calls 消息追加到历史
         messages.push({
             role: "assistant",
             content: null,
             toolCalls: result.toolCalls,
         });
 
-        // 逐一执行工具
+        // 逐一执行工具（带超时保护）
         for (const toolCall of result.toolCalls) {
             onToolCallStart(toolCall);
-
             toolCall.status = "running";
-            const toolResult = await executeTool(toolCall.functionName, toolCall.arguments);
-            toolCall.result = toolResult;
-            toolCall.status = "done";
 
+            let toolResult: string;
+            try {
+                toolResult = await Promise.race([
+                    executeTool(toolCall.functionName, toolCall.arguments),
+                    new Promise<string>((_, reject) =>
+                        setTimeout(() => reject(new Error(`⏰ 工具 ${toolCall.functionName} 执行超时 (${TOOL_TIMEOUT_MS / 1000}s)`)), TOOL_TIMEOUT_MS)
+                    ),
+                ]);
+                toolCall.status = "done";
+            } catch (err) {
+                toolResult = `❌ ${err instanceof Error ? err.message : String(err)}`;
+                toolCall.status = "error";
+            }
+
+            toolCall.result = toolResult;
             onToolCallResult(toolCall.id, toolResult);
 
-            // 将工具结果追加到消息历史
             messages.push({
                 role: "tool",
                 content: toolResult,
@@ -175,12 +191,51 @@ export async function runAgentLoop(params: {
                 name: toolCall.functionName,
             });
         }
-
-        // 继续下一轮：带着工具结果再次调用 LLM
     }
 
-    // 超过最大轮数
     onDone("⚠️ Agent 已达到最大工具调用轮数 (10 轮)，请检查是否有异常循环。");
+}
+
+// ── LLM 调用重试（指数退避）────────────────────────────────
+
+const MAX_RETRIES = 3;
+const RETRY_DELAYS = [1000, 2000, 4000]; // 指数退避
+
+function isRetryableError(errorMsg: string): boolean {
+    const lower = errorMsg.toLowerCase();
+    // 网络错误 / 5xx / 429 速率限制可重试；4xx（认证、参数错误）不重试
+    return (
+        lower.includes("network") ||
+        lower.includes("timeout") ||
+        lower.includes("econnreset") ||
+        lower.includes("econnrefused") ||
+        lower.includes("fetch") ||
+        lower.includes("500") ||
+        lower.includes("502") ||
+        lower.includes("503") ||
+        lower.includes("429") ||
+        lower.includes("rate limit") ||
+        lower.includes("too many requests")
+    );
+}
+
+async function callLLMWithRetry(
+    params: Parameters<typeof callLLMWithTools>[0]
+): Promise<ReturnType<typeof callLLMWithTools> extends Promise<infer R> ? R : never> {
+    let lastError = "";
+    for (let attempt = 0; attempt < MAX_RETRIES; attempt++) {
+        try {
+            return await callLLMWithTools(params);
+        } catch (err) {
+            lastError = err instanceof Error ? err.message : String(err);
+            if (!isRetryableError(lastError) || attempt === MAX_RETRIES - 1) {
+                throw err;
+            }
+            // 等待后重试
+            await new Promise((r) => setTimeout(r, RETRY_DELAYS[attempt]));
+        }
+    }
+    throw new Error(lastError);
 }
 
 // ── LLM 调用（带工具定义）────────────────────────────────
@@ -282,6 +337,9 @@ async function callLLMWithTools(params: {
         });
 
         try {
+            // 热重载本地外部技能
+            await skillManager.init();
+
             await sendMessage({
                 messages: apiMessages as any,
                 api_key: apiKey,
@@ -289,7 +347,11 @@ async function callLLMWithTools(params: {
                 model,
                 temperature,
                 max_tokens: maxTokens,
-                tools: OPENCLAW_TOOLS as any,
+                tools: [
+                    ...OPENCLAW_TOOLS,
+                    ...skillManager.getSkillTools(),
+                    ...useMCPStore.getState().getActiveToolsAsSchema()
+                ] as any,
                 tool_choice: "auto",
             });
         } catch (error) {

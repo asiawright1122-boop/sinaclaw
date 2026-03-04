@@ -1,0 +1,9 @@
+# OAuth 凭据 - 在各平台开发者控制台获取后填入
+# 复制此文件为 config.toml 并填入真实凭据
+[env]
+SINACLAW_GOOGLE_CLIENT_ID = { value = "YOUR_GOOGLE_CLIENT_ID", force = true }
+SINACLAW_GOOGLE_CLIENT_SECRET = { value = "YOUR_GOOGLE_CLIENT_SECRET", force = true }
+SINACLAW_AZURE_CLIENT_ID = { value = "YOUR_AZURE_CLIENT_ID", force = true }
+SINACLAW_AZURE_CLIENT_SECRET = { value = "YOUR_AZURE_CLIENT_SECRET", force = true }
+SINACLAW_DROPBOX_APP_KEY = { value = "YOUR_DROPBOX_APP_KEY", force = true }
+SINACLAW_DROPBOX_APP_SECRET = { value = "YOUR_DROPBOX_APP_SECRET", force = true }

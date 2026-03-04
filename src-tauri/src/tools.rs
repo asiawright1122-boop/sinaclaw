@@ -1,6 +1,80 @@
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
-use std::path::Path;
+use std::path::{Path, PathBuf};
+use std::sync::Mutex;
+use once_cell::sync::Lazy;
+
+// ── 全局工作目录状态 ──────────────────────────────────────
+static WORKSPACE_PATH: Lazy<Mutex<Option<PathBuf>>> = Lazy::new(|| Mutex::new(None));
+
+/// 检查路径是否在已授权的工作目录内
+fn is_path_allowed(target: &Path) -> Result<(), String> {
+    let ws = WORKSPACE_PATH.lock().map_err(|e| format!("锁异常: {}", e))?;
+    match ws.as_ref() {
+        Some(workspace) => {
+            let canonical_target = target.canonicalize()
+                .or_else(|_| {
+                    // 文件可能尚不存在（写入场景），检查父目录
+                    target.parent()
+                        .and_then(|p| p.canonicalize().ok())
+                        .map(|p| p.join(target.file_name().unwrap_or_default()))
+                        .ok_or_else(|| format!("无法解析路径: {}", target.display()))
+                })?;
+            let canonical_ws = workspace.canonicalize()
+                .map_err(|e| format!("无法解析工作目录: {}", e))?;
+            if canonical_target.starts_with(&canonical_ws) {
+                Ok(())
+            } else {
+                Err(format!("⛔ 安全限制：路径 {} 不在已授权的工作目录 {} 内",
+                    target.display(), workspace.display()))
+            }
+        }
+        None => {
+            // 未设置工作目录时放行（兼容旧逻辑）
+            Ok(())
+        }
+    }
+}
+
+#[tauri::command]
+pub fn set_workspace(path: String) -> Result<String, String> {
+    let p = PathBuf::from(&path);
+    if !p.is_dir() {
+        return Err(format!("路径不是有效目录: {}", path));
+    }
+    let mut ws = WORKSPACE_PATH.lock().map_err(|e| format!("锁异常: {}", e))?;
+    *ws = Some(p);
+    Ok(format!("✅ 工作目录已设置为: {}", path))
+}
+
+#[tauri::command]
+pub fn get_workspace() -> Result<Option<String>, String> {
+    let ws = WORKSPACE_PATH.lock().map_err(|e| format!("锁异常: {}", e))?;
+    Ok(ws.as_ref().map(|p| p.to_string_lossy().to_string()))
+}
+
+/// 使用原生文件对话框选择工作目录
+/// 通过 spawn_blocking 在独立线程运行，避免阻塞 Tauri 主线程/tokio 运行时
+#[tauri::command]
+pub async fn pick_folder() -> Result<Option<String>, String> {
+    let result = tokio::task::spawn_blocking(|| {
+        rfd::FileDialog::new()
+            .set_title("选择工作目录")
+            .pick_folder()
+    })
+    .await
+    .map_err(|e| format!("线程异常: {}", e))?;
+
+    match result {
+        Some(path) => {
+            let path_str = path.to_string_lossy().to_string();
+            let mut ws = WORKSPACE_PATH.lock().map_err(|e| format!("锁异常: {}", e))?;
+            *ws = Some(path);
+            Ok(Some(path_str))
+        }
+        None => Ok(None),
+    }
+}
 
 // ── 数据结构 ──────────────────────────────────────────────
 
@@ -71,50 +145,90 @@ fn get_full_path() -> String {
 // ── 工具 1: 执行命令 ─────────────────────────────────────
 
 #[tauri::command]
-pub async fn tool_run_command(command: String, cwd: Option<String>) -> Result<CommandResult, String> {
-    let shell = if cfg!(target_os = "windows") { "cmd" } else { "sh" };
-    let flag = if cfg!(target_os = "windows") { "/C" } else { "-c" };
+pub async fn tool_run_command(app: tauri::AppHandle, command: String, cwd: Option<String>) -> Result<CommandResult, String> {
+    let is_node_command = command.starts_with("node ") || command == "node";
 
-    // 用 login shell 包装命令，确保加载 ~/.zshrc / ~/.bashrc 中的环境变量
-    let wrapped_command = if cfg!(target_os = "windows") {
-        command.clone()
-    } else {
-        // source profile 然后执行命令，这样 nvm/volta 等也能正常工作
-        format!(
-            "export PATH=\"{}\"; {}",
-            get_full_path(),
-            command
-        )
-    };
-
-    let mut cmd = tokio::process::Command::new(shell);
-    cmd.arg(flag).arg(&wrapped_command);
-
-    if let Some(dir) = &cwd {
-        let path = Path::new(dir);
-        if path.exists() {
-            cmd.current_dir(path);
+    if is_node_command {
+        // 使用 Tauri Sidecar (内置的 node 二进制文件)
+        // 从 "node script.js arg1" 中抽取出 script.js 和 arg1
+        use tauri_plugin_shell::ShellExt;
+        
+        let mut sidecar = app.shell().sidecar("bin/node")
+            .map_err(|e| format!("无法初始化 sidecar (node 内置环境): {}", e))?;
+            
+        let args: Vec<String> = command
+            .split_whitespace()
+            .skip(1) // 跳过 "node" 本身
+            .map(|s| s.to_string())
+            .collect();
+            
+        if !args.is_empty() {
+             sidecar = sidecar.args(&args);
         }
+
+        if let Some(dir) = &cwd {
+             sidecar = sidecar.current_dir(Path::new(dir));
+        }
+        
+        // 执行 built-in node
+        let output = sidecar
+            .output()
+            .await
+            .map_err(|e| format!("Node 内置环境执行失败: {}", e))?;
+            
+        let stdout = String::from_utf8_lossy(&output.stdout).to_string();
+        let stderr = String::from_utf8_lossy(&output.stderr).to_string();
+        let exit_code = output.status.code().unwrap_or(-1);
+
+        Ok(CommandResult {
+            stdout: truncate_output(&stdout, 8000),
+            stderr: truncate_output(&stderr, 4000),
+            exit_code,
+            success: output.status.success(),
+        })
+    } else {
+        // 普通的 Shell 命令 (Git, pip 等系统级命令)，回落到常规流程
+        let shell = if cfg!(target_os = "windows") { "cmd" } else { "sh" };
+        let flag = if cfg!(target_os = "windows") { "/C" } else { "-c" };
+
+        let wrapped_command = if cfg!(target_os = "windows") {
+            command.clone()
+        } else {
+            format!(
+                "export PATH=\"{}\"; {}",
+                get_full_path(),
+                command
+            )
+        };
+
+        let mut cmd = tokio::process::Command::new(shell);
+        cmd.arg(flag).arg(&wrapped_command);
+
+        if let Some(dir) = &cwd {
+            let path = Path::new(dir);
+            if path.exists() {
+                cmd.current_dir(path);
+            }
+        }
+
+        cmd.env("PATH", get_full_path());
+
+        let output = cmd
+            .output()
+            .await
+            .map_err(|e| format!("命令执行失败: {}", e))?;
+
+        let stdout = String::from_utf8_lossy(&output.stdout).to_string();
+        let stderr = String::from_utf8_lossy(&output.stderr).to_string();
+        let exit_code = output.status.code().unwrap_or(-1);
+
+        Ok(CommandResult {
+            stdout: truncate_output(&stdout, 8000),
+            stderr: truncate_output(&stderr, 4000),
+            exit_code,
+            success: output.status.success(),
+        })
     }
-
-    // 设置完整 PATH
-    cmd.env("PATH", get_full_path());
-
-    let output = cmd
-        .output()
-        .await
-        .map_err(|e| format!("命令执行失败: {}", e))?;
-
-    let stdout = String::from_utf8_lossy(&output.stdout).to_string();
-    let stderr = String::from_utf8_lossy(&output.stderr).to_string();
-    let exit_code = output.status.code().unwrap_or(-1);
-
-    Ok(CommandResult {
-        stdout: truncate_output(&stdout, 8000),
-        stderr: truncate_output(&stderr, 4000),
-        exit_code,
-        success: output.status.success(),
-    })
 }
 
 // ── 工具 2: 读取文件 ─────────────────────────────────────
@@ -122,6 +236,8 @@ pub async fn tool_run_command(command: String, cwd: Option<String>) -> Result<Co
 #[tauri::command]
 pub async fn tool_read_file(path: String) -> Result<String, String> {
     let file_path = Path::new(&path);
+
+    is_path_allowed(file_path)?;
 
     if !file_path.exists() {
         return Err(format!("文件不存在: {}", path));
@@ -148,6 +264,8 @@ pub async fn tool_read_file(path: String) -> Result<String, String> {
 pub async fn tool_write_file(path: String, content: String) -> Result<String, String> {
     let file_path = Path::new(&path);
 
+    is_path_allowed(file_path)?;
+
     // 确保父目录存在
     if let Some(parent) = file_path.parent() {
         tokio::fs::create_dir_all(parent)
@@ -167,6 +285,8 @@ pub async fn tool_write_file(path: String, content: String) -> Result<String, St
 #[tauri::command]
 pub async fn tool_list_dir(path: String) -> Result<Vec<DirEntry>, String> {
     let dir_path = Path::new(&path);
+
+    is_path_allowed(dir_path)?;
 
     if !dir_path.exists() {
         return Err(format!("路径不存在: {}", path));
@@ -241,6 +361,7 @@ pub async fn tool_detect_env() -> Result<EnvInfo, String> {
 
 #[tauri::command]
 pub async fn tool_install_dependency(
+    app: tauri::AppHandle,
     package_manager: String,
     packages: Vec<String>,
     cwd: Option<String>,
@@ -254,7 +375,7 @@ pub async fn tool_install_dependency(
         _ => return Err(format!("不支持的包管理器: {}", package_manager)),
     };
 
-    tool_run_command(cmd, cwd).await
+    tool_run_command(app, cmd, cwd).await
 }
 
 // ── 辅助函数 ─────────────────────────────────────────────

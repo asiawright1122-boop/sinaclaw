@@ -1,4 +1,4 @@
-@import url('https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@300;400;500;600;700&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600&display=swap');
 
 @import "tailwindcss/base";
 @import "tailwindcss/components";
@@ -6,70 +6,71 @@
 
 @layer base {
   :root {
-    --background: 240 10% 98%;
-    --foreground: 240 10% 10%;
+    --background: 183 100% 96%;
+    /* #ECFEFF */
+    --foreground: 195 64% 24%;
+    /* #164E63 */
 
     --card: 0 0% 100%;
-    --card-foreground: 240 10% 10%;
+    --card-foreground: 195 64% 24%;
 
     --popover: 0 0% 100%;
-    --popover-foreground: 240 10% 10%;
+    --popover-foreground: 195 64% 24%;
 
-    /* Primary: Electric Indigo to Violet */
-    --primary: 250 84% 67%;
+    /* Primary: #0891B2 */
+    --primary: 192 91% 36%;
     --primary-foreground: 0 0% 100%;
 
-    --secondary: 240 4.8% 95.9%;
-    --secondary-foreground: 240 5.9% 10%;
+    /* Secondary: #22D3EE */
+    --secondary: 188 86% 53%;
+    --secondary-foreground: 195 64% 24%;
 
-    --muted: 240 4.8% 95.9%;
-    --muted-foreground: 240 3.8% 46.1%;
+    --muted: 183 20% 90%;
+    --muted-foreground: 195 20% 50%;
 
-    --accent: 250 84% 95%;
-    --accent-foreground: 250 84% 40%;
+    /* Accent/CTA: #22C55E */
+    --accent: 142 71% 45%;
+    --accent-foreground: 0 0% 100%;
 
     --destructive: 0 84.2% 60.2%;
     --destructive-foreground: 0 0% 98%;
 
-    --border: 240 5.9% 90%;
-    --input: 240 5.9% 90%;
-    --ring: 250 84% 67%;
+    --border: 183 30% 85%;
+    --input: 183 30% 85%;
+    --ring: 192 91% 36%;
 
     --radius: 1rem;
   }
 
-  /* Default to a sleek, dark aesthetic */
-  .dark,
-  :root {
-    /* Deep space / Midnight blue background */
-    --background: 230 25% 4%;
-    --foreground: 210 40% 98%;
+  /* Sleek Apple-style Dark Mode */
+  .dark {
+    --background: 220 10% 6%;
+    --foreground: 183 30% 96%;
 
-    --card: 230 25% 6%;
-    --card-foreground: 210 40% 98%;
+    --card: 220 10% 8%;
+    --card-foreground: 183 30% 96%;
 
-    --popover: 230 25% 6%;
-    --popover-foreground: 210 40% 98%;
+    --popover: 220 10% 8%;
+    --popover-foreground: 183 30% 96%;
 
-    /* Primary: Vibrant Violet/Indigo */
-    --primary: 260 85% 65%;
+    --primary: 192 91% 45%;
     --primary-foreground: 0 0% 100%;
 
-    --secondary: 230 25% 12%;
-    --secondary-foreground: 210 40% 98%;
+    --secondary: 188 86% 65%;
+    --secondary-foreground: 220 10% 6%;
 
-    --muted: 230 25% 12%;
-    --muted-foreground: 220 20% 65%;
+    --muted: 220 10% 15%;
+    --muted-foreground: 183 10% 60%;
 
-    --accent: 260 40% 20%;
-    --accent-foreground: 260 85% 75%;
+    --accent: 142 71% 45%;
+    --accent-foreground: 0 0% 100%;
 
     --destructive: 0 62.8% 30.6%;
     --destructive-foreground: 210 40% 98%;
 
-    --border: 230 25% 15%;
-    --input: 230 25% 18%;
-    --ring: 260 85% 65%;
+    --border: 220 10% 15%;
+    --input: 220 10% 15%;
+    --ring: 192 91% 45%;
   }
 }
 
@@ -104,7 +105,18 @@
   }
 
   .icon-glow {
-    filter: drop-shadow(0 0 12px rgba(139, 92, 246, 0.4));
+    filter: drop-shadow(0 0 12px rgba(8, 145, 178, 0.4));
+  }
+
+  .no-scrollbar::-webkit-scrollbar {
+    display: none;
+  }
+
+  .no-scrollbar {
+    -ms-overflow-style: none;
+    /* IE and Edge */
+    scrollbar-width: none;
+    /* Firefox */
   }
 }
 

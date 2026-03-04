@@ -1,5 +1,5 @@
 import { motion, AnimatePresence } from "framer-motion";
-import { Shield, CheckCircle, XCircle, Loader2, Download, Sparkles } from "lucide-react";
+import { Shield, CheckCircle, XCircle, Loader2, Sparkles } from "lucide-react";
 import { useEffect, useState } from "react";
 import { runEnvironmentScan, type ScanItem } from "@/lib/scanner";
 
@@ -22,11 +22,11 @@ export default function SetupWizard({ onComplete }: SetupWizardProps) {
                 if (!cancelled) {
                     setPhase(scanResult.hasRequired ? "done" : "error");
 
-                    // 只要必需环境通过，2 秒后自动进入主界面（实现真正的零干预）
+                    // 只要内置引擎存在，1 秒后自动进入主界面
                     if (scanResult.hasRequired) {
                         setTimeout(() => {
                             if (!cancelled) onComplete();
-                        }, 2000);
+                        }, 1000);
                     }
                 }
             } catch {
@@ -47,11 +47,6 @@ export default function SetupWizard({ onComplete }: SetupWizardProps) {
             case "installed_now":
                 return <CheckCircle className="w-4 h-4 text-cyan-400" />;
             case "missing":
-                return item.required
-                    ? <XCircle className="w-4 h-4 text-red-400" />
-                    : <span className="w-4 h-4 text-xs text-muted-foreground">—</span>;
-            case "installing":
-                return <Download className="w-4 h-4 animate-bounce text-amber-400" />;
             case "failed":
                 return <XCircle className="w-4 h-4 text-red-400" />;
         }
@@ -59,12 +54,10 @@ export default function SetupWizard({ onComplete }: SetupWizardProps) {
 
     const statusText = (item: ScanItem) => {
         switch (item.status) {
-            case "checking": return "检测中...";
-            case "installed": return item.version;
-            case "installed_now": return `✨ ${item.version || "已安装"}`;
-            case "missing": return item.required ? "缺失 — 将自动安装" : "未安装（可选）";
-            case "installing": return item.installNote || "正在安装...";
-            case "failed": return "安装失败";
+            case "checking": return "初始化中...";
+            case "installed": return `就绪 (${item.version})`;
+            case "failed": return "初始化失败";
+            default: return "";
         }
     };
 
@@ -91,14 +84,14 @@ export default function SetupWizard({ onComplete }: SetupWizardProps) {
                     </motion.div>
 
                     <h2 className="text-xl font-bold tracking-tight mb-1">
-                        {phase === "scanning" && "🔍 环境自检中..."}
-                        {phase === "done" && "✅ 一切就绪！"}
-                        {phase === "error" && "⚠️ 部分工具缺失"}
+                        {phase === "scanning" && "🚀 初始化引擎..."}
+                        {phase === "done" && "✅ 启动就绪！"}
+                        {phase === "error" && "⚠️ 内部引擎异常"}
                     </h2>
                     <p className="text-sm text-muted-foreground">
-                        {phase === "scanning" && "OpenClaw 正在检测你的开发环境"}
-                        {phase === "done" && "你的环境已经配置完毕，即将进入"}
-                        {phase === "error" && "部分必需工具安装失败，请手动安装后重试"}
+                        {phase === "scanning" && "正在加载 Sinaclaw 内置运行环境"}
+                        {phase === "done" && "即将进入系统"}
+                        {phase === "error" && "内部引擎加载失败，可能是解压或系统兼容性问题"}
                     </p>
                 </div>
 

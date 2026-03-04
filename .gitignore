@@ -25,6 +25,7 @@ dist-ssr
 
 # Tauri
 src-tauri/target/
+src-tauri/.cargo/config.toml
 
 # Local cache
 .local-npm-cache/

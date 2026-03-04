@@ -2,7 +2,8 @@ import { BrowserRouter, Routes, Route } from "react-router-dom";
 import AppLayout from "@/components/layout/AppLayout";
 import ChatPage from "@/pages/ChatPage";
 import SettingsPage from "@/pages/SettingsPage";
-import CloudPage from "@/pages/CloudPage";
+import KnowledgePage from "@/pages/KnowledgePage";
+import SkillStorePage from "@/pages/SkillStorePage";
 
 function App() {
   return (
@@ -12,7 +13,8 @@ function App() {
           <Route element={<AppLayout />}>
             <Route index element={<ChatPage />} />
             <Route path="settings" element={<SettingsPage />} />
-            <Route path="cloud" element={<CloudPage />} />
+            <Route path="knowledge" element={<KnowledgePage />} />
+            <Route path="skills" element={<SkillStorePage />} />
           </Route>
         </Routes>
       </div>

@@ -7,6 +7,9 @@ import {
     getMessages,
     saveMessage
 } from "@/lib/db";
+import { sendMessage, onStreamChunk } from "@/lib/tauri";
+import { useSettingsStore } from "@/store/settingsStore";
+import { PROVIDER_INFO } from "@/store/settingsStore";
 
 export interface Message {
     id: string;
@@ -46,6 +49,58 @@ interface ChatState {
     updateLocalLastAssistantMessage: (conversationId: string, content: string) => void;
 
     renameConversation: (id: string, newTitle: string) => Promise<void>;
+}
+
+// ── LLM 自动标题生成 ────────────────────────────────────────
+async function generateSmartTitle(conversationId: string, userMessage: string) {
+    try {
+        const settings = useSettingsStore.getState();
+        if (!settings.apiKey || !settings.provider) return;
+
+        const providerInfo = PROVIDER_INFO[settings.provider];
+        if (!providerInfo) return;
+
+        let generatedTitle = "";
+
+        const unlisten = await onStreamChunk((chunk) => {
+            if (chunk.done) {
+                unlisten();
+                // 清理标题（去掉引号和多余空白）
+                const title = generatedTitle.replace(/["""'']/g, "").trim().slice(0, 20);
+                if (title.length >= 2) {
+                    // 更新 store 和 DB
+                    updateConversationTitle(conversationId, title).catch(console.error);
+                    useChatStore.setState((state) => ({
+                        conversations: state.conversations.map((c) =>
+                            c.id === conversationId ? { ...c, title } : c
+                        ),
+                    }));
+                }
+                return;
+            }
+            if (chunk.content) {
+                generatedTitle += chunk.content;
+            }
+        });
+
+        await sendMessage({
+            messages: [
+                {
+                    role: "system",
+                    content: "你是一个标题生成器。给用户的消息生成一个简短的中文标题，不超过15个字。只输出标题本身，不要加引号、标点或解释。",
+                },
+                { role: "user", content: userMessage.slice(0, 200) },
+            ],
+            api_key: settings.apiKey,
+            provider: settings.provider,
+            model: settings.model,
+            temperature: 0.3,
+            max_tokens: 30,
+        });
+    } catch (e) {
+        // LLM 调用失败时静默降级（截断标题已设置）
+        console.warn("标题生成失败:", e);
+    }
 }
 
 export const useChatStore = create<ChatState>((set, get) => ({
@@ -177,12 +232,15 @@ export const useChatStore = create<ChatState>((set, get) => ({
                 conversations: state.conversations.map((conv) => {
                     if (conv.id !== conversationId) return conv;
 
-                    // 自动重命名由于首个用户消息触发
+                    // 首条用户消息触发标题生成
                     let newTitle = conv.title;
                     if (conv.messages.length === 0 && role === "user") {
+                        // 立即设置截断标题（快速反馈）
                         newTitle = content.slice(0, 30) + (content.length > 30 ? "..." : "");
-                        // 触发异步更新DB title (这里不 await 以免阻塞UI)
                         updateConversationTitle(conversationId, newTitle).catch(console.error);
+
+                        // 异步调用 LLM 生成更好的标题
+                        generateSmartTitle(conversationId, content);
                     }
 
                     return {

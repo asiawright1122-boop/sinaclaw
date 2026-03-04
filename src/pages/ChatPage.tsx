@@ -9,8 +9,10 @@ import ChatMessage from "@/components/chat/ChatMessage";
 import ChatInput from "@/components/chat/ChatInput";
 import TypingIndicator from "@/components/chat/TypingIndicator";
 import ToolCallBlock from "@/components/chat/ToolCallBlock";
+import { useTranslate } from "@/lib/i18n";
 
 export default function ChatPage() {
+    const t = useTranslate();
     const {
         conversations,
         activeConversationId,
@@ -48,14 +50,12 @@ export default function ChatPage() {
         if (!apiKey) {
             setIsGenerating(true);
 
+            const mt = t.chat.mockReply;
             const mockReply = [
-                `你好！我是 OpenClaw 🦀`,
-                `\n\n⚠️ **未配置 API Key**`,
-                `\n\n请前往 **设置** 页面配置你的 API Key，我就可以：`,
-                `\n- 🔍 自动检测你的开发环境`,
-                `\n- 📦 自动安装缺失的依赖`,
-                `\n- 🔧 自动修复编译错误`,
-                `\n- 💡 一切全自动，你只需要看着就行！`,
+                `# ${mt.title}`,
+                `\n\n${mt.warning}`,
+                `\n\n${mt.instruction}`,
+                ...mt.features.map(f => `\n- ${f}`)
             ];
 
             // 先在前端添加一条空的 assistant 消息
@@ -103,10 +103,10 @@ export default function ChatPage() {
             ),
         }));
 
-        // 构建历史消息（转为 AgentMessage 格式）
+        // 构建历史消息
         const currentConv = useChatStore.getState().conversations.find(c => c.id === convId);
         const history: AgentMessage[] = (currentConv?.messages || [])
-            .filter(m => m.content && m.id !== tempMsg.id) // 排除空的临时消息
+            .filter(m => m.content && m.id !== tempMsg.id)
             .map(m => ({
                 role: m.role as AgentMessage["role"],
                 content: m.content,
@@ -128,7 +128,6 @@ export default function ChatPage() {
                     updateLocalLastAssistantMessage(convId!, assistantContent);
                 },
                 onToolCallStart: (toolCall) => {
-                    // 将工具调用添加到当前 assistant 消息的 toolCalls 列表
                     useChatStore.setState((s) => ({
                         conversations: s.conversations.map(c => {
                             if (c.id !== convId) return c;
@@ -146,7 +145,6 @@ export default function ChatPage() {
                     }));
                 },
                 onToolCallResult: (toolCallId, result) => {
-                    // 更新工具调用的结果
                     useChatStore.setState((s) => ({
                         conversations: s.conversations.map(c => {
                             if (c.id !== convId) return c;
@@ -166,7 +164,6 @@ export default function ChatPage() {
                     }));
                 },
                 onDone: async (finalContent) => {
-                    // Agent 循环结束，保存最终结果到 DB
                     const fullText = assistantContent || finalContent;
                     if (fullText) {
                         await addMessageToDb(convId!, "assistant", fullText);
@@ -187,17 +184,16 @@ export default function ChatPage() {
     };
 
     return (
-        <div className="flex-1 flex flex-col h-full">
+        <div className="flex-1 flex flex-col h-full overflow-hidden">
             {/* 消息区域 */}
             {hasMessages ? (
-                <div className="flex-1 overflow-y-auto">
-                    <div className="max-w-3xl mx-auto">
+                <div className="flex-1 overflow-y-auto pt-6 px-4 no-scrollbar">
+                    <div className="max-w-4xl mx-auto pb-6">
                         {activeConversation.messages.map((msg) => (
                             <div key={msg.id}>
                                 <ChatMessage message={msg} />
-                                {/* 渲染该消息关联的工具调用 */}
                                 {msg.toolCalls && msg.toolCalls.length > 0 && (
-                                    <div className="ml-12 mr-4">
+                                    <div className="ml-[72px] mr-6 mb-6">
                                         {msg.toolCalls.map((tc) => (
                                             <ToolCallBlock key={tc.id} toolCall={tc} />
                                         ))}
@@ -210,22 +206,21 @@ export default function ChatPage() {
                     </div>
                 </div>
             ) : (
-                <div className="flex-1 flex flex-col justify-center items-center text-center">
-                    {/* 欢迎界面 */}
+                <div className="flex-1 flex flex-col justify-center items-center text-center overflow-y-auto p-4 no-scrollbar">
                     <motion.div
                         initial={{ scale: 0.9, opacity: 0 }}
                         animate={{ scale: 1, opacity: 1 }}
                         transition={{ duration: 0.7, delay: 0.2, type: "spring" }}
                         className="relative mb-8 group"
                     >
-                        <div className="absolute inset-0 bg-primary/30 blur-[40px] rounded-full group-hover:bg-primary/50 transition-colors duration-500" />
-                        <div className="relative w-24 h-24 rounded-3xl glass-panel flex items-center justify-center border border-white/20 shadow-2xl overflow-hidden">
+                        <div className="absolute inset-0 bg-primary/30 blur-[50px] rounded-full group-hover:bg-primary/50 transition-colors duration-700" />
+                        <div className="relative w-28 h-28 rounded-[2rem] bg-card/60 dark:bg-card/40 backdrop-blur-3xl flex items-center justify-center border border-white/40 dark:border-white/10 shadow-2xl overflow-hidden">
                             <div className="absolute inset-0 bg-gradient-to-tr from-primary/20 to-transparent" />
                             <motion.div
                                 animate={{ rotate: [0, 5, -5, 0] }}
                                 transition={{ repeat: Infinity, duration: 6, ease: "easeInOut" }}
                             >
-                                <Sparkles className="w-10 h-10 text-primary-foreground icon-glow" />
+                                <Sparkles className="w-12 h-12 text-primary icon-glow" />
                             </motion.div>
                         </div>
                     </motion.div>
@@ -234,29 +229,28 @@ export default function ChatPage() {
                         initial={{ y: 20, opacity: 0 }}
                         animate={{ y: 0, opacity: 1 }}
                         transition={{ duration: 0.5, delay: 0.3 }}
-                        className="text-4xl font-black tracking-tight mb-4"
+                        className="text-5xl font-black tracking-tight mb-5 bg-gradient-to-br from-foreground to-foreground/50 bg-clip-text text-transparent"
                     >
-                        OpenClaw 🦀
+                        {t.chat.title}
                     </motion.h1>
 
                     <motion.p
                         initial={{ y: 20, opacity: 0 }}
                         animate={{ y: 0, opacity: 1 }}
                         transition={{ duration: 0.5, delay: 0.4 }}
-                        className="text-lg text-muted-foreground max-w-md mb-8 font-medium"
+                        className="text-[15px] text-muted-foreground/80 max-w-md mb-8 font-medium leading-relaxed"
                     >
-                        智能开发环境助手 — 自动检测、诊断、修复一切问题
+                        {t.chat.subtitle}
                     </motion.p>
 
-                    {/* API Key 提示 */}
                     {!apiKey && (
                         <motion.div
                             initial={{ y: 20, opacity: 0 }}
                             animate={{ y: 0, opacity: 1 }}
                             transition={{ duration: 0.5, delay: 0.45 }}
-                            className="mb-6 px-4 py-3 rounded-xl border border-amber-500/30 bg-amber-500/10 text-amber-200 text-sm max-w-md"
+                            className="mb-8 px-5 py-3.5 rounded-2xl border border-orange-500/30 bg-orange-500/10 text-orange-400 text-[13px] font-medium max-w-md shadow-sm backdrop-blur-xl"
                         >
-                            💡 前往「设置」页面配置 API Key 以启用 Agent 能力
+                            {t.chat.apiKeyWarning}
                         </motion.div>
                     )}
 
@@ -264,24 +258,26 @@ export default function ChatPage() {
                         initial={{ y: 20, opacity: 0 }}
                         animate={{ y: 0, opacity: 1 }}
                         transition={{ duration: 0.5, delay: 0.5 }}
-                        className="flex flex-wrap gap-2 justify-center mb-4"
+                        className="grid grid-cols-2 gap-3 max-w-xl mx-auto mb-4 w-full px-4"
                     >
-                        {["检查我的开发环境", "npm install 报错了", "帮我装 Node.js", "查看项目结构"].map(
-                            (suggestion, i) => (
-                                <span
-                                    key={i}
-                                    onClick={() => setInputValue(suggestion)}
-                                    className="px-3 py-1.5 rounded-full border border-white/10 bg-white/5 text-xs font-medium text-muted-foreground hover:bg-white/10 hover:text-foreground cursor-pointer transition-colors backdrop-blur-sm"
-                                >
-                                    {suggestion}
-                                </span>
-                            )
-                        )}
+                        {[
+                            { key: "diagnose", text: t.chat.suggestions.diagnose },
+                            { key: "fixNpm", text: t.chat.suggestions.fixNpm },
+                            { key: "setupNode", text: t.chat.suggestions.setupNode },
+                            { key: "analyze", text: t.chat.suggestions.analyze },
+                        ].map((s, i) => (
+                            <div
+                                key={i}
+                                onClick={() => setInputValue(s.text)}
+                                className="p-4 rounded-2xl border border-white/30 dark:border-white/5 bg-white/40 dark:bg-black/20 text-[13px] font-semibold text-foreground/70 hover:bg-white/60 dark:hover:bg-black/40 hover:text-foreground cursor-pointer transition-all duration-300 backdrop-blur-xl shadow-sm hover:shadow-md hover:-translate-y-[2px]"
+                            >
+                                {s.text}
+                            </div>
+                        ))}
                     </motion.div>
                 </div>
             )}
 
-            {/* 输入区域始终在底部 */}
             <ChatInput onSend={handleSend} />
         </div>
     );

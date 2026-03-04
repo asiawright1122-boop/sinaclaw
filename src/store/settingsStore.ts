@@ -1,4 +1,5 @@
 import { create } from "zustand";
+import { load } from "@tauri-apps/plugin-store";
 
 export type AIProvider = "openai" | "anthropic" | "google" | "deepseek" | "minimax" | "zhipu" | "local";
 
@@ -8,13 +9,19 @@ export interface SettingsState {
   model: string;
   temperature: number;
   maxTokens: number;
+  language: "zh" | "en";
+  theme: "light" | "dark" | "system";
+  _hydrated: boolean;
 
   // Actions
+  hydrate: () => Promise<void>;
   setApiKey: (key: string) => void;
   setProvider: (provider: AIProvider) => void;
   setModel: (model: string) => void;
   setTemperature: (temp: number) => void;
   setMaxTokens: (tokens: number) => void;
+  setLanguage: (lang: "zh" | "en") => void;
+  setTheme: (theme: "light" | "dark" | "system") => void;
 }
 
 export const PROVIDER_INFO: Record<AIProvider, { label: string; emoji: string; apiUrl: string; format: "openai" | "anthropic" | "google" }> = {
@@ -136,23 +143,78 @@ function getOptimalParams(modelId: string): { temperature: number; maxTokens: nu
   return { temperature: 0.7, maxTokens: 4096 };
 }
 
+// 持久化帮助函数
+async function persistSettings(data: Partial<SettingsState>) {
+  try {
+    const store = await load("settings.json");
+    for (const [key, value] of Object.entries(data)) {
+      if (!key.startsWith("_") && typeof value !== "function") {
+        await store.set(key, value);
+      }
+    }
+  } catch (e) {
+    console.error("持久化设置失败:", e);
+  }
+}
+
 export const useSettingsStore = create<SettingsState>((set) => ({
   apiKey: "",
   provider: "openai",
   model: "gpt-5.2",
   temperature: 0.7,
   maxTokens: 8192,
+  language: "zh",
+  theme: "system",
+  _hydrated: false,
 
-  setApiKey: (key) => set({ apiKey: key }),
+  // 从本地存储恢复设置
+  hydrate: async () => {
+    try {
+      const store = await load("settings.json");
+      const apiKey = (await store.get<string>("apiKey")) ?? "";
+      const provider = (await store.get<AIProvider>("provider")) ?? "openai";
+      const model = (await store.get<string>("model")) ?? MODEL_OPTIONS[provider as AIProvider][0].id;
+      const temperature = (await store.get<number>("temperature")) ?? 0.7;
+      const maxTokens = (await store.get<number>("maxTokens")) ?? 8192;
+      const language = (await store.get<"zh" | "en">("language")) ?? "zh";
+      const theme = (await store.get<"light" | "dark" | "system">("theme")) ?? "system";
+      set({ apiKey, provider, model, temperature, maxTokens, language, theme, _hydrated: true });
+    } catch {
+      set({ _hydrated: true });
+    }
+  },
+
+  setApiKey: (key) => {
+    set({ apiKey: key });
+    persistSettings({ apiKey: key });
+  },
   setProvider: (provider) => {
     const newModel = MODEL_OPTIONS[provider][0].id;
     const params = getOptimalParams(newModel);
-    set({ provider, model: newModel, ...params });
+    const data = { provider, model: newModel, ...params };
+    set(data);
+    persistSettings(data);
   },
   setModel: (model) => {
     const params = getOptimalParams(model);
-    set({ model, ...params });
+    const data = { model, ...params };
+    set(data);
+    persistSettings(data);
   },
-  setTemperature: (temp) => set({ temperature: temp }),
-  setMaxTokens: (tokens) => set({ maxTokens: tokens }),
+  setTemperature: (temp) => {
+    set({ temperature: temp });
+    persistSettings({ temperature: temp });
+  },
+  setMaxTokens: (tokens) => {
+    set({ maxTokens: tokens });
+    persistSettings({ maxTokens: tokens });
+  },
+  setLanguage: (lang) => {
+    set({ language: lang });
+    persistSettings({ language: lang });
+  },
+  setTheme: (theme) => {
+    set({ theme });
+    persistSettings({ theme });
+  },
 }));
