@@ -13,6 +13,20 @@ import SkillMakerPage from "./SkillMakerPage";
 
 export default function SkillStorePage() {
     const t = useTranslate();
+    const SKILL_NAMES: Record<string, string> = {
+        "git-commit-helper": (t.skillStore as any).skGitCommitHelper,
+        "web-search": (t.skillStore as any).skWebSearch,
+        "image-compressor": (t.skillStore as any).skImageCompressor,
+        "markdown-to-pdf": (t.skillStore as any).skMarkdownToPdf,
+        "code-reviewer": (t.skillStore as any).skCodeReviewer,
+    };
+    const SKILL_DESCS: Record<string, string> = {
+        "git-commit-helper": (t.skillStore as any).skGitCommitHelperDesc,
+        "web-search": (t.skillStore as any).skWebSearchDesc,
+        "image-compressor": (t.skillStore as any).skImageCompressorDesc,
+        "markdown-to-pdf": (t.skillStore as any).skMarkdownToPdfDesc,
+        "code-reviewer": (t.skillStore as any).skCodeReviewerDesc,
+    };
     const [localSkills, setLocalSkills] = useState<LoadedSkill[]>([]);
     const [isLoading, setIsLoading] = useState(true);
     const [searchQuery, setSearchQuery] = useState("");
@@ -299,7 +313,7 @@ export default function SkillStorePage() {
                                                             <IconById id={skill.icon || 'pkg'} size={20} />
                                                         </div>
                                                         <div className="overflow-hidden">
-                                                            <h4 className="font-semibold text-[13px] truncate text-foreground">{skill.name}</h4>
+                                                            <h4 className="font-semibold text-[13px] truncate text-foreground">{SKILL_NAMES[skill.id] || skill.name}</h4>
                                                             <div className="flex items-center gap-2 text-[10px] text-muted-foreground uppercase tracking-widest font-medium mt-0.5">
                                                                 <span>{skill.author}</span>
                                                                 <span>·</span>
@@ -308,7 +322,7 @@ export default function SkillStorePage() {
                                                         </div>
                                                     </div>
                                                     <p className="text-[12px] text-muted-foreground line-clamp-2 leading-relaxed flex-1 mb-3">
-                                                        {skill.description}
+                                                        {SKILL_DESCS[skill.id] || skill.description}
                                                     </p>
                                                     {skill.trigger && (
                                                         <span className="text-[10px] px-1.5 py-0.5 rounded-md bg-amber-500/10 text-amber-500 font-mono mb-3 self-start">
