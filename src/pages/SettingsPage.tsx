@@ -189,6 +189,16 @@ export default function SettingsPage() {
     const t = useTranslate();
     const { servers, removeServer, toggleServer } = useMCPStore();
 
+    const TAG_LABELS: Record<string, string> = {
+        strongest: t.settings.tagStrongest,
+        value: t.settings.tagValue,
+        reasoning: t.settings.tagReasoning,
+        recommended: t.settings.tagRecommended,
+        fast: t.settings.tagFast,
+        general: t.settings.tagGeneral,
+        free: t.settings.tagFree,
+    };
+
     const providerKeys = Object.keys(PROVIDER_INFO) as AIProvider[];
 
     // 下拉与弹窗状态
@@ -503,16 +513,16 @@ export default function SettingsPage() {
                                             <span>{currentModelOption?.name}</span>
                                             {currentModelOption?.tag && (
                                                 <span className={`text-[10px] px-1.5 py-0.5 rounded-md font-bold uppercase tracking-wider ${
-                                                    currentModelOption.tag === "最强" ? "bg-amber-500/20 text-amber-500 dark:text-amber-300" :
-                                                    currentModelOption.tag === "推荐" ? "bg-green-500/20 text-green-600 dark:text-green-300" :
-                                                    currentModelOption.tag === "极速" ? "bg-cyan-500/20 text-cyan-600 dark:text-cyan-300" :
-                                                    currentModelOption.tag === "推理" ? "bg-violet-500/20 text-violet-600 dark:text-violet-300" :
-                                                    currentModelOption.tag === "通用" ? "bg-blue-500/20 text-blue-600 dark:text-blue-300" :
-                                                    currentModelOption.tag === "免费" ? "bg-emerald-500/20 text-emerald-600 dark:text-emerald-300" :
-                                                    currentModelOption.tag === "高性价比" ? "bg-teal-500/20 text-teal-600 dark:text-teal-300" :
+                                                    currentModelOption.tag === "strongest" ? "bg-amber-500/20 text-amber-500 dark:text-amber-300" :
+                                                    currentModelOption.tag === "recommended" ? "bg-green-500/20 text-green-600 dark:text-green-300" :
+                                                    currentModelOption.tag === "fast" ? "bg-cyan-500/20 text-cyan-600 dark:text-cyan-300" :
+                                                    currentModelOption.tag === "reasoning" ? "bg-violet-500/20 text-violet-600 dark:text-violet-300" :
+                                                    currentModelOption.tag === "general" ? "bg-blue-500/20 text-blue-600 dark:text-blue-300" :
+                                                    currentModelOption.tag === "free" ? "bg-emerald-500/20 text-emerald-600 dark:text-emerald-300" :
+                                                    currentModelOption.tag === "value" ? "bg-teal-500/20 text-teal-600 dark:text-teal-300" :
                                                     "bg-muted/50 text-muted-foreground"
                                                 }`}>
-                                                    {currentModelOption.tag}
+                                                    {TAG_LABELS[currentModelOption.tag] || currentModelOption.tag}
                                                 </span>
                                             )}
                                         </div>
@@ -545,16 +555,16 @@ export default function SettingsPage() {
                                                             {m.tag && (
                                                                 <span className={`text-[9px] px-1.5 py-0.5 rounded font-bold uppercase tracking-wider ${
                                                                     model === m.id ? "bg-primary/15 text-primary" :
-                                                                    m.tag === "最强" ? "bg-amber-500/15 text-amber-600 dark:text-amber-300" :
-                                                                    m.tag === "推荐" ? "bg-green-500/15 text-green-600 dark:text-green-300" :
-                                                                    m.tag === "极速" ? "bg-cyan-500/15 text-cyan-600 dark:text-cyan-300" :
-                                                                    m.tag === "推理" ? "bg-violet-500/15 text-violet-600 dark:text-violet-300" :
-                                                                    m.tag === "通用" ? "bg-blue-500/15 text-blue-600 dark:text-blue-300" :
-                                                                    m.tag === "免费" ? "bg-emerald-500/15 text-emerald-600 dark:text-emerald-300" :
-                                                                    m.tag === "高性价比" ? "bg-teal-500/15 text-teal-600 dark:text-teal-300" :
+                                                                    m.tag === "strongest" ? "bg-amber-500/15 text-amber-600 dark:text-amber-300" :
+                                                                    m.tag === "recommended" ? "bg-green-500/15 text-green-600 dark:text-green-300" :
+                                                                    m.tag === "fast" ? "bg-cyan-500/15 text-cyan-600 dark:text-cyan-300" :
+                                                                    m.tag === "reasoning" ? "bg-violet-500/15 text-violet-600 dark:text-violet-300" :
+                                                                    m.tag === "general" ? "bg-blue-500/15 text-blue-600 dark:text-blue-300" :
+                                                                    m.tag === "free" ? "bg-emerald-500/15 text-emerald-600 dark:text-emerald-300" :
+                                                                    m.tag === "value" ? "bg-teal-500/15 text-teal-600 dark:text-teal-300" :
                                                                     "bg-muted/50 text-muted-foreground"
                                                                 }`}>
-                                                                    {m.tag}
+                                                                    {TAG_LABELS[m.tag] || m.tag}
                                                                 </span>
                                                             )}
                                                         </div>

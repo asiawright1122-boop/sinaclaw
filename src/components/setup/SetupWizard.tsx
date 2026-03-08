@@ -102,7 +102,7 @@ function ScanStep({ onNext }: { onNext: () => void }) {
                                     }`}
                             >
                                 <span className="w-6 flex justify-center"><IconById id={item.icon} size={18} className="text-foreground/60" /></span>
-                                <span className="text-sm font-medium text-foreground/80 w-20">{item.label}</span>
+                                <span className="text-sm font-medium text-foreground/80 w-20">{({ node_sidecar: t.setup.engineLabel }[item.name] || item.label)}</span>
                                 {item.required && (
                                     <span className="text-[10px] px-1.5 py-0.5 rounded-full bg-primary/20 text-primary-foreground/70 font-bold uppercase tracking-wider">{t.setup.required}</span>
                                 )}
