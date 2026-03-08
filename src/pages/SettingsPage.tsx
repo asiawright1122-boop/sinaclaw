@@ -929,7 +929,7 @@ export default function SettingsPage() {
                                 </div>
                                 <button
                                     onClick={() => setIsAddExtModalOpen(true)}
-                                    className="px-4 py-2 rounded-xl text-[13px] font-bold bg-primary text-primary-foreground hover:opacity-90 transition-opacity cursor-pointer flex items-center gap-2 shadow-lg"
+                                    className="px-4 py-2 rounded-xl text-[13px] font-bold bg-primary text-primary-foreground hover:opacity-90 transition-opacity cursor-pointer flex items-center gap-2"
                                 >
                                     <Zap className="w-3.5 h-3.5" />
                                     {t.extensions.addServer}
@@ -958,7 +958,7 @@ export default function SettingsPage() {
                                             <div className="flex items-center gap-2">
                                                 <button
                                                     onClick={() => toggleServer(s.id)}
-                                                    className={`px-4 py-2 rounded-lg text-[13px] font-bold transition-all cursor-pointer ${s.status === 'active' ? 'bg-black/5 dark:bg-white/10 text-foreground hover:bg-black/10' : 'bg-primary/10 text-primary hover:bg-primary/20'}`}
+                                                    className={`px-4 py-2 rounded-lg text-[13px] font-bold transition-all cursor-pointer ${s.status === 'active' ? 'bg-muted/50 text-foreground hover:bg-muted/70' : 'bg-primary/10 text-primary hover:bg-primary/20'}`}
                                                 >
                                                     {s.status === 'active' ? t.extensions.inactive : t.extensions.active}
                                                 </button>
@@ -1039,7 +1039,7 @@ export default function SettingsPage() {
                                     </div>
                                     <button
                                         onClick={() => setIsAddExtModalOpen(false)}
-                                        className="p-2 rounded-full hover:bg-black/5 dark:hover:bg-white/10 transition-colors"
+                                        className="p-2 rounded-full hover:bg-muted/50 transition-colors"
                                     >
                                         <X className="w-6 h-6" />
                                     </button>
@@ -1053,9 +1053,9 @@ export default function SettingsPage() {
                                             <button
                                                 key={p.name}
                                                 onClick={() => handleAddPreset(p)}
-                                                className="flex items-center gap-3 p-4 rounded-2xl border border-white/10 bg-white/5 hover:bg-white/10 hover:border-white/20 transition-all text-left group"
+                                                className="flex items-center gap-3 p-4 rounded-xl border border-border/50 dark:border-white/[0.06] bg-card/60 dark:bg-card/40 hover:bg-card/80 dark:hover:bg-card/60 hover:border-border/80 transition-all text-left group"
                                             >
-                                                <div className="w-10 h-10 rounded-xl bg-white/10 flex items-center justify-center p-2 group-hover:scale-110 transition-transform">
+                                                <div className="w-10 h-10 rounded-xl bg-muted/30 flex items-center justify-center p-2 group-hover:scale-110 transition-transform">
                                                     {p.name === "Notion" && <NotionIcon className="w-full h-full" />}
                                                     {p.name === "GitHub" && <GithubIcon className="w-full h-full" />}
                                                     {p.name === "Slack" && <SlackIcon className="w-full h-full" />}

@@ -4,7 +4,7 @@ export default function TypingIndicator() {
     return (
         <div className="flex gap-4 px-4 py-6 bg-white/[0.02]">
             <div className="shrink-0 mt-1">
-                <div className="w-8 h-8 rounded-full bg-gradient-to-br from-primary to-accent flex items-center justify-center shadow-lg icon-glow">
+                <div className="w-8 h-8 rounded-full bg-gradient-to-br from-primary to-accent flex items-center justify-center icon-glow" style={{ boxShadow: 'var(--panel-shadow)' }}>
                     <motion.div
                         animate={{ scale: [1, 1.2, 1] }}
                         transition={{ repeat: Infinity, duration: 1.5 }}

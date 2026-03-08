@@ -367,7 +367,7 @@ export default function Sidebar() {
                                                 </button>
                                             ))}
 
-                                            <div className="h-px bg-white/10 dark:bg-white/5 my-2 mx-1" />
+                                            <div className="h-px bg-border/40 my-2 mx-1" />
 
                                             {[
                                                 { icon: Crown, label: t.sidebar.plan },
@@ -384,7 +384,7 @@ export default function Sidebar() {
                                                 </button>
                                             ))}
 
-                                            <div className="h-px bg-white/10 dark:bg-white/5 my-2 mx-1" />
+                                            <div className="h-px bg-border/40 my-2 mx-1" />
 
                                             <button
                                                 onClick={() => setIsUserMenuOpen(false)}
