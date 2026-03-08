@@ -76,6 +76,9 @@ export default defineConfig(async () => ({
             if (id.includes("zustand")) {
               return "vendor-zustand";
             }
+            if (id.includes("react-markdown") || id.includes("remark-") || id.includes("rehype-") || id.includes("lowlight") || id.includes("highlight.js") || id.includes("mdast-") || id.includes("hast-") || id.includes("micromark") || id.includes("unist-")) {
+              return "vendor-markdown";
+            }
           }
         },
       },

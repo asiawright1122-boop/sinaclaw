@@ -1,9 +1,12 @@
-import * as pdfjsLib from "pdfjs-dist";
-import mammoth from "mammoth";
-import * as XLSX from "xlsx";
-
-// 配置 pdf.js worker
-pdfjsLib.GlobalWorkerOptions.workerSrc = `//cdnjs.cloudflare.com/ajax/libs/pdf.js/${pdfjsLib.version}/pdf.worker.min.mjs`;
+// 重型库按需动态导入 — 避免打入主 bundle
+let _pdfjsLib: typeof import("pdfjs-dist") | null = null;
+async function getPdfjs() {
+    if (!_pdfjsLib) {
+        _pdfjsLib = await import("pdfjs-dist");
+        _pdfjsLib.GlobalWorkerOptions.workerSrc = `//cdnjs.cloudflare.com/ajax/libs/pdf.js/${_pdfjsLib.version}/pdf.worker.min.mjs`;
+    }
+    return _pdfjsLib;
+}
 
 /**
  * 提取 File 对象中的文本内容
@@ -60,6 +63,7 @@ async function parseText(file: File): Promise<string> {
 }
 
 async function parsePdf(file: File): Promise<string> {
+    const pdfjsLib = await getPdfjs();
     const arrayBuffer = await file.arrayBuffer();
     const pdf = await pdfjsLib.getDocument({ data: arrayBuffer }).promise;
     let fullText = "";
@@ -79,12 +83,14 @@ async function parsePdf(file: File): Promise<string> {
 }
 
 async function parseDocx(file: File): Promise<string> {
+    const mammoth = await import("mammoth");
     const arrayBuffer = await file.arrayBuffer();
-    const result = await mammoth.extractRawText({ arrayBuffer });
+    const result = await mammoth.default.extractRawText({ arrayBuffer });
     return result.value.trim();
 }
 
 async function parseExcel(file: File): Promise<string> {
+    const XLSX = await import("xlsx");
     const arrayBuffer = await file.arrayBuffer();
     const workbook = XLSX.read(arrayBuffer, { type: "array" });
     const parts: string[] = [];
