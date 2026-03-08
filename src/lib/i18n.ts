@@ -462,6 +462,14 @@ export const translations = {
             auditBackupCreated: "备份创建",
             auditBackupRestored: "备份恢复",
         },
+        roles: {
+            admin: "管理员",
+            adminDesc: "完全控制权限",
+            operator: "操作员",
+            operatorDesc: "管理通道和 Agent，不能管理用户",
+            viewer: "查看者",
+            viewerDesc: "只读访问，可以聊天",
+        },
         channelDesc: {
             whatsapp: "通过 Baileys 连接 WhatsApp，扫码配对",
             telegram: "通过 grammY 连接 Telegram Bot",
@@ -1195,6 +1203,14 @@ export const translations = {
             auditModelPulled: "Model Pulled",
             auditBackupCreated: "Backup Created",
             auditBackupRestored: "Backup Restored",
+        },
+        roles: {
+            admin: "Admin",
+            adminDesc: "Full control permissions",
+            operator: "Operator",
+            operatorDesc: "Manage channels and Agents, cannot manage users",
+            viewer: "Viewer",
+            viewerDesc: "Read-only access, can chat",
         },
         channelDesc: {
             whatsapp: "Connect WhatsApp via Baileys, scan QR to pair",
