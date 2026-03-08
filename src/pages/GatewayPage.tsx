@@ -133,8 +133,9 @@ function LogViewer({ logs, onClear }: { logs: GatewayLogEntry[]; onClear: () => 
                 className="flex-1 overflow-y-auto p-3 font-mono text-xs leading-5 bg-black/[0.03] dark:bg-black/30 min-h-[200px] max-h-[400px]"
             >
                 {logs.length === 0 ? (
-                    <div className="flex items-center justify-center h-full text-muted-foreground/50 text-sm">
-                        暂无日志
+                    <div className="flex flex-col items-center justify-center h-full text-muted-foreground/40 gap-1.5">
+                        <Terminal className="w-5 h-5" />
+                        <span className="text-xs font-medium">暂无日志</span>
                     </div>
                 ) : (
                     logs.map((entry, i) => (
