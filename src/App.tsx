@@ -3,6 +3,7 @@ import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
 import AppLayout from "@/components/layout/AppLayout";
 import ChatPage from "@/pages/ChatPage";
 import Onboarding from "@/components/Onboarding";
+import ErrorBoundary from "@/components/ui/ErrorBoundary";
 import { useSettingsStore } from "@/store/settingsStore";
 
 // 路由级懒加载 — 非首屏页面按需加载以减少初始 Bundle 体积
@@ -24,6 +25,7 @@ function App() {
   const hydrated = useSettingsStore((s) => s._hydrated);
 
   return (
+    <ErrorBoundary fullScreen>
     <BrowserRouter>
       <div className="w-full h-screen overflow-hidden bg-transparent">
         {hydrated && !setupCompleted && <Onboarding />}
@@ -55,6 +57,7 @@ function App() {
         </Suspense>
       </div>
     </BrowserRouter>
+    </ErrorBoundary>
   );
 }
 

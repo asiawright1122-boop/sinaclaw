@@ -4,6 +4,7 @@ import { useMCPStore } from "@/store/mcpStore";
 import SettingsApiTab from "@/components/settings/SettingsApiTab";
 import SettingsExtensionsTab from "@/components/settings/SettingsExtensionsTab";
 import MemoryManager from "@/components/settings/MemoryManager";
+import ErrorBoundary from "@/components/ui/ErrorBoundary";
 import type { SettingsTabId } from "@/components/settings/SettingsNavSidebar";
 
 const UsagePage = lazy(() => import("@/pages/UsagePage"));
@@ -41,16 +42,16 @@ export default function SettingsContent({ activeTab, onOpenAddExtModal }: Settin
                     className="flex-1 overflow-hidden"
                 >
                     {activeTab === "agents" && (
-                        <Suspense fallback={<LoadingSpinner />}><AgentWorkbenchPage /></Suspense>
+                        <ErrorBoundary><Suspense fallback={<LoadingSpinner />}><AgentWorkbenchPage /></Suspense></ErrorBoundary>
                     )}
                     {activeTab === "knowledge" && (
-                        <Suspense fallback={<LoadingSpinner />}><KnowledgePage /></Suspense>
+                        <ErrorBoundary><Suspense fallback={<LoadingSpinner />}><KnowledgePage /></Suspense></ErrorBoundary>
                     )}
                     {activeTab === "skills" && (
-                        <Suspense fallback={<LoadingSpinner />}><SkillStorePage /></Suspense>
+                        <ErrorBoundary><Suspense fallback={<LoadingSpinner />}><SkillStorePage /></Suspense></ErrorBoundary>
                     )}
                     {activeTab === "connections" && (
-                        <Suspense fallback={<LoadingSpinner />}><ConnectionsPage /></Suspense>
+                        <ErrorBoundary><Suspense fallback={<LoadingSpinner />}><ConnectionsPage /></Suspense></ErrorBoundary>
                     )}
                 </motion.div>
             </div>
@@ -80,15 +81,15 @@ export default function SettingsContent({ activeTab, onOpenAddExtModal }: Settin
                 {activeTab === "memory" && <MemoryManager />}
 
                 {activeTab === "usage" && (
-                    <Suspense fallback={<LoadingSpinner />}><UsagePage /></Suspense>
+                    <ErrorBoundary><Suspense fallback={<LoadingSpinner />}><UsagePage /></Suspense></ErrorBoundary>
                 )}
 
                 {activeTab === "sync" && (
-                    <Suspense fallback={<LoadingSpinner />}><SyncPage /></Suspense>
+                    <ErrorBoundary><Suspense fallback={<LoadingSpinner />}><SyncPage /></Suspense></ErrorBoundary>
                 )}
 
                 {activeTab === "security" && (
-                    <Suspense fallback={<LoadingSpinner />}><SecurityPage /></Suspense>
+                    <ErrorBoundary><Suspense fallback={<LoadingSpinner />}><SecurityPage /></Suspense></ErrorBoundary>
                 )}
             </motion.div>
         </div>
