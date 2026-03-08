@@ -20,6 +20,7 @@ import {
 } from "@/lib/cloud";
 import IconById from "@/components/ui/IconById";
 import { invoke } from "@tauri-apps/api/core";
+import { useTranslate } from "@/lib/i18n";
 
 interface SyncSnapshot {
     id: string;
@@ -30,11 +31,6 @@ interface SyncSnapshot {
     encrypted: boolean;
 }
 
-const SYNC_TYPE_LABELS: Record<string, { label: string; desc: string; icon: React.ElementType }> = {
-    config: { label: "配置备份", desc: "Agent、通道、技能、设置", icon: Settings },
-    conversations: { label: "对话备份", desc: "聊天记录和收件箱历史", icon: HardDrive },
-    full: { label: "完整备份", desc: "所有数据（配置+对话+知识库）", icon: Cloud },
-};
 
 function formatTime(ts: number): string {
     const d = new Date(ts);
@@ -43,7 +39,14 @@ function formatTime(ts: number): string {
 }
 
 export default function SyncPage() {
+    const t = useTranslate();
     const { accounts, initCloudAccounts, connectProvider, disconnectProvider } = useCloudStore();
+
+    const SYNC_TYPE_LABELS: Record<string, { label: string; desc: string; icon: React.ElementType }> = {
+        config: { label: t.sync.configBackup, desc: t.sync.configBackupDesc, icon: Settings },
+        conversations: { label: t.sync.conversationBackup, desc: t.sync.conversationBackupDesc, icon: HardDrive },
+        full: { label: t.sync.fullBackup, desc: t.sync.fullBackupDesc, icon: Cloud },
+    };
     const [snapshots, setSnapshots] = useState<SyncSnapshot[]>([]);
     const [syncing, setSyncing] = useState(false);
     const [restoring, setRestoring] = useState<string | null>(null);
@@ -123,14 +126,14 @@ export default function SyncPage() {
                     <Cloud className="w-4.5 h-4.5 text-primary" />
                 </div>
                 <div>
-                    <h1 className="text-lg font-semibold text-foreground">云同步</h1>
-                    <p className="text-[12px] text-muted-foreground">多设备同步与数据备份</p>
+                    <h1 className="text-lg font-semibold text-foreground">{t.sync.title}</h1>
+                    <p className="text-[12px] text-muted-foreground">{t.sync.subtitle}</p>
                 </div>
             </div>
 
             {/* 云盘连接 */}
             <div className="bg-card/80 dark:bg-card/50 border border-border/50 dark:border-white/[0.06] rounded-xl p-5 space-y-4" style={{ boxShadow: 'var(--panel-shadow)' }}>
-                <h3 className="text-sm font-semibold text-foreground">云盘连接</h3>
+                <h3 className="text-sm font-semibold text-foreground">{t.sync.cloudConnection}</h3>
                 <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
                     {(Object.keys(CLOUD_PROVIDERS) as CloudProvider[]).map((provider) => {
                         const info = CLOUD_PROVIDERS[provider];
@@ -162,14 +165,14 @@ export default function SyncPage() {
                                         onClick={(e) => { e.stopPropagation(); disconnectProvider(provider); }}
                                         className="text-[10px] px-2 py-1 rounded-lg text-red-400 hover:bg-red-500/10 transition-colors"
                                     >
-                                        断开
+                                        {t.sync.disconnect}
                                     </button>
                                 ) : (
                                     <button
                                         onClick={() => connectProvider(provider)}
                                         className="text-[10px] px-2.5 py-1 rounded-lg bg-primary/10 text-primary hover:bg-primary/20 transition-colors font-medium"
                                     >
-                                        连接
+                                        {t.sync.connect}
                                     </button>
                                 )}
                             </div>
@@ -181,10 +184,10 @@ export default function SyncPage() {
             {/* 备份操作 */}
             <div className="bg-card/80 dark:bg-card/50 border border-border/50 dark:border-white/[0.06] rounded-xl p-5 space-y-4" style={{ boxShadow: 'var(--panel-shadow)' }}>
                 <div className="flex items-center justify-between">
-                    <h3 className="text-sm font-semibold text-foreground">创建备份</h3>
+                    <h3 className="text-sm font-semibold text-foreground">{t.sync.createBackup}</h3>
                     <label className="flex items-center gap-2 text-xs text-muted-foreground cursor-pointer">
                         <Shield className={`w-3.5 h-3.5 ${useEncryption ? "text-emerald-500" : ""}`} />
-                        <span>端到端加密</span>
+                        <span>{t.sync.e2eEncryption}</span>
                         <button
                             onClick={() => setUseEncryption(!useEncryption)}
                             className={`w-8 h-4 rounded-full relative transition-colors ${useEncryption ? "bg-emerald-500" : "bg-muted/50"}`}
@@ -197,7 +200,7 @@ export default function SyncPage() {
                 {!activeProvider || connectedProviders.length === 0 ? (
                     <div className="text-center py-8 text-muted-foreground/50">
                         <Cloud className="w-8 h-8 mx-auto mb-2" />
-                        <p className="text-xs">请先连接至少一个云盘</p>
+                        <p className="text-xs">{t.sync.connectCloudFirst}</p>
                     </div>
                 ) : (
                     <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
@@ -226,12 +229,12 @@ export default function SyncPage() {
 
             {/* 备份历史 */}
             <div className="bg-card/80 dark:bg-card/50 border border-border/50 dark:border-white/[0.06] rounded-xl p-5 space-y-3" style={{ boxShadow: 'var(--panel-shadow)' }}>
-                <h3 className="text-sm font-semibold text-foreground">备份历史</h3>
+                <h3 className="text-sm font-semibold text-foreground">{t.sync.backupHistory}</h3>
                 {snapshots.length === 0 ? (
                     <div className="text-center py-8 text-muted-foreground/50">
                         <Clock className="w-8 h-8 mx-auto mb-2" />
-                        <p className="text-xs">暂无备份记录</p>
-                        <p className="text-[10px] mt-1">创建备份后将在此显示</p>
+                        <p className="text-xs">{t.sync.noBackups}</p>
+                        <p className="text-[10px] mt-1">{t.sync.noBackupsDesc}</p>
                     </div>
                 ) : (
                     <div className="space-y-2">
@@ -266,7 +269,7 @@ export default function SyncPage() {
                                             ) : (
                                                 <CloudDownload className="w-3 h-3" />
                                             )}
-                                            恢复
+                                            {t.sync.restore}
                                         </button>
                                     </div>
                                 </div>
