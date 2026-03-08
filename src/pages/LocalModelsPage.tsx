@@ -26,14 +26,14 @@ import { useTranslate } from "@/lib/i18n";
 
 // 推荐模型列表
 const RECOMMENDED_MODELS = [
-    { name: "llama3.3", desc: "Meta Llama 3.3 — 通用旗舰", size: "~4.7 GB" },
-    { name: "qwen2.5:7b", desc: "Qwen 2.5 7B — 中英双语", size: "~4.4 GB" },
-    { name: "deepseek-r1:14b", desc: "DeepSeek R1 14B — 推理", size: "~9.0 GB" },
-    { name: "mistral", desc: "Mistral 7B — 快速推理", size: "~4.1 GB" },
-    { name: "codellama:7b", desc: "Code Llama 7B — 代码", size: "~3.8 GB" },
-    { name: "gemma2:9b", desc: "Google Gemma 2 9B", size: "~5.4 GB" },
-    { name: "phi3:mini", desc: "Microsoft Phi-3 Mini", size: "~2.3 GB" },
-    { name: "llava:7b", desc: "LLaVA 7B — 多模态视觉", size: "~4.5 GB" },
+    { name: "llama3.3", descKey: "llama33", desc: "Meta Llama 3.3 — Flagship", size: "~4.7 GB" },
+    { name: "qwen2.5:7b", descKey: "qwen25", desc: "Qwen 2.5 7B — Bilingual", size: "~4.4 GB" },
+    { name: "deepseek-r1:14b", descKey: "deepseekR1", desc: "DeepSeek R1 14B — Reasoning", size: "~9.0 GB" },
+    { name: "mistral", descKey: "mistral", desc: "Mistral 7B — Fast inference", size: "~4.1 GB" },
+    { name: "codellama:7b", descKey: "codellama", desc: "Code Llama 7B — Code", size: "~3.8 GB" },
+    { name: "gemma2:9b", descKey: "gemma2", desc: "Google Gemma 2 9B", size: "~5.4 GB" },
+    { name: "phi3:mini", descKey: "phi3", desc: "Microsoft Phi-3 Mini", size: "~2.3 GB" },
+    { name: "llava:7b", descKey: "llava", desc: "LLaVA 7B — Multimodal vision", size: "~4.5 GB" },
 ];
 
 function ModelCard({
@@ -333,7 +333,7 @@ export default function LocalModelsPage() {
                                                 <div key={rm.name} className="flex items-center justify-between p-2.5 rounded-lg bg-black/[0.02] dark:bg-white/[0.03] border border-border/40 dark:border-white/[0.06] hover:border-primary/20 transition-colors">
                                                     <div>
                                                         <span className="text-xs font-medium text-foreground font-mono">{rm.name}</span>
-                                                        <p className="text-[10px] text-muted-foreground">{rm.desc} · {rm.size}</p>
+                                                        <p className="text-[10px] text-muted-foreground">{(t.localModels as any)[`rec_${rm.descKey}`] || rm.desc} · {rm.size}</p>
                                                     </div>
                                                     {installed ? (
                                                         <span className="text-[10px] px-2 py-1 rounded-lg text-emerald-500 bg-emerald-500/10 font-medium">{t.localModels.installed}</span>

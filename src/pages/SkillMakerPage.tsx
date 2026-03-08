@@ -96,7 +96,7 @@ export default function SkillMakerPage({ onBack }: { onBack?: () => void }) {
             setStep("preview");
         } catch (e: any) {
             console.error("生成失败:", e);
-            alert(`生成失败: ${e.message || e}`);
+            alert(`Generation failed: ${e.message || e}`);
         } finally {
             setIsGenerating(false);
         }
