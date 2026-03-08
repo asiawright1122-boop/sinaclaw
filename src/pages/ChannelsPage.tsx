@@ -25,6 +25,7 @@ import {
     type ChannelStatus,
 } from "@/store/channelStore";
 import { useGatewayStore } from "@/store/gatewayStore";
+import IconById from "@/components/ui/IconById";
 
 function StatusDot({ status }: { status: ChannelStatus }) {
     const cls = {
@@ -65,7 +66,9 @@ function ChannelCard({
         >
             <div className="flex items-start justify-between">
                 <div className="flex items-center gap-3">
-                    <span className="text-2xl">{def.icon}</span>
+                    <div className="w-9 h-9 rounded-lg bg-primary/[0.06] dark:bg-primary/10 border border-border/40 flex items-center justify-center shrink-0">
+                        <IconById id={def.icon} size={20} className="text-foreground/70" />
+                    </div>
                     <div>
                         <div className="flex items-center gap-2">
                             <span className="font-semibold text-sm text-foreground">{def.name}</span>
@@ -135,7 +138,9 @@ function ChannelConfigPanel({
             {/* 头部 */}
             <div className="flex items-center justify-between p-4 border-b border-border/40">
                 <div className="flex items-center gap-3">
-                    <span className="text-2xl">{def.icon}</span>
+                    <div className="w-9 h-9 rounded-lg bg-primary/[0.06] dark:bg-primary/10 border border-border/40 flex items-center justify-center shrink-0">
+                        <IconById id={def.icon} size={20} className="text-foreground/70" />
+                    </div>
                     <div>
                         <h3 className="font-semibold text-foreground">{def.name}</h3>
                         <p className="text-xs text-muted-foreground">{def.description}</p>
