@@ -283,7 +283,7 @@ export default function SetupWizard({ onComplete }: SetupWizardProps) {
                 initial={{ scale: 0.9, opacity: 0 }}
                 animate={{ scale: 1, opacity: 1 }}
                 transition={{ duration: 0.4, type: "spring" }}
-                className="w-[520px] glass-panel rounded-2xl border border-border/50 dark:border-white/[0.08] overflow-hidden" style={{ boxShadow: 'var(--panel-shadow)' }}
+                className="w-full max-w-[520px] mx-4 glass-panel rounded-2xl border border-border/50 dark:border-white/[0.08] overflow-hidden" style={{ boxShadow: 'var(--panel-shadow)' }}
             >
                 {/* 步骤指示器 */}
                 <div className="flex items-center justify-center gap-1.5 pt-5 pb-1">

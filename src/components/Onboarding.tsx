@@ -57,7 +57,7 @@ export default function Onboarding() {
             <motion.div
                 initial={{ opacity: 0, scale: 0.95 }}
                 animate={{ opacity: 1, scale: 1 }}
-                className="w-full max-w-lg bg-card dark:bg-card border border-border/60 dark:border-white/[0.08] rounded-2xl overflow-hidden" style={{ boxShadow: 'var(--panel-shadow)' }}
+                className="w-full max-w-lg mx-4 bg-card dark:bg-card border border-border/60 dark:border-white/[0.08] rounded-2xl overflow-hidden" style={{ boxShadow: 'var(--panel-shadow)' }}
             >
                 {/* 进度条 */}
                 <div className="px-8 pt-6">
