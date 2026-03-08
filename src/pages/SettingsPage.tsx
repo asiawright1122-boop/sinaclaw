@@ -44,13 +44,13 @@ function MemoryManager() {
     const [editContent, setEditContent] = useState("");
 
     const categories = [
-        { id: "all", label: "全部", icon: "📋" },
-        { id: "preferences", label: "偏好", icon: "⚙️" },
-        { id: "contacts", label: "联系人", icon: "👤" },
-        { id: "projects", label: "项目", icon: "📁" },
-        { id: "learnings", label: "学习", icon: "💡" },
-        { id: "tools", label: "工具", icon: "🔧" },
-        { id: "custom", label: "通用", icon: "📝" },
+        { id: "all", label: "全部" },
+        { id: "preferences", label: "偏好" },
+        { id: "contacts", label: "联系人" },
+        { id: "projects", label: "项目" },
+        { id: "learnings", label: "学习" },
+        { id: "tools", label: "工具" },
+        { id: "custom", label: "通用" },
     ];
 
     const loadMemories = async () => {
@@ -108,7 +108,7 @@ function MemoryManager() {
                                 : "bg-black/[0.04] dark:bg-white/[0.04] text-muted-foreground hover:bg-black/[0.07] dark:hover:bg-white/[0.07]"
                             }`}
                         >
-                            {cat.icon} {cat.label}
+                            {cat.label}
                             {cat.id !== "all" && (
                                 <span className="ml-1 opacity-60">
                                     {memories.filter(m => (m.category || 'custom') === cat.id).length}
@@ -144,7 +144,7 @@ function MemoryManager() {
                                         <div className="flex-1 min-w-0">
                                             <div className="flex items-center gap-2 mb-1">
                                                 <span className="text-[11px] px-1.5 py-0.5 rounded-md bg-violet-500/15 text-violet-400 font-semibold">
-                                                    {categories.find(c => c.id === (mem.category || 'custom'))?.icon} {categories.find(c => c.id === (mem.category || 'custom'))?.label || '通用'}
+                                                    {categories.find(c => c.id === (mem.category || 'custom'))?.label || '通用'}
                                                 </span>
                                                 <span className="text-[11px] text-muted-foreground/50">
                                                     {new Date(mem.created_at).toLocaleDateString()}
@@ -810,7 +810,7 @@ export default function SettingsPage() {
                                                             : "bg-muted/30 text-muted-foreground hover:bg-muted/50 hover:text-foreground cursor-pointer"
                                                         }`}
                                                     >
-                                                        {installed ? "✓ " : ""}{name}
+                                                        {installed ? "[v] " : ""}{name}
                                                     </button>
                                                 );
                                             })}

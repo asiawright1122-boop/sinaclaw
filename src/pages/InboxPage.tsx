@@ -16,7 +16,7 @@ const CHANNEL_ICON: Record<string, string> = {};
 CHANNEL_DEFINITIONS.forEach((d) => { CHANNEL_ICON[d.id] = d.icon; });
 
 function channelIcon(channel: string): string {
-    return CHANNEL_ICON[channel] || "💬";
+    return CHANNEL_ICON[channel] || "msg";
 }
 
 function channelColor(channel: string): string {

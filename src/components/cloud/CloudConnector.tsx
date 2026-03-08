@@ -89,7 +89,7 @@ export default function CloudConnector({ accounts }: CloudConnectorProps) {
                     animate={{ opacity: 1, height: "auto" }}
                     className="text-xs text-red-400 bg-red-500/10 rounded-lg p-2.5"
                 >
-                    ❌ {error}
+                    {error}
                 </motion.div>
             )}
         </div>

@@ -1,5 +1,5 @@
 import { motion, AnimatePresence } from "framer-motion";
-import { Shield, CheckCircle, XCircle, Loader2, Sparkles, ChevronRight, Eye, EyeOff, ArrowLeft } from "lucide-react";
+import { Shield, CheckCircle, XCircle, Loader2, Sparkles, ChevronRight, Eye, EyeOff, ArrowLeft, Bot } from "lucide-react";
 import { useEffect, useState } from "react";
 import { runEnvironmentScan, type ScanItem } from "@/lib/scanner";
 import { useSettingsStore, PROVIDER_INFO, MODEL_OPTIONS, type AIProvider } from "@/store/settingsStore";
@@ -70,9 +70,9 @@ function ScanStep({ onNext }: { onNext: () => void }) {
                     )}
                 </motion.div>
                 <h2 className="text-xl font-bold tracking-tight mb-1">
-                    {phase === "scanning" && "🚀 初始化引擎..."}
-                    {phase === "done" && "✅ 引擎就绪！"}
-                    {phase === "error" && "⚠️ 内部引擎异常"}
+                    {phase === "scanning" && "初始化引擎..."}
+                    {phase === "done" && "引擎就绪！"}
+                    {phase === "error" && "内部引擎异常"}
                 </h2>
                 <p className="text-sm text-muted-foreground">
                     {phase === "scanning" && "正在加载 Sinaclaw 内置运行环境"}
@@ -151,7 +151,7 @@ function ProviderStep({ onNext, onBack }: { onNext: () => void; onBack: () => vo
         <>
             <div className="px-6 pt-6 pb-4 text-center">
                 <div className="inline-flex items-center justify-center w-16 h-16 rounded-xl bg-gradient-to-br from-violet-500/30 to-blue-500/30 border border-border/50 mb-4">
-                    <span className="text-3xl">🤖</span>
+                    <Bot className="w-8 h-8 text-violet-400" />
                 </div>
                 <h2 className="text-xl font-bold tracking-tight mb-1">选择 AI 提供商</h2>
                 <p className="text-sm text-muted-foreground">选择你的 AI 模型提供商并输入 API Key</p>
@@ -173,7 +173,7 @@ function ProviderStep({ onNext, onBack }: { onNext: () => void; onBack: () => vo
                                         : "bg-black/[0.03] dark:bg-white/[0.04] border border-border/50 dark:border-white/[0.06] text-foreground/70 hover:bg-black/[0.06] dark:hover:bg-white/[0.07]"
                                 }`}
                             >
-                                <span className="text-lg">{info.emoji}</span>
+                                <span className="w-2.5 h-2.5 rounded-full shrink-0" style={{ backgroundColor: info.color }} />
                                 <span>{info.label}</span>
                             </button>
                         );
@@ -248,7 +248,7 @@ function DoneStep({ onFinish }: { onFinish: () => void }) {
             >
                 <Sparkles className="w-10 h-10 text-emerald-400" />
             </motion.div>
-            <h2 className="text-xl font-bold tracking-tight mb-1">🎉 设置完成！</h2>
+            <h2 className="text-xl font-bold tracking-tight mb-1">设置完成！</h2>
             <p className="text-sm text-muted-foreground mb-6">你的 AI 多通道助手已准备就绪</p>
             <motion.button
                 initial={{ opacity: 0 }}
@@ -257,7 +257,7 @@ function DoneStep({ onFinish }: { onFinish: () => void }) {
                 onClick={onFinish}
                 className="w-full py-3 rounded-xl bg-gradient-to-r from-primary to-accent text-white font-semibold text-sm hover:opacity-90 transition-opacity cursor-pointer"
             >
-                开始使用 Sinaclaw 🦀
+                开始使用 Sinaclaw
             </motion.button>
         </div>
     );

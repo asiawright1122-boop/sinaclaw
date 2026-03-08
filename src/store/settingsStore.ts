@@ -11,10 +11,16 @@ export interface SettingsState {
   maxTokens: number;
   language: "zh" | "en";
   theme: "light" | "dark" | "system";
+  enableTTS: boolean;
+  fallbackProvider: AIProvider | "";
+  fallbackModel: string;
+  setupCompleted: boolean;
   _hydrated: boolean;
+  localModels: { id: string; name: string; tag?: string }[];
 
   // Actions
   hydrate: () => Promise<void>;
+  refreshLocalModels: () => Promise<void>;
   setApiKey: (key: string) => void;
   setProvider: (provider: AIProvider) => void;
   setModel: (model: string) => void;
@@ -22,49 +28,53 @@ export interface SettingsState {
   setMaxTokens: (tokens: number) => void;
   setLanguage: (lang: "zh" | "en") => void;
   setTheme: (theme: "light" | "dark" | "system") => void;
+  setEnableTTS: (enable: boolean) => void;
+  setFallbackProvider: (provider: AIProvider | "") => void;
+  setFallbackModel: (model: string) => void;
+  setSetupCompleted: (done: boolean) => void;
 }
 
-export const PROVIDER_INFO: Record<AIProvider, { label: string; emoji: string; apiUrl: string; format: "openai" | "anthropic" | "google" }> = {
+export const PROVIDER_INFO: Record<AIProvider, { label: string; color: string; apiUrl: string; format: "openai" | "anthropic" | "google" }> = {
   openai: {
     label: "OpenAI",
-    emoji: "🟢",
+    color: "#22c55e",
     apiUrl: "https://api.openai.com/v1/chat/completions",
     format: "openai",
   },
   anthropic: {
     label: "Anthropic",
-    emoji: "🟣",
+    color: "#a855f7",
     apiUrl: "https://api.anthropic.com/v1/messages",
     format: "anthropic",
   },
   google: {
     label: "Google Gemini",
-    emoji: "🔵",
+    color: "#3b82f6",
     apiUrl: "https://generativelanguage.googleapis.com/v1beta",
     format: "google",
   },
   deepseek: {
     label: "DeepSeek",
-    emoji: "🟠",
+    color: "#f97316",
     apiUrl: "https://api.deepseek.com/v1/chat/completions",
     format: "openai",
   },
   minimax: {
     label: "MiniMax",
-    emoji: "🔴",
+    color: "#ef4444",
     apiUrl: "https://api.minimax.io/v1/chat/completions",
     format: "openai",
   },
   zhipu: {
     label: "智谱 GLM",
-    emoji: "🟤",
+    color: "#a16207",
     apiUrl: "https://open.bigmodel.cn/api/paas/v4/chat/completions",
     format: "openai",
   },
   local: {
     label: "本地模型",
-    emoji: "⚪",
-    apiUrl: "http://localhost:11434/api/chat",
+    color: "#9ca3af",
+    apiUrl: "http://localhost:11434/v1/chat/completions",
     format: "openai",
   },
 };
@@ -165,7 +175,12 @@ export const useSettingsStore = create<SettingsState>((set) => ({
   maxTokens: 8192,
   language: "zh",
   theme: "system",
+  enableTTS: false,
+  fallbackProvider: "",
+  fallbackModel: "",
+  setupCompleted: false,
   _hydrated: false,
+  localModels: [],
 
   // 从本地存储恢复设置
   hydrate: async () => {
@@ -178,9 +193,33 @@ export const useSettingsStore = create<SettingsState>((set) => ({
       const maxTokens = (await store.get<number>("maxTokens")) ?? 8192;
       const language = (await store.get<"zh" | "en">("language")) ?? "zh";
       const theme = (await store.get<"light" | "dark" | "system">("theme")) ?? "system";
-      set({ apiKey, provider, model, temperature, maxTokens, language, theme, _hydrated: true });
+      const enableTTS = (await store.get<boolean>("enableTTS")) ?? false;
+      const fallbackProvider = (await store.get<AIProvider | "">("fallbackProvider")) ?? "";
+      const fallbackModel = (await store.get<string>("fallbackModel")) ?? "";
+      const setupCompleted = (await store.get<boolean>("setupCompleted")) ?? false;
+      set({ apiKey, provider, model, temperature, maxTokens, language, theme, enableTTS, fallbackProvider, fallbackModel, setupCompleted, _hydrated: true });
     } catch {
       set({ _hydrated: true });
+    }
+    // 自动探测一次本地模型
+    useSettingsStore.getState().refreshLocalModels();
+  },
+
+  refreshLocalModels: async () => {
+    try {
+      const res = await fetch("http://127.0.0.1:11434/api/tags");
+      if (res.ok) {
+        const data = await res.json();
+        if (data.models && Array.isArray(data.models)) {
+          const models = data.models.map((m: any) => ({
+            id: m.name,
+            name: m.name,
+          }));
+          set({ localModels: models });
+        }
+      }
+    } catch (e) {
+      console.warn("无法探测到本地 Ollama 实例，使用默认列表", e);
     }
   },
 
@@ -216,5 +255,21 @@ export const useSettingsStore = create<SettingsState>((set) => ({
   setTheme: (theme) => {
     set({ theme });
     persistSettings({ theme });
+  },
+  setEnableTTS: (enableTTS) => {
+    set({ enableTTS });
+    persistSettings({ enableTTS });
+  },
+  setFallbackProvider: (fallbackProvider) => {
+    set({ fallbackProvider });
+    persistSettings({ fallbackProvider });
+  },
+  setFallbackModel: (fallbackModel) => {
+    set({ fallbackModel });
+    persistSettings({ fallbackModel });
+  },
+  setSetupCompleted: (setupCompleted) => {
+    set({ setupCompleted });
+    persistSettings({ setupCompleted });
   },
 }));

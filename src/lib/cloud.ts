@@ -30,9 +30,9 @@ export interface CloudAccount {
 export type CloudProvider = "google_drive" | "onedrive" | "dropbox";
 
 export const CLOUD_PROVIDERS: Record<CloudProvider, { label: string; icon: string; color: string }> = {
-    google_drive: { label: "Google Drive", icon: "📁", color: "#4285F4" },
-    onedrive: { label: "OneDrive", icon: "☁️", color: "#0078D4" },
-    dropbox: { label: "Dropbox", icon: "📦", color: "#0061FF" },
+    google_drive: { label: "Google Drive", icon: "drive", color: "#4285F4" },
+    onedrive: { label: "OneDrive", icon: "cloud", color: "#0078D4" },
+    dropbox: { label: "Dropbox", icon: "box", color: "#0061FF" },
 };
 
 // ── OAuth 认证 ───────────────────────────────────────────

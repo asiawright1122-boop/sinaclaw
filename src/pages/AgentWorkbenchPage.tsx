@@ -15,6 +15,7 @@ import {
     Timer,
 } from "lucide-react";
 import { useAgentStore, type AgentConfig } from "@/store/agentStore";
+import AgentAvatar from "@/components/ui/AgentAvatar";
 
 const AutomationPage = lazy(() => import("@/pages/AutomationPage"));
 
@@ -23,7 +24,7 @@ const AGENT_TEMPLATES: Omit<AgentConfig, "id" | "createdAt">[] = [
     {
         name: "客服助手",
         description: "专业客户服务，回答问题并解决投诉",
-        avatar: "🎧",
+        avatar: "headphones",
         systemPrompt: "你是一名专业的客服人员。用友好、耐心的语气回答用户问题，尝试解决他们的问题。遇到无法解决的问题时，告知用户将转交给人工处理。",
         model: "gpt-4o",
         enabledTools: ["search_web", "core_memory_search"],
@@ -32,7 +33,7 @@ const AGENT_TEMPLATES: Omit<AgentConfig, "id" | "createdAt">[] = [
     {
         name: "翻译专家",
         description: "多语言翻译，支持中英日韩等主流语言",
-        avatar: "🌐",
+        avatar: "globe",
         systemPrompt: "你是一名资深翻译专家，精通中文、英文、日语、韩语等多种语言。翻译时注重准确性、流畅性和文化适应性。保持原文语义的同时，让译文读起来自然流畅。",
         model: "gpt-4o",
         enabledTools: [],
@@ -41,7 +42,7 @@ const AGENT_TEMPLATES: Omit<AgentConfig, "id" | "createdAt">[] = [
     {
         name: "数据分析师",
         description: "擅长数据分析、图表解读和报告撰写",
-        avatar: "📊",
+        avatar: "bar-chart",
         systemPrompt: "你是一名资深数据分析师。擅长从数据中发现洞察，解读图表和统计结果，撰写清晰的分析报告。使用数据驱动的方式回答问题。",
         model: "claude-3-5-sonnet-20241022",
         enabledTools: ["*"],
@@ -50,7 +51,7 @@ const AGENT_TEMPLATES: Omit<AgentConfig, "id" | "createdAt">[] = [
     {
         name: "摘要生成器",
         description: "提炼长文本的核心要点，生成简洁摘要",
-        avatar: "📝",
+        avatar: "file-text",
         systemPrompt: "你是一个高效的文本摘要助手。你的任务是：1) 提取文本的核心论点和关键信息 2) 按重要性排序 3) 用简洁清晰的语言生成结构化摘要。保持客观，不添加主观评价。",
         model: "gpt-4o-mini",
         enabledTools: [],
@@ -59,7 +60,7 @@ const AGENT_TEMPLATES: Omit<AgentConfig, "id" | "createdAt">[] = [
     {
         name: "代码审查员",
         description: "审查代码质量、安全性和性能问题",
-        avatar: "🔍",
+        avatar: "search",
         systemPrompt: "你是一名严格的高级代码审查员。审查代码时关注：1) 安全漏洞 2) 性能问题 3) 代码风格和可维护性 4) 边界条件和错误处理。给出具体的改进建议和示例代码。",
         model: "claude-3-5-sonnet-20241022",
         enabledTools: ["*"],
@@ -68,7 +69,7 @@ const AGENT_TEMPLATES: Omit<AgentConfig, "id" | "createdAt">[] = [
     {
         name: "创意策划",
         description: "头脑风暴、创意生成和营销策划",
-        avatar: "💡",
+        avatar: "lightbulb",
         systemPrompt: "你是一名富有创造力的策划专家。擅长头脑风暴、创意发散和营销策划。在回答中提供多个方案和角度，用生动的语言描述创意。",
         model: "gpt-4o",
         enabledTools: ["search_web"],
@@ -104,7 +105,7 @@ function AgentCard({
                 <span className="absolute -top-1.5 -right-1.5 w-3.5 h-3.5 rounded-full bg-primary border-2 border-card" />
             )}
             <div className="flex items-start gap-3">
-                <span className="text-2xl">{agent.avatar}</span>
+                <AgentAvatar avatar={agent.avatar} size={24} className="text-foreground/70" />
                 <div className="flex-1 min-w-0">
                     <div className="flex items-center gap-2">
                         <span className="font-semibold text-sm text-foreground truncate">{agent.name}</span>
@@ -169,7 +170,7 @@ function AgentEditPanel({
         >
             <div className="flex items-center justify-between p-4 border-b border-border/40">
                 <div className="flex items-center gap-3">
-                    <span className="text-2xl">{agent.avatar}</span>
+                    <AgentAvatar avatar={agent.avatar} size={24} className="text-foreground/70" />
                     <div>
                         <h3 className="font-semibold text-foreground">{agent.name}</h3>
                         <p className="text-xs text-muted-foreground">{agent.role === "sub" ? "子 Agent" : "主 Agent"}</p>
@@ -287,7 +288,7 @@ function SwarmPanel({ agents }: { agents: AgentConfig[] }) {
                         <div key={agent.id} className="bg-muted/20 rounded-xl p-3">
                             <div className="flex items-center justify-between">
                                 <div className="flex items-center gap-2">
-                                    <span className="text-lg">{agent.avatar}</span>
+                                    <AgentAvatar avatar={agent.avatar} size={18} className="text-foreground/70" />
                                     <span className="text-xs font-medium text-foreground">{agent.name}</span>
                                 </div>
                                 <button
@@ -295,7 +296,7 @@ function SwarmPanel({ agents }: { agents: AgentConfig[] }) {
                                         spawnSubAgent(agent.id, {
                                             name: `${agent.name} 的子Agent`,
                                             description: "自动创建的子Agent",
-                                            avatar: "🔧",
+                                            avatar: "wrench",
                                             systemPrompt: "你是一个辅助子Agent。",
                                             model: agent.model,
                                             enabledTools: [],
@@ -312,7 +313,7 @@ function SwarmPanel({ agents }: { agents: AgentConfig[] }) {
                                     {subs.map((sub) => (
                                         <div key={sub.id} className="flex items-center gap-2 text-[11px]">
                                             <ArrowRightLeft className="w-3 h-3 text-muted-foreground" />
-                                            <span>{sub.avatar}</span>
+                                            <AgentAvatar avatar={sub.avatar} size={12} className="text-muted-foreground" />
                                             <span className="text-foreground">{sub.name}</span>
                                         </div>
                                     ))}
@@ -403,7 +404,7 @@ function AgentWorkbenchContent() {
                     onClick={() => addAgent({
                         name: "新 Agent",
                         description: "自定义 Agent",
-                        avatar: "🤖",
+                        avatar: "bot",
                         systemPrompt: "你是一个有用的 AI 助手。",
                         model: "gpt-4o",
                         enabledTools: [],
@@ -477,7 +478,7 @@ function AgentWorkbenchContent() {
                             className="bg-card/80 dark:bg-card/50 border border-border/50 dark:border-white/[0.06] rounded-xl p-4 group" style={{ boxShadow: 'var(--panel-shadow)' }}
                         >
                             <div className="flex items-start gap-3">
-                                <span className="text-2xl">{tpl.avatar}</span>
+                <AgentAvatar avatar={tpl.avatar} size={24} className="text-foreground/70" />
                                 <div className="flex-1 min-w-0">
                                     <span className="font-semibold text-sm text-foreground">{tpl.name}</span>
                                     <p className="text-xs text-muted-foreground mt-0.5">{tpl.description}</p>

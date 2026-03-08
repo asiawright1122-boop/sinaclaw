@@ -15,6 +15,7 @@ import ToolCallBlock from "@/components/chat/ToolCallBlock";
 import { useTranslate } from "@/lib/i18n";
 import { runDeepResearch } from "@/lib/deepResearchAgent";
 import { speak, DEFAULT_VOICE_CONFIG } from "@/lib/voiceManager";
+import AgentAvatar from "@/components/ui/AgentAvatar";
 
 export default function ChatPage() {
     const t = useTranslate();
@@ -142,9 +143,9 @@ export default function ChatPage() {
                     onStateChange: (state, info) => {
                         // 在 UI 渲染进度块
                         const iconMap: Record<string, string> = {
-                            "Planning": "🧠", "Searching": "🌐", "Reading": "📖", "Synthesizing": "✍️", "Done": "✅", "Error": "❌"
+                            "Planning": "[Plan]", "Searching": "[Search]", "Reading": "[Read]", "Synthesizing": "[Write]", "Done": "[OK]", "Error": "[ERR]"
                         };
-                        assistantContent += `> [!NOTE] ${iconMap[state] || "🔄"} **[Deep Research: ${state}]**\\n> ${info.replace(/\\n/g, "\\n> ")}\\n\\n`;
+                        assistantContent += `> [!NOTE] ${iconMap[state] || "[...]"} **[Deep Research: ${state}]**\\n> ${info.replace(/\\n/g, "\\n> ")}\\n\\n`;
                         updateLocalLastAssistantMessage(convId!, assistantContent);
                     },
                     onTextChunk: (text) => {
@@ -156,7 +157,7 @@ export default function ChatPage() {
                         setIsGenerating(false);
                     },
                     onError: (error) => {
-                        assistantContent += `\\n❌ **Research Error**: ${error}`;
+                        assistantContent += `\\n**[ERROR] Research Error**: ${error}`;
                         updateLocalLastAssistantMessage(convId!, assistantContent);
                         addMessageToDb(convId!, "assistant", assistantContent).catch(console.error);
                         setIsGenerating(false);
@@ -165,7 +166,7 @@ export default function ChatPage() {
                 });
             } catch (error) {
                 const errorMsg = error instanceof Error ? error.message : String(error);
-                updateLocalLastAssistantMessage(convId!, `❌ **初始化深研失败**: ${errorMsg}`);
+                updateLocalLastAssistantMessage(convId!, `**[ERROR] 初始化深研失败**: ${errorMsg}`);
                 setIsGenerating(false);
             }
             return;
@@ -233,15 +234,15 @@ export default function ChatPage() {
                         setIsGenerating(false);
                     },
                     onError: (error) => {
-                        updateLocalLastAssistantMessage(convId!, `❌ **Gateway 错误**: ${error}`);
-                        addMessageToDb(convId!, "assistant", `❌ **错误**: ${error}`).catch(console.error);
+                        updateLocalLastAssistantMessage(convId!, `**[ERROR] Gateway 错误**: ${error}`);
+                        addMessageToDb(convId!, "assistant", `**[ERROR]**: ${error}`).catch(console.error);
                         setIsGenerating(false);
                     },
                 }
             );
 
             if (!sent) {
-                updateLocalLastAssistantMessage(convId!, "❌ Gateway 连接已断开，请检查 OpenClaw 服务状态。");
+                updateLocalLastAssistantMessage(convId!, "**[ERROR]** Gateway 连接已断开，请检查 OpenClaw 服务状态。");
                 setIsGenerating(false);
             }
         } else {
@@ -310,14 +311,14 @@ export default function ChatPage() {
                         setIsGenerating(false);
                     },
                     onError: (error) => {
-                        updateLocalLastAssistantMessage(convId!, `❌ **错误**: ${error}`);
-                        addMessageToDb(convId!, "assistant", `❌ **错误**: ${error}`).catch(console.error);
+                        updateLocalLastAssistantMessage(convId!, `**[ERROR]**: ${error}`);
+                        addMessageToDb(convId!, "assistant", `**[ERROR]**: ${error}`).catch(console.error);
                         setIsGenerating(false);
                     },
                 });
             } catch (error) {
                 const errorMsg = error instanceof Error ? error.message : String(error);
-                updateLocalLastAssistantMessage(convId!, `❌ **错误**: ${errorMsg}`);
+                updateLocalLastAssistantMessage(convId!, `**[ERROR]**: ${errorMsg}`);
                 setIsGenerating(false);
             }
         }
@@ -348,7 +349,7 @@ export default function ChatPage() {
                         onClick={() => setShowAgentPicker(!showAgentPicker)}
                         className="flex items-center gap-2 px-2.5 py-1.5 rounded-lg text-sm font-medium hover:bg-black/[0.04] dark:hover:bg-white/[0.05] transition-colors"
                     >
-                        <span className="text-base">{currentAgent?.avatar || '🤖'}</span>
+                        <AgentAvatar avatar={currentAgent?.avatar || 'bot'} size={18} className="text-foreground/70" />
                         <span className="text-foreground">{currentAgent?.name || 'Sinaclaw'}</span>
                         <ChevronDown className={`w-3.5 h-3.5 text-muted-foreground transition-transform ${showAgentPicker ? 'rotate-180' : ''}`} />
                     </button>
@@ -375,7 +376,7 @@ export default function ChatPage() {
                                                     : 'text-foreground/80 hover:bg-muted/30'
                                             }`}
                                         >
-                                            <span className="text-lg">{agent.avatar}</span>
+                                            <AgentAvatar avatar={agent.avatar} size={18} className="text-foreground/70" />
                                             <div className="flex-1 min-w-0">
                                                 <div className="text-[13px] font-medium truncate">{agent.name}</div>
                                                 <div className="text-[11px] text-muted-foreground truncate">{agent.description}</div>

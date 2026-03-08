@@ -81,9 +81,9 @@ class SkillManager {
                                     path: skillPath,
                                     enabled: isEnabled
                                 });
-                                console.log(`✓ 成功装载外部技能: [${definition.name}] (Enabled: ${isEnabled})`);
+                                console.log(`[OK] 成功装载外部技能: [${definition.name}] (Enabled: ${isEnabled})`);
                             } else {
-                                console.warn(`⚠️ 技能格式违法，名称或执行入口缺失: ${entry.name}`);
+                                console.warn(`[WARN] 技能格式违法，名称或执行入口缺失: ${entry.name}`);
                             }
                         }
                     } catch (err) {
@@ -153,7 +153,7 @@ class SkillManager {
             throw new Error(`无法路由: 未找到名为 ${skillName} 的外部技能。`);
         }
         if (!skill.enabled) {
-            return `❎ 技能 [${skillName}] 已被用户禁用。`;
+            return `[DISABLED] 技能 [${skillName}] 已被用户禁用。`;
         }
 
         let runCmd = skill.definition.execution.command;
@@ -166,19 +166,19 @@ class SkillManager {
             runCmd = runCmd.replace(regex, safeValue);
         }
 
-        console.log(`🚀 执行外部技能 [${skillName}]: ${runCmd}`);
+        console.log(`[RUN] 执行外部技能 [${skillName}]: ${runCmd}`);
 
         try {
             const cmd = Command.create('sh', ['-c', runCmd]);
             const output = await cmd.execute();
 
             if (output.code !== 0) {
-                return `❎ 技能 [${skillName}] 执行异常，错误码 ${output.code}:\n${output.stderr}`;
+                return `[ERROR] 技能 [${skillName}] 执行异常，错误码 ${output.code}:\n${output.stderr}`;
             }
 
-            return output.stdout.trim() || `✅ 技能 [${skillName}] 已成功执行。无标准输出回显。`;
+            return output.stdout.trim() || `[OK] 技能 [${skillName}] 已成功执行。无标准输出回显。`;
         } catch (e: any) {
-            return `❎ 技能 [${skillName}] 调用失败:\n${e.message || String(e)}`;
+            return `[ERROR] 技能 [${skillName}] 调用失败:\n${e.message || String(e)}`;
         }
     }
 }

@@ -63,7 +63,7 @@ export default function SkillStorePage() {
             await installSkill(skill);
             setInstalledIds(prev => new Set(prev).add(skill.id));
             await loadSkills();
-            addToast(`✅ 技能 [${skill.name}] 安装成功！`, "success");
+            addToast(`技能 [${skill.name}] 安装成功`, "success");
         } catch (err) {
             addToast(`安装失败: ${err instanceof Error ? err.message : String(err)}`, "error");
         } finally {
@@ -302,7 +302,7 @@ export default function SkillStorePage() {
                                                 <div key={skill.id} className="bg-card/80 dark:bg-card/50 border border-border/50 dark:border-white/[0.06] rounded-xl p-4.5 flex flex-col hover:border-border/80 dark:hover:border-white/[0.12] transition-all duration-150 relative group" style={{ boxShadow: 'var(--panel-shadow)' }}>
                                                     <div className="flex items-center gap-3 mb-4">
                                                         <div className="w-9 h-9 rounded-lg bg-primary/[0.06] dark:bg-primary/10 border border-border/40 flex items-center justify-center text-lg shrink-0">
-                                                            {skill.icon || '📦'}
+                                                            {skill.icon || 'pkg'}
                                                         </div>
                                                         <div className="overflow-hidden">
                                                             <h4 className="font-semibold text-[13px] truncate text-foreground">{skill.name}</h4>
@@ -318,7 +318,7 @@ export default function SkillStorePage() {
                                                     </p>
                                                     {skill.trigger && (
                                                         <span className="text-[10px] px-1.5 py-0.5 rounded-md bg-amber-500/10 text-amber-500 font-mono mb-3 self-start">
-                                                            ⚡ {skill.trigger.type}: {skill.trigger.pattern.slice(0, 30)}
+                                                            {skill.trigger.type}: {skill.trigger.pattern.slice(0, 30)}
                                                         </span>
                                                     )}
 
@@ -369,7 +369,7 @@ export default function SkillStorePage() {
                                 <button
                                     onClick={() => {
                                         navigator.clipboard.writeText(publishJson!);
-                                        addToast("✅ Code payload secured in clipboard", "success");
+                                        addToast("Code payload secured in clipboard", "success");
                                     }}
                                     className="flex-1 py-2 rounded-lg text-[13px] font-medium bg-primary text-primary-foreground hover:bg-primary/90 transition-all"
                                 >

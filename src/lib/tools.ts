@@ -7,7 +7,7 @@
 import { invoke } from "@tauri-apps/api/core";
 import { skillManager } from "@/lib/skills";
 
-import { getDocuments, getAllChunks } from "@/lib/db";
+import { getDocuments, getAllChunks, appendCoreMemory, getAllCoreMemories, type MemoryCategory } from "@/lib/db";
 import { generateEmbeddings, searchSimilarChunks } from "@/lib/embeddings";
 
 // ── 工具执行结果类型 ────────────────────────────────────
@@ -264,12 +264,185 @@ export const OPENCLAW_TOOLS = [
     {
         type: "function" as const,
         function: {
+            name: "fetch_url",
+            description: "读取指定网页的纯文本内容。提取网页的正文文本，去除脚本和样式。对于需要深度阅读的长网页或提取文章内容特别有用。",
+            parameters: {
+                type: "object",
+                properties: {
+                    url: {
+                        type: "string",
+                        description: "要访问的网页 URL (必须以 http 或 https 开头)",
+                    },
+                },
+                required: ["url"],
+            },
+        },
+    },
+    {
+        type: "function" as const,
+        function: {
             name: "screenshot",
             description: "截取当前主屏幕的画面并保存到本地。返回截图的绝对路径。截屏后你可以结合其他视觉分析工具对画面进行解读。",
             parameters: {
                 type: "object",
                 properties: {},
                 required: [],
+            },
+        },
+    },
+    {
+        type: "function" as const,
+        function: {
+            name: "core_memory_append",
+            description: "将关于用户、环境配置、偏好或项目细节的长期记忆持久化存储。当用户提供新信息或你发现需要记住的重要细节时调用此工具。请根据内容选择合适的分类。",
+            parameters: {
+                type: "object",
+                properties: {
+                    content: {
+                        type: "string",
+                        description: "要记住的关键事实或信息片段",
+                    },
+                    category: {
+                        type: "string",
+                        enum: ["preferences", "contacts", "projects", "learnings", "tools", "custom"],
+                        description: "记忆分类: preferences=用户偏好, contacts=联系人, projects=项目信息, learnings=学到的知识, tools=工具和工作流, custom=其他",
+                    },
+                },
+                required: ["content"],
+            },
+        },
+    },
+    {
+        type: "function" as const,
+        function: {
+            name: "core_memory_search",
+            description: "检索长期记忆中的事实。当你不确定用户的偏好、环境细节或历史记录时，调用此工具来获取相关记忆。如果不提供 query，将返回所有核心记忆。",
+            parameters: {
+                type: "object",
+                properties: {
+                    query: {
+                        type: "string",
+                        description: "搜索关键词（可选）",
+                    },
+                },
+                required: [],
+            },
+        },
+    },
+    {
+        type: "function" as const,
+        function: {
+            name: "delegate_to_agent",
+            description: "将子任务委派给指定角色的子 Agent 执行。当一个任务需要不同领域的专家协作完成时使用此工具。子 Agent 会独立执行任务并返回结果。",
+            parameters: {
+                type: "object",
+                properties: {
+                    agent_name: {
+                        type: "string",
+                        description: "委派给哪个角色（如 Senior Developer、Content Writer、Data Analyst）",
+                    },
+                    task: {
+                        type: "string",
+                        description: "要委派的具体任务描述",
+                    },
+                },
+                required: ["agent_name", "task"],
+            },
+        },
+    },
+    {
+        type: "function" as const,
+        function: {
+            name: "browser_open",
+            description: "在系统默认浏览器中打开指定 URL。用于帮助用户快速访问网页、文档、仪表盘等。",
+            parameters: {
+                type: "object",
+                properties: {
+                    url: {
+                        type: "string",
+                        description: "要打开的 URL (必须以 http 或 https 开头)",
+                    },
+                },
+                required: ["url"],
+            },
+        },
+    },
+    {
+        type: "function" as const,
+        function: {
+            name: "browser_screenshot_url",
+            description: "截取指定网页的屏幕截图，保存为 PNG 文件。可用于网页视觉检查、UI 测试验证等。需要系统安装了 Chrome/Chromium。",
+            parameters: {
+                type: "object",
+                properties: {
+                    url: {
+                        type: "string",
+                        description: "要截图的网页 URL",
+                    },
+                    output_path: {
+                        type: "string",
+                        description: "截图保存路径（可选，默认保存到临时目录）",
+                    },
+                    width: {
+                        type: "number",
+                        description: "视口宽度像素（默认 1280）",
+                    },
+                    height: {
+                        type: "number",
+                        description: "视口高度像素（默认 800）",
+                    },
+                    full_page: {
+                        type: "boolean",
+                        description: "是否截取整个页面（默认 false）",
+                    },
+                },
+                required: ["url"],
+            },
+        },
+    },
+    {
+        type: "function" as const,
+        function: {
+            name: "browser_extract_text",
+            description: "提取指定网页中特定 CSS 选择器匹配元素的文本内容。相比 fetch_url 更精确，可以针对性提取页面中的某个区域。",
+            parameters: {
+                type: "object",
+                properties: {
+                    url: {
+                        type: "string",
+                        description: "网页 URL",
+                    },
+                    selector: {
+                        type: "string",
+                        description: "CSS 选择器，如 'h1', '.content', '#main-text'",
+                    },
+                },
+                required: ["url", "selector"],
+            },
+        },
+    },
+    {
+        type: "function" as const,
+        function: {
+            name: "browser_run_js",
+            description: "在指定网页上执行 JavaScript 代码。可用于模拟点击按钮、填写表单、提取动态内容等高级浏览器操作。需要 Chrome/Chromium。",
+            parameters: {
+                type: "object",
+                properties: {
+                    url: {
+                        type: "string",
+                        description: "目标网页 URL",
+                    },
+                    script: {
+                        type: "string",
+                        description: "要执行的 JavaScript 代码。可以使用 document.querySelector 等 DOM API。例如: document.querySelector('#submit').click()",
+                    },
+                    wait_ms: {
+                        type: "number",
+                        description: "页面加载后等待的毫秒数（默认 2000）",
+                    },
+                },
+                required: ["url", "script"],
             },
         },
     },
@@ -283,6 +456,28 @@ export async function executeTool(
 ): Promise<string> {
     try {
         switch (name) {
+            case "core_memory_append": {
+                const { content, category } = args as { content: string; category?: string };
+                if (!content) throw new Error("缺少 content 参数");
+                const cat = (category || 'custom') as MemoryCategory;
+                await appendCoreMemory(content, cat);
+                const catNames: Record<string, string> = { preferences: '偏好', contacts: '联系人', projects: '项目', learnings: '学习', tools: '工具', custom: '通用' };
+                return `[OK] 核心记忆已保存 [${catNames[cat] || cat}]: ${content}`;
+            }
+            case "core_memory_search": {
+                const { query } = args as { query?: string };
+                const memories = await getAllCoreMemories();
+                if (memories.length === 0) return "[WARN] 核心记忆库为空。";
+
+                let matches = memories;
+                if (query) {
+                    const lowerQuery = query.toLowerCase();
+                    matches = memories.filter(m => m.content.toLowerCase().includes(lowerQuery));
+                }
+
+                if (matches.length === 0) return `[WARN] 没有找到与 "${query}" 相关的记忆。`;
+                return `[Memory] 检索到的核心记忆：\n` + matches.map((m, i) => `${i + 1}. [${new Date(m.created_at).toLocaleString()}] ${m.content}`).join("\n");
+            }
             case "run_command": {
                 const result = await invoke<CommandResult>("tool_run_command", {
                     command: args.command as string,
@@ -312,14 +507,14 @@ export async function executeTool(
                     path: args.path as string,
                 });
                 return entries
-                    .map((e) => `${e.is_dir ? "📁" : "📄"} ${e.name}${e.is_dir ? "/" : ""} (${formatSize(e.size)})`)
+                    .map((e) => `${e.is_dir ? "[DIR]" : "[FILE]"} ${e.name}${e.is_dir ? "/" : ""} (${formatSize(e.size)})`)
                     .join("\n");
             }
             case "detect_environment": {
                 const info = await invoke<EnvInfo>("tool_detect_env");
-                let report = `🖥️ OS: ${info.os} (${info.arch})\n\n`;
+                let report = `OS: ${info.os} (${info.arch})\n\n`;
                 for (const [name, status] of Object.entries(info.tools)) {
-                    const icon = status.installed ? "✅" : "❌";
+                    const icon = status.installed ? "[OK]" : "[MISSING]";
                     report += `${icon} ${name}: ${status.installed ? status.version : "未安装"}\n`;
                 }
                 return report;
@@ -334,8 +529,8 @@ export async function executeTool(
                 if (result.stdout) output += result.stdout;
                 if (result.stderr) output += (output ? "\n" : "") + result.stderr;
                 return result.success
-                    ? `✅ 安装成功\n${output}`
-                    : `❌ 安装失败 (exit: ${result.exit_code})\n${output}`;
+                    ? `[OK] 安装成功\n${output}`
+                    : `[ERROR] 安装失败 (exit: ${result.exit_code})\n${output}`;
             }
             case "cloud_list": {
                 interface CloudFileResult {
@@ -347,7 +542,7 @@ export async function executeTool(
                 });
                 if (files.length === 0) return "(目录为空)";
                 return files
-                    .map((f) => `${f.is_folder ? "📁" : "📄"} ${f.name} (${formatSize(f.size)})`)
+                    .map((f) => `${f.is_folder ? "[DIR]" : "[FILE]"} ${f.name} (${formatSize(f.size)})`)
                     .join("\n");
             }
             case "cloud_download": {
@@ -368,11 +563,11 @@ export async function executeTool(
                     remoteFolderId: (args.remote_folder_id as string) || null,
                     fileName: null,
                 });
-                return `✅ 已上传: ${result.name} (${formatSize(result.size)})`;
+                return `[OK] 已上传: ${result.name} (${formatSize(result.size)})`;
             }
             case "search_knowledge": {
                 const query = args.query as string;
-                if (!query) return "❌ 缺少 query 参数";
+                if (!query) return "[ERROR] 缺少 query 参数";
                 const topK = (args.top_k as number) || 3;
 
                 try {
@@ -401,7 +596,7 @@ export async function executeTool(
                     if (results.length === 0) return "未找到相关内容。";
 
                     // 格式化输出
-                    let output = `🔍 **知识库搜索结果** (Query: "${query}")\n\n`;
+                    let output = `**知识库搜索结果** (Query: "${query}")\n\n`;
                     for (let i = 0; i < results.length; i++) {
                         const r = results[i];
                         const docName = docMap.get(r.doc_id) || `Unknown Doc (${r.doc_id})`;
@@ -411,18 +606,60 @@ export async function executeTool(
 
                     return output.trim();
                 } catch (e) {
-                    return `❌ 知识库搜索失败: ${e instanceof Error ? e.message : String(e)}`;
+                    return `[ERROR] 知识库搜索失败: ${e instanceof Error ? e.message : String(e)}`;
                 }
             }
             case "search_web": {
                 const query = args.query as string;
-                if (!query) return "❌ 缺少 query 参数";
+                if (!query) return "[ERROR] 缺少 query 参数";
                 const result = await invoke<string>("tool_search_web", { query });
+                return result;
+            }
+            case "fetch_url": {
+                const url = args.url as string;
+                if (!url) return "[ERROR] 缺少 url 参数";
+                const result = await invoke<string>("tool_fetch_url", { url });
                 return result;
             }
             case "screenshot": {
                 const result = await invoke<string>("tool_screenshot");
-                return `✅ 截屏成功，保存路径已返回（可进行后续多模态分析）: ${result}`;
+                return `[OK] 截屏成功，保存路径已返回（可进行后续多模态分析）: ${result}`;
+            }
+            case "browser_open": {
+                const url = args.url as string;
+                if (!url) return "[ERROR] 缺少 url 参数";
+                const { openUrl } = await import("@tauri-apps/plugin-opener");
+                await openUrl(url);
+                return `[OK] 已在浏览器中打开: ${url}`;
+            }
+            case "browser_screenshot_url": {
+                const url = args.url as string;
+                if (!url) return "[ERROR] 缺少 url 参数";
+                const result = await invoke<string>("tool_browser_screenshot", {
+                    url,
+                    outputPath: (args.output_path as string) || null,
+                    width: (args.width as number) || null,
+                    height: (args.height as number) || null,
+                });
+                return result;
+            }
+            case "browser_extract_text": {
+                const url = args.url as string;
+                const selector = args.selector as string;
+                if (!url || !selector) return "[ERROR] 缺少 url 或 selector 参数";
+                const html = await invoke<string>("tool_fetch_url", { url });
+                return `已获取页面内容。请在返回的 HTML 文本中查找选择器 "${selector}" 对应的内容：\n\n${html.slice(0, 3000)}`;
+            }
+            case "browser_run_js": {
+                const url = args.url as string;
+                const script = args.script as string;
+                if (!url || !script) return "[ERROR] 缺少 url 或 script 参数";
+                const result = await invoke<string>("tool_browser_run_js", {
+                    url,
+                    script,
+                    waitMs: (args.wait_ms as number) || null,
+                });
+                return result;
             }
             default: {
                 // 1. 尝试路由到 MCP 工具 (格式: mcp__server_id__tool_name)
@@ -444,11 +681,12 @@ export async function executeTool(
                 if (skillManager.findSkillByName(name)) {
                     return await skillManager.executeSkill(name, args as Record<string, any>);
                 }
-                return `❌ 未知工具: ${name}`;
+
+                return `[ERROR] 未知工具: ${name}`;
             }
         }
     } catch (error) {
-        return `❌ 工具执行失败: ${error instanceof Error ? error.message : String(error)}`;
+        return `[ERROR] 工具执行失败: ${error instanceof Error ? error.message : String(error)}`;
     }
 }
 

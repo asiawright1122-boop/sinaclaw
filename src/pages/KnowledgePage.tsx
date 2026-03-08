@@ -81,7 +81,7 @@ export default function KnowledgePage() {
             }));
             await saveChunks(doc.id, chunkRows);
 
-            addToast(`✅ Document [${file.name}] added to Knowledge Base (${chunks.length} chunks)`, "success");
+            addToast(`Document [${file.name}] added to Knowledge Base (${chunks.length} chunks)`, "success");
             loadDocuments();
         } catch (error) {
             console.error("File processing failed:", error);

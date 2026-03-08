@@ -22,7 +22,7 @@ export default function CodeOutput({ content, toolName }: CodeOutputProps) {
     // ── 检测内容类型 ──────────────────────────────────────
 
     const isBase64Image = content.startsWith("data:image/");
-    const isError = content.startsWith("❌");
+    const isError = content.startsWith("[ERROR]");
     const isMarkdownTable = content.includes("|") && content.includes("---");
 
     // ── 渲染 ─────────────────────────────────────────────

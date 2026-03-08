@@ -10,6 +10,7 @@ import { useTranslate } from "@/lib/i18n";
 import { useSettingsStore } from "@/store/settingsStore";
 import { useAgentStore } from "@/store/agentStore";
 import Tooltip from "@/components/ui/Tooltip";
+import AgentAvatar from "@/components/ui/AgentAvatar";
 
 // 数据文件扩展名
 const DATA_FILE_EXTENSIONS = [".csv", ".xlsx", ".xls", ".tsv"];
@@ -273,7 +274,7 @@ export default function ChatInput({ onSend }: ChatInputProps) {
                         const prompt = `请分析这个数据文件: ${file.name}`;
                         setInputValue(prompt);
                         processFile(file);
-                        addToast(`📊 检测到数据文件 ${file.name}，已自动开启分析模式`, "info");
+                        addToast(`检测到数据文件 ${file.name}，已自动开启分析模式`, "info");
                     } else {
                         processFile(file);
                     }
@@ -381,7 +382,7 @@ export default function ChatInput({ onSend }: ChatInputProps) {
                                             setShowMentions(false);
                                         }}
                                     >
-                                        <span className="text-lg">{agent.avatar}</span>
+                                        <AgentAvatar avatar={agent.avatar} size={18} className="text-foreground/70" />
                                         <div>
                                             <div className="text-sm font-semibold text-foreground">{agent.name}</div>
                                             <div className="text-xs text-muted-foreground truncate max-w-[200px]">{agent.description}</div>

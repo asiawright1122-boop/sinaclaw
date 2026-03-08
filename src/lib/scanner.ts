@@ -35,7 +35,7 @@ function getCheckList(): ScanItem[] {
         {
             name: "node_sidecar",
             label: "Sinaclaw 引擎",
-            icon: "⚙️",
+            icon: "gear",
             required: true,
             status: "checking",
             version: "",
@@ -133,7 +133,7 @@ export async function runProjectHealthCheck(
         const nmItem: ProjectHealthItem = {
             name: "node_modules",
             label: "依赖目录",
-            icon: "📁",
+            icon: "folder",
             status: "checking",
             detail: "",
         };
@@ -148,7 +148,7 @@ export async function runProjectHealthCheck(
             const installResult = await runCmd("npm install", projectPath);
             if (installResult.success) {
                 nmItem.status = "fixed";
-                nmItem.detail = "✨ 已自动执行 npm install";
+                nmItem.detail = "已自动执行 npm install";
                 autoFixed++;
             } else {
                 nmItem.status = "error";
@@ -164,7 +164,7 @@ export async function runProjectHealthCheck(
         const lockItem: ProjectHealthItem = {
             name: "lockfile",
             label: "Lock 文件",
-            icon: "🔒",
+            icon: "lock",
             status: "checking",
             detail: "",
         };
@@ -187,15 +187,17 @@ export async function runProjectHealthCheck(
         const conflictItem: ProjectHealthItem = {
             name: "conflicts",
             label: "依赖冲突",
-            icon: "⚠️",
+            icon: "alert",
             status: "checking",
             detail: "",
         };
         items.push(conflictItem);
         onUpdate([...items]);
 
-        const lsResult = await runCmd("npm ls --depth=0 2>&1 | grep -i 'ERR\\|WARN\\|peer\\|invalid\\|missing' | head -5", projectPath);
-        if (!lsResult.stdout.trim()) {
+        const lsResult = await runCmd("npm ls --depth=0", projectPath);
+        const lsOutput = (lsResult.stdout + "\n" + lsResult.stderr).toLowerCase();
+        const hasConflicts = /err!|warn|peer|invalid|missing/i.test(lsOutput);
+        if (!hasConflicts) {
             conflictItem.status = "ok";
             conflictItem.detail = "无冲突";
         } else {
@@ -211,17 +213,19 @@ export async function runProjectHealthCheck(
             const fixResult = await runCmd("npm install --legacy-peer-deps", projectPath);
 
             // 重新检查
-            const recheckResult = await runCmd("npm ls --depth=0 2>&1 | grep -i 'ERR\\|invalid\\|missing' | head -3", projectPath);
-            if (!recheckResult.stdout.trim()) {
+            const recheckResult = await runCmd("npm ls --depth=0", projectPath);
+            const recheckOutput = (recheckResult.stdout + "\n" + recheckResult.stderr).toLowerCase();
+            const stillHasErrors = /err!|invalid|missing/i.test(recheckOutput);
+            if (!stillHasErrors) {
                 conflictItem.status = "fixed";
-                conflictItem.detail = "✨ 依赖冲突已自动修复";
+                conflictItem.detail = "依赖冲突已自动修复";
                 autoFixed++;
             } else if (fixResult.success) {
                 conflictItem.status = "warning";
                 conflictItem.detail = "部分冲突已修复，剩余可通过 AI 对话进一步处理";
             } else {
                 conflictItem.status = "error";
-                conflictItem.detail = extractFirstLine(lsResult.stdout);
+                conflictItem.detail = extractFirstLine(lsResult.stderr || lsResult.stdout);
             }
         }
         onUpdate([...items]);
@@ -230,20 +234,21 @@ export async function runProjectHealthCheck(
         const outdatedItem: ProjectHealthItem = {
             name: "outdated",
             label: "过期依赖",
-            icon: "📅",
+            icon: "calendar",
             status: "checking",
             detail: "",
         };
         items.push(outdatedItem);
         onUpdate([...items]);
 
-        const outdatedResult = await runCmd("npm outdated --json 2>/dev/null | head -1", projectPath);
-        if (!outdatedResult.stdout.trim() || outdatedResult.stdout.trim() === "{}") {
+        const outdatedResult = await runCmd("npm outdated --json", projectPath);
+        const outdatedStr = outdatedResult.stdout.trim();
+        if (!outdatedStr || outdatedStr === "{}") {
             outdatedItem.status = "ok";
             outdatedItem.detail = "所有依赖已是最新";
         } else {
             try {
-                const outdated = JSON.parse(outdatedResult.stdout);
+                const outdated = JSON.parse(outdatedStr);
                 const count = Object.keys(outdated).length;
                 outdatedItem.status = "warning";
                 outdatedItem.detail = `${count} 个依赖可更新（不影响运行）`;
@@ -259,7 +264,7 @@ export async function runProjectHealthCheck(
         const cargoItem: ProjectHealthItem = {
             name: "cargo_check",
             label: "Cargo 编译检查",
-            icon: "🦀",
+            icon: "crab",
             status: "checking",
             detail: "",
         };
@@ -281,7 +286,7 @@ export async function runProjectHealthCheck(
         const pipItem: ProjectHealthItem = {
             name: "pip_check",
             label: "Python 依赖",
-            icon: "🐍",
+            icon: "snake",
             status: "checking",
             detail: "",
         };
@@ -307,7 +312,7 @@ export async function runProjectHealthCheck(
                 projectPath
             );
             pipItem.status = installResult.success ? "fixed" : "error";
-            pipItem.detail = installResult.success ? "✨ 依赖已安装" : "安装失败";
+            pipItem.detail = installResult.success ? "依赖已安装" : "安装失败";
             if (installResult.success) autoFixed++;
         } else {
             pipItem.status = "ok";
@@ -323,11 +328,7 @@ export async function runProjectHealthCheck(
 
 async function fileExists(path: string): Promise<boolean> {
     try {
-        const result = await invoke<CommandResult>("tool_run_command", {
-            command: `test -e "${path}" && echo "yes" || echo "no"`,
-            cwd: null,
-        });
-        return result.stdout.trim() === "yes";
+        return await invoke<boolean>("tool_file_exists", { path });
     } catch {
         return false;
     }
