@@ -30,7 +30,6 @@ import { MCP_PRESETS } from "@/store/mcpStore";
 import { getAllCoreMemories, deleteMemory, updateMemory } from "@/lib/db";
 
 const UsagePage = lazy(() => import("@/pages/UsagePage"));
-const LocalModelsPage = lazy(() => import("@/pages/LocalModelsPage"));
 const SyncPage = lazy(() => import("@/pages/SyncPage"));
 const SecurityPage = lazy(() => import("@/pages/SecurityPage"));
 const AgentWorkbenchPage = lazy(() => import("@/pages/AgentWorkbenchPage"));
@@ -373,7 +372,7 @@ export default function SettingsPage() {
 
     // Tabs 逻辑
     const [searchParams] = useSearchParams();
-    const validTabs = ["api", "cloud", "ext", "memory", "openclaw", "usage", "models", "sync", "security", "agents", "knowledge", "skills", "connections"] as const;
+    const validTabs = ["api", "cloud", "ext", "memory", "openclaw", "usage", "sync", "security", "agents", "knowledge", "skills", "connections"] as const;
     type TabId = typeof validTabs[number];
     const initialTab = useMemo(() => {
         const t = searchParams.get("tab");
@@ -446,7 +445,6 @@ export default function SettingsPage() {
                 { id: "agents" as const, icon: Bot, label: "Agent 管理" },
                 { id: "knowledge" as const, icon: Database, label: "知识库" },
                 { id: "skills" as const, icon: Puzzle, label: "技能商店" },
-                { id: "models" as const, icon: HardDrive, label: "本地模型" },
             ],
         },
         {
@@ -562,58 +560,86 @@ export default function SettingsPage() {
                                 <h2 className="text-[17px] font-bold">{t.settings.provider}</h2>
                             </div>
 
-                            <div className="grid grid-cols-4 gap-3">
-                                {providerKeys.map((p) => (
-                                    <button
-                                        key={p}
-                                        onClick={() => setProvider(p)}
-                                        className={`h-12 px-4 rounded-[14px] text-[14px] font-semibold transition-all border cursor-pointer text-center whitespace-nowrap flex items-center justify-center gap-3 ${provider === p
-                                            ? "bg-primary text-primary-foreground border-primary shadow-md hover:-translate-y-[1px]"
-                                            : "border-border/50 dark:border-white/[0.06] bg-card/60 dark:bg-card/40 text-foreground/70 hover:bg-card/80 dark:hover:bg-card/60 hover:text-foreground"
+                            <div className="flex flex-wrap gap-2.5">
+                                {providerKeys.map((p) => {
+                                    const isActive = provider === p;
+                                    return (
+                                        <button
+                                            key={p}
+                                            onClick={() => setProvider(p)}
+                                            className={`relative h-10 px-3.5 rounded-xl text-[13px] font-semibold transition-all border cursor-pointer flex items-center gap-2 shrink-0 ${isActive
+                                                ? "bg-primary/10 text-primary border-primary/40 ring-1 ring-primary/20"
+                                                : "border-border/50 dark:border-white/[0.06] bg-card/60 dark:bg-card/40 text-foreground/70 hover:bg-card/80 dark:hover:bg-card/60 hover:text-foreground"
                                             }`}
-                                    >
-                                        <div className="w-5 h-5 flex items-center justify-center shrink-0">
-                                            {p === "openai" && <OpenAIAppIcon className="w-full h-full" />}
-                                            {p === "anthropic" && <AnthropicAppIcon className="w-full h-full" />}
-                                            {p === "google" && <GoogleAppIcon className="w-full h-full" />}
-                                            {p === "deepseek" && <DeepSeekAppIcon className="w-full h-full" />}
-                                            {p === "minimax" && <MiniMaxAppIcon className="w-full h-full" />}
-                                            {p === "zhipu" && <ZhipuAppIcon className="w-full h-full" />}
-                                            {p === "local" && <LocalAppIcon className="w-full h-full" />}
-                                        </div>
-                                        <span>{PROVIDER_INFO[p].label}</span>
-                                    </button>
-                                ))}
+                                        >
+                                            <div className="w-5 h-5 flex items-center justify-center shrink-0">
+                                                {p === "openai" && <OpenAIAppIcon className="w-full h-full" />}
+                                                {p === "anthropic" && <AnthropicAppIcon className="w-full h-full" />}
+                                                {p === "google" && <GoogleAppIcon className="w-full h-full" />}
+                                                {p === "deepseek" && <DeepSeekAppIcon className="w-full h-full" />}
+                                                {p === "minimax" && <MiniMaxAppIcon className="w-full h-full" />}
+                                                {p === "zhipu" && <ZhipuAppIcon className="w-full h-full" />}
+                                                {p === "local" && <LocalAppIcon className="w-full h-full" />}
+                                            </div>
+                                            <span>{PROVIDER_INFO[p].label}</span>
+                                        </button>
+                                    );
+                                })}
                             </div>
                         </motion.section>
 
-                        {/* API Key */}
-                        <motion.section
-                            initial={{ opacity: 0, y: 10 }}
-                            animate={{ opacity: 1, y: 0 }}
-                            transition={{ delay: 0.2 }}
-                            className="bg-card/80 dark:bg-card/50 border border-border/50 dark:border-white/[0.06] rounded-xl p-6 space-y-4" style={{ boxShadow: 'var(--panel-shadow)' }}
-                        >
-                            <div className="flex items-center gap-3">
-                                <div className="w-9 h-9 rounded-lg bg-primary/[0.06] border border-border/50 flex items-center justify-center">
-                                    <Key className="w-4.5 h-4.5 text-primary" />
+                        {/* API Key — local 模式下显示 Ollama 状态 */}
+                        {provider !== "local" ? (
+                            <motion.section
+                                initial={{ opacity: 0, y: 10 }}
+                                animate={{ opacity: 1, y: 0 }}
+                                transition={{ delay: 0.2 }}
+                                className="bg-card/80 dark:bg-card/50 border border-border/50 dark:border-white/[0.06] rounded-xl p-6 space-y-4" style={{ boxShadow: 'var(--panel-shadow)' }}
+                            >
+                                <div className="flex items-center gap-3">
+                                    <div className="w-9 h-9 rounded-lg bg-primary/[0.06] border border-border/50 flex items-center justify-center">
+                                        <Key className="w-4.5 h-4.5 text-primary" />
+                                    </div>
+                                    <h2 className="text-[17px] font-bold">{t.settings.apiKey}</h2>
                                 </div>
-                                <h2 className="text-[17px] font-bold">{t.settings.apiKey}</h2>
-                            </div>
 
-                            <input
-                                type="password"
-                                value={apiKey}
-                                onChange={(e) => setApiKey(e.target.value)}
-                                placeholder={t.settings.apiKeyPlaceholder.replace("{provider}", PROVIDER_INFO[provider].label)}
-                                className="w-full bg-black/[0.03] dark:bg-white/[0.04] border border-border/50 dark:border-white/[0.06] rounded-lg px-5 py-3.5 text-[15px] font-medium text-foreground placeholder:text-muted-foreground/40 outline-none focus:border-primary/30 focus:ring-1 focus:ring-primary/20 transition-all"
-                            />
-                            <p className="text-[13px] font-medium text-muted-foreground/80 pl-1">
-                                {provider === "local"
-                                    ? t.settings.localModelTip
-                                    : t.settings.apiKeySecureTip}
-                            </p>
-                        </motion.section>
+                                <input
+                                    type="password"
+                                    value={apiKey}
+                                    onChange={(e) => setApiKey(e.target.value)}
+                                    placeholder={t.settings.apiKeyPlaceholder.replace("{provider}", PROVIDER_INFO[provider].label)}
+                                    className="w-full bg-black/[0.03] dark:bg-white/[0.04] border border-border/50 dark:border-white/[0.06] rounded-lg px-5 py-3.5 text-[15px] font-medium text-foreground placeholder:text-muted-foreground/40 outline-none focus:border-primary/30 focus:ring-1 focus:ring-primary/20 transition-all"
+                                />
+                                <p className="text-[13px] font-medium text-muted-foreground/80 pl-1">
+                                    {t.settings.apiKeySecureTip}
+                                </p>
+                            </motion.section>
+                        ) : (
+                            <motion.section
+                                initial={{ opacity: 0, y: 10 }}
+                                animate={{ opacity: 1, y: 0 }}
+                                transition={{ delay: 0.2 }}
+                                className="bg-card/80 dark:bg-card/50 border border-border/50 dark:border-white/[0.06] rounded-xl p-5" style={{ boxShadow: 'var(--panel-shadow)' }}
+                            >
+                                <div className="flex items-center gap-3">
+                                    <div className={`w-2.5 h-2.5 rounded-full ${localModels.length > 0 ? 'bg-emerald-400' : 'bg-amber-400'} animate-pulse`} />
+                                    <span className="text-[13px] font-medium text-foreground">
+                                        {localModels.length > 0
+                                            ? `Ollama 已连接 · 检测到 ${localModels.length} 个本地模型`
+                                            : 'Ollama 未连接 · 请确保 ollama serve 正在运行'}
+                                    </span>
+                                    <button
+                                        onClick={() => refreshLocalModels()}
+                                        className="ml-auto text-xs px-2.5 py-1 rounded-md bg-muted/40 hover:bg-muted/60 text-muted-foreground transition-colors"
+                                    >
+                                        刷新状态
+                                    </button>
+                                </div>
+                                <p className="text-[12px] text-muted-foreground/70 mt-2 pl-[22px]">
+                                    本地模式无需 API Key，所有推理在本地完成，数据不离开设备。
+                                </p>
+                            </motion.section>
+                        )}
 
                         {/* 模型选择 */}
                         <motion.section
@@ -627,120 +653,169 @@ export default function SettingsPage() {
                                     <Zap className="w-4.5 h-4.5 text-primary" />
                                 </div>
                                 <h2 className="text-[17px] font-bold">{t.settings.model}</h2>
-                                {provider === 'local' && (
+                            </div>
+
+                            {provider !== 'local' ? (
+                                /* ── 云端 Provider：下拉选择 ── */
+                                <div className="relative" ref={dropdownRef}>
                                     <button
-                                        onClick={() => refreshLocalModels()}
-                                        className="ml-auto text-xs px-2 py-1 bg-muted/50 hover:bg-muted/70 rounded-md transition-colors"
+                                        onClick={() => setIsModelDropdownOpen(!isModelDropdownOpen)}
+                                        className="w-full flex items-center justify-between px-4 py-3 rounded-lg text-[14px] font-semibold transition-all border border-border/50 dark:border-white/[0.06] bg-card/60 dark:bg-card/40 text-foreground hover:bg-card/80 dark:hover:bg-card/60"
                                     >
-                                        刷新本地模型
-                                    </button>
-                                )}
-                            </div>
-
-                            <div className="relative" ref={dropdownRef}>
-                                <button
-                                    onClick={() => setIsModelDropdownOpen(!isModelDropdownOpen)}
-                                    className="w-full flex items-center justify-between px-5 py-3.5 rounded-lg text-[15px] font-semibold transition-all border border-border/50 dark:border-white/[0.06] bg-card/60 dark:bg-card/40 text-foreground hover:bg-card/80 dark:hover:bg-card/60"
-                                >
-                                    <div className="flex items-center gap-3">
-                                        <span>{currentModelOption?.name}</span>
-                                        {currentModelOption?.tag && (
-                                            <span className={`text-[11px] px-2 py-0.5 rounded-lg font-bold uppercase tracking-wider ${currentModelOption.tag === "最强" ? "bg-amber-500/20 text-amber-500 dark:text-amber-300" :
-                                                currentModelOption.tag === "推荐" ? "bg-green-500/20 text-green-600 dark:text-green-300" :
+                                        <div className="flex items-center gap-2.5">
+                                            <span>{currentModelOption?.name}</span>
+                                            {currentModelOption?.tag && (
+                                                <span className={`text-[10px] px-1.5 py-0.5 rounded-md font-bold uppercase tracking-wider ${
+                                                    currentModelOption.tag === "最强" ? "bg-amber-500/20 text-amber-500 dark:text-amber-300" :
+                                                    currentModelOption.tag === "推荐" ? "bg-green-500/20 text-green-600 dark:text-green-300" :
                                                     currentModelOption.tag === "极速" ? "bg-cyan-500/20 text-cyan-600 dark:text-cyan-300" :
-                                                        currentModelOption.tag === "推理" ? "bg-violet-500/20 text-violet-600 dark:text-violet-300" :
-                                                            currentModelOption.tag === "通用" ? "bg-blue-500/20 text-blue-600 dark:text-blue-300" :
-                                                                currentModelOption.tag === "免费" ? "bg-emerald-500/20 text-emerald-600 dark:text-emerald-300" :
-                                                                    currentModelOption.tag === "高性价比" ? "bg-teal-500/20 text-teal-600 dark:text-teal-300" :
-                                                                        "bg-white/10 text-muted-foreground"
+                                                    currentModelOption.tag === "推理" ? "bg-violet-500/20 text-violet-600 dark:text-violet-300" :
+                                                    currentModelOption.tag === "通用" ? "bg-blue-500/20 text-blue-600 dark:text-blue-300" :
+                                                    currentModelOption.tag === "免费" ? "bg-emerald-500/20 text-emerald-600 dark:text-emerald-300" :
+                                                    currentModelOption.tag === "高性价比" ? "bg-teal-500/20 text-teal-600 dark:text-teal-300" :
+                                                    "bg-muted/50 text-muted-foreground"
                                                 }`}>
-                                                {currentModelOption.tag}
-                                            </span>
-                                        )}
-                                    </div>
-                                    <div className="flex items-center gap-4">
-                                        <span className="text-[13px] text-muted-foreground font-mono">{currentModelOption?.id}</span>
-                                        <ChevronDown className={`w-5 h-5 text-muted-foreground transition-transform duration-200 ${isModelDropdownOpen ? 'rotate-180' : ''}`} />
-                                    </div>
-                                </button>
+                                                    {currentModelOption.tag}
+                                                </span>
+                                            )}
+                                        </div>
+                                        <div className="flex items-center gap-3">
+                                            <span className="text-[12px] text-muted-foreground font-mono">{currentModelOption?.id}</span>
+                                            <ChevronDown className={`w-4 h-4 text-muted-foreground transition-transform duration-200 ${isModelDropdownOpen ? 'rotate-180' : ''}`} />
+                                        </div>
+                                    </button>
 
-                                <AnimatePresence>
-                                    {isModelDropdownOpen && (
-                                        <motion.div
-                                            initial={{ opacity: 0, y: -5 }}
-                                            animate={{ opacity: 1, y: 0 }}
-                                            exit={{ opacity: 0, y: -5 }}
-                                            transition={{ duration: 0.15 }}
-                                            className="absolute z-50 top-full left-0 right-0 mt-2 p-2 bg-card dark:bg-card border border-border/60 dark:border-white/[0.08] rounded-xl max-h-72 overflow-y-auto no-scrollbar" style={{ boxShadow: 'var(--panel-shadow)' }}
-                                        >
-                                            {currentOptions.map((m) => (
-                                                <button
-                                                    key={m.id}
-                                                    onClick={() => {
-                                                        setModel(m.id);
-                                                        setIsModelDropdownOpen(false);
-                                                    }}
-                                                    className={`w-full flex items-center justify-between px-4 py-3.5 rounded-xl text-[14px] font-semibold transition-colors ${model === m.id
-                                                        ? "bg-primary text-primary-foreground shadow-md"
-                                                        : "text-foreground/80 hover:bg-black/5 dark:hover:bg-white/10 hover:text-foreground"
+                                    <AnimatePresence>
+                                        {isModelDropdownOpen && (
+                                            <motion.div
+                                                initial={{ opacity: 0, y: -5 }}
+                                                animate={{ opacity: 1, y: 0 }}
+                                                exit={{ opacity: 0, y: -5 }}
+                                                transition={{ duration: 0.15 }}
+                                                className="absolute z-50 top-full left-0 right-0 mt-2 p-1.5 bg-card dark:bg-card border border-border/60 dark:border-white/[0.08] rounded-xl max-h-72 overflow-y-auto no-scrollbar" style={{ boxShadow: 'var(--panel-shadow)' }}
+                                            >
+                                                {currentOptions.map((m) => (
+                                                    <button
+                                                        key={m.id}
+                                                        onClick={() => { setModel(m.id); setIsModelDropdownOpen(false); }}
+                                                        className={`w-full flex items-center justify-between px-3.5 py-2.5 rounded-lg text-[13px] font-semibold transition-colors ${model === m.id
+                                                            ? "bg-primary/10 text-primary"
+                                                            : "text-foreground/80 hover:bg-muted/40 hover:text-foreground"
                                                         }`}
-                                                >
-                                                    <div className="flex items-center gap-3">
-                                                        <span>{m.name}</span>
-                                                        {m.tag && (
-                                                            <span className={`text-[10px] px-1.5 py-0.5 rounded-md font-bold uppercase tracking-wider ${model === m.id ? "bg-white/20 text-white" : m.tag === "最强" ? "bg-amber-500/20 text-amber-600 dark:text-amber-300" :
-                                                                m.tag === "推荐" ? "bg-green-500/20 text-green-600 dark:text-green-300" :
-                                                                    m.tag === "极速" ? "bg-cyan-500/20 text-cyan-600 dark:text-cyan-300" :
-                                                                        m.tag === "推理" ? "bg-violet-500/20 text-violet-600 dark:text-violet-300" :
-                                                                            m.tag === "通用" ? "bg-blue-500/20 text-blue-600 dark:text-blue-300" :
-                                                                                m.tag === "免费" ? "bg-emerald-500/20 text-emerald-600 dark:text-emerald-300" :
-                                                                                    m.tag === "高性价比" ? "bg-teal-500/20 text-teal-600 dark:text-teal-300" :
-                                                                                        "bg-black/5 dark:bg-white/10 text-muted-foreground"
+                                                    >
+                                                        <div className="flex items-center gap-2.5">
+                                                            <span>{m.name}</span>
+                                                            {m.tag && (
+                                                                <span className={`text-[9px] px-1.5 py-0.5 rounded font-bold uppercase tracking-wider ${
+                                                                    model === m.id ? "bg-primary/15 text-primary" :
+                                                                    m.tag === "最强" ? "bg-amber-500/15 text-amber-600 dark:text-amber-300" :
+                                                                    m.tag === "推荐" ? "bg-green-500/15 text-green-600 dark:text-green-300" :
+                                                                    m.tag === "极速" ? "bg-cyan-500/15 text-cyan-600 dark:text-cyan-300" :
+                                                                    m.tag === "推理" ? "bg-violet-500/15 text-violet-600 dark:text-violet-300" :
+                                                                    m.tag === "通用" ? "bg-blue-500/15 text-blue-600 dark:text-blue-300" :
+                                                                    m.tag === "免费" ? "bg-emerald-500/15 text-emerald-600 dark:text-emerald-300" :
+                                                                    m.tag === "高性价比" ? "bg-teal-500/15 text-teal-600 dark:text-teal-300" :
+                                                                    "bg-muted/50 text-muted-foreground"
                                                                 }`}>
-                                                                {m.tag}
-                                                            </span>
+                                                                    {m.tag}
+                                                                </span>
+                                                            )}
+                                                        </div>
+                                                        <span className={`text-[11px] font-mono ${model === m.id ? "text-primary/70" : "text-muted-foreground/50"}`}>{m.id}</span>
+                                                    </button>
+                                                ))}
+                                            </motion.div>
+                                        )}
+                                    </AnimatePresence>
+                                </div>
+                            ) : (
+                                /* ── 本地 Provider：完整的 Ollama 模型管理 ── */
+                                <div className="space-y-4">
+                                    {/* 已安装模型列表 */}
+                                    {localModels.length > 0 ? (
+                                        <div className="space-y-1.5">
+                                            {localModels.map((m) => {
+                                                const isActive = model === m.id || model === m.name;
+                                                return (
+                                                    <button
+                                                        key={m.id}
+                                                        onClick={() => setModel(m.id)}
+                                                        className={`w-full flex items-center justify-between px-3.5 py-2.5 rounded-lg text-left transition-all duration-150 ${isActive
+                                                            ? "bg-primary/10 border border-primary/30 ring-1 ring-primary/10"
+                                                            : "border border-transparent hover:bg-muted/30"
+                                                        }`}
+                                                    >
+                                                        <div className="flex items-center gap-2.5 min-w-0">
+                                                            <div className={`w-7 h-7 rounded-md flex items-center justify-center shrink-0 ${isActive ? "bg-primary/15" : "bg-muted/30"}`}>
+                                                                <HardDrive className={`w-3.5 h-3.5 ${isActive ? "text-primary" : "text-muted-foreground"}`} />
+                                                            </div>
+                                                            <div className="min-w-0">
+                                                                <span className={`text-[13px] font-semibold font-mono truncate block ${isActive ? "text-primary" : "text-foreground"}`}>{m.name}</span>
+                                                                {m.tag && m.tag !== "latest" && (
+                                                                    <span className="text-[10px] text-muted-foreground/60 font-mono">{m.tag}</span>
+                                                                )}
+                                                            </div>
+                                                        </div>
+                                                        {isActive && (
+                                                            <span className="text-[10px] px-2 py-0.5 rounded bg-primary/15 text-primary font-medium shrink-0">活跃</span>
                                                         )}
-                                                    </div>
-                                                    <span className={`text-[12px] font-mono ${model === m.id ? "opacity-90" : "opacity-50"}`}>{m.id}</span>
-                                                </button>
-                                            ))}
-                                        </motion.div>
-                                    )}
-                                </AnimatePresence>
-                            </div>
-
-                            {provider === 'local' && (
-                                <div className="space-y-3 pt-2 border-t border-border/40">
-                                    <div className="flex items-center gap-2">
-                                        <div className={`w-2 h-2 rounded-full ${localModels.length > 0 ? 'bg-green-400' : 'bg-red-400'} animate-pulse`} />
-                                        <span className="text-[13px] text-muted-foreground font-medium">
-                                            {localModels.length > 0
-                                                ? `Ollama 已连接 · ${localModels.length} 个模型`
-                                                : 'Ollama 未检测到 · 请确保 ollama serve 正在运行'}
-                                        </span>
-                                    </div>
-                                    <div className="flex gap-2">
-                                        <input
-                                            type="text"
-                                            placeholder="输入模型名拉取，如 llama3.3, qwen2.5..."
-                                            value={pullModelName}
-                                            onChange={(e) => setPullModelName(e.target.value)}
-                                            className="flex-1 bg-black/[0.03] dark:bg-white/[0.04] border border-border/50 dark:border-white/[0.06] rounded-lg px-4 py-2.5 text-[13px] focus:border-primary/30 focus:ring-1 focus:ring-primary/20 outline-none transition-all placeholder:text-muted-foreground/40"
-                                        />
-                                        <button
-                                            onClick={handlePullModel}
-                                            disabled={!pullModelName.trim() || isPullingModel}
-                                            className="px-4 py-2.5 rounded-xl bg-primary/10 text-primary text-[13px] font-bold hover:bg-primary/20 disabled:opacity-50 transition-all flex items-center gap-2"
-                                        >
-                                            {isPullingModel ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Download className="w-3.5 h-3.5" />}
-                                            {isPullingModel ? '拉取中...' : '拉取模型'}
-                                        </button>
-                                    </div>
-                                    {pullProgress && (
-                                        <div className="text-[12px] text-muted-foreground bg-black/[0.03] dark:bg-white/[0.04] border border-border/30 rounded-lg px-3 py-2 font-mono">
-                                            {pullProgress}
+                                                    </button>
+                                                );
+                                            })}
+                                        </div>
+                                    ) : (
+                                        <div className="text-center py-8 text-muted-foreground/50">
+                                            <HardDrive className="w-8 h-8 mx-auto mb-2" />
+                                            <p className="text-[13px] font-medium">暂无本地模型</p>
+                                            <p className="text-[11px] mt-0.5">在下方拉取你的第一个模型</p>
                                         </div>
                                     )}
+
+                                    {/* 拉取模型 */}
+                                    <div className="pt-3 border-t border-border/40 space-y-3">
+                                        <div className="flex gap-2">
+                                            <input
+                                                type="text"
+                                                placeholder="输入模型名拉取，如 llama3.3, qwen2.5..."
+                                                value={pullModelName}
+                                                onChange={(e) => setPullModelName(e.target.value)}
+                                                onKeyDown={(e) => e.key === 'Enter' && handlePullModel()}
+                                                className="flex-1 bg-black/[0.03] dark:bg-white/[0.04] border border-border/50 dark:border-white/[0.06] rounded-lg px-3.5 py-2 text-[13px] font-mono focus:border-primary/30 focus:ring-1 focus:ring-primary/20 outline-none transition-all placeholder:text-muted-foreground/40"
+                                            />
+                                            <button
+                                                onClick={handlePullModel}
+                                                disabled={!pullModelName.trim() || isPullingModel}
+                                                className="px-3.5 py-2 rounded-lg bg-primary text-primary-foreground text-[12px] font-semibold hover:bg-primary/90 disabled:opacity-40 transition-all flex items-center gap-1.5"
+                                            >
+                                                {isPullingModel ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Download className="w-3.5 h-3.5" />}
+                                                {isPullingModel ? '拉取中' : '拉取'}
+                                            </button>
+                                        </div>
+                                        {pullProgress && (
+                                            <div className="text-[11px] text-muted-foreground bg-black/[0.03] dark:bg-white/[0.04] border border-border/30 rounded-lg px-3 py-2 font-mono">
+                                                {pullProgress}
+                                            </div>
+                                        )}
+                                        {/* 推荐模型快捷标签 */}
+                                        <div className="flex flex-wrap gap-1.5">
+                                            {["llama3.3", "qwen2.5:7b", "deepseek-r1:14b", "mistral", "gemma2:9b"].map((name) => {
+                                                const installed = localModels.some((m) => name.startsWith(m.name?.split(":")[0]));
+                                                return (
+                                                    <button
+                                                        key={name}
+                                                        disabled={installed || isPullingModel}
+                                                        onClick={() => { setPullModelName(name); }}
+                                                        className={`px-2.5 py-1 rounded-md text-[11px] font-mono transition-colors ${installed
+                                                            ? "bg-emerald-500/10 text-emerald-500 cursor-default"
+                                                            : "bg-muted/30 text-muted-foreground hover:bg-muted/50 hover:text-foreground cursor-pointer"
+                                                        }`}
+                                                    >
+                                                        {installed ? "✓ " : ""}{name}
+                                                    </button>
+                                                );
+                                            })}
+                                        </div>
+                                    </div>
                                 </div>
                             )}
                         </motion.section>
@@ -919,12 +994,6 @@ export default function SettingsPage() {
                 {activeTab === "usage" && (
                     <Suspense fallback={<div className="flex justify-center py-12"><div className="w-5 h-5 border-2 border-primary/30 border-t-primary rounded-full animate-spin" /></div>}>
                         <UsagePage />
-                    </Suspense>
-                )}
-
-                {activeTab === "models" && (
-                    <Suspense fallback={<div className="flex justify-center py-12"><div className="w-5 h-5 border-2 border-primary/30 border-t-primary rounded-full animate-spin" /></div>}>
-                        <LocalModelsPage />
                     </Suspense>
                 )}
 
