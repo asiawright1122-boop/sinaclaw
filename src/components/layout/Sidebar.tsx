@@ -201,7 +201,7 @@ export default function Sidebar() {
                         type="text"
                         value={searchQuery}
                         onChange={(e) => setSearchQuery(e.target.value)}
-                        placeholder="⌘K 搜索对话..."
+                        placeholder={t.sidebar.searchPlaceholder}
                         className="w-full bg-black/[0.03] dark:bg-white/[0.04] border border-black/[0.06] dark:border-white/[0.06] rounded-lg pl-7 pr-2 py-1.5 text-[12px] text-foreground placeholder:text-muted-foreground/40 focus:outline-none focus:ring-1 focus:ring-primary/30 transition-all"
                     />
                 </div>
@@ -214,7 +214,7 @@ export default function Sidebar() {
                 ) : displayConversations.length === 0 ? (
                     <div className="px-3 py-8 text-center">
                         <p className="text-xs text-muted-foreground/50">
-                            {searchQuery ? "未找到匹配对话" : t.sidebar.emptyHistory}
+                            {searchQuery ? t.sidebar.noMatchConversation : t.sidebar.emptyHistory}
                         </p>
                         {!searchQuery && (
                             <button
@@ -230,7 +230,7 @@ export default function Sidebar() {
                         {pinnedConvs.length > 0 && (
                             <div className="px-3 pt-1 pb-0.5">
                                 <span className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground/60 flex items-center gap-1">
-                                    <Pin className="w-2.5 h-2.5" /> 置顶
+                                    <Pin className="w-2.5 h-2.5" /> {t.sidebar.pinned}
                                 </span>
                             </div>
                         )}
@@ -258,21 +258,21 @@ export default function Sidebar() {
                                         className="w-full flex items-center gap-2.5 px-3 py-2 text-[12px] text-foreground/80 hover:bg-muted/50 transition-colors"
                                     >
                                         <Pin className="w-3.5 h-3.5" />
-                                        {conv?.pinned ? "取消置顶" : "置顶"}
+                                        {conv?.pinned ? t.sidebar.unpin : t.sidebar.pinned}
                                     </button>
                                     <button
                                         onClick={() => { archiveConversation(contextMenu.id); setContextMenu(null); }}
                                         className="w-full flex items-center gap-2.5 px-3 py-2 text-[12px] text-foreground/80 hover:bg-muted/50 transition-colors"
                                     >
                                         <Archive className="w-3.5 h-3.5" />
-                                        归档
+                                        {t.sidebar.archive}
                                     </button>
                                     <button
                                         onClick={() => { setEditingId(contextMenu.id); setEditTitle(conv?.title ?? ""); setContextMenu(null); }}
                                         className="w-full flex items-center gap-2.5 px-3 py-2 text-[12px] text-foreground/80 hover:bg-muted/50 transition-colors"
                                     >
                                         <Settings className="w-3.5 h-3.5" />
-                                        重命名
+                                        {t.sidebar.rename}
                                     </button>
                                     <div className="h-px bg-border/40 my-1 mx-1" />
                                     <button
@@ -280,7 +280,7 @@ export default function Sidebar() {
                                         className="w-full flex items-center gap-2.5 px-3 py-2 text-[12px] text-destructive/80 hover:bg-destructive/10 hover:text-destructive transition-colors"
                                     >
                                         <Trash2 className="w-3.5 h-3.5" />
-                                        删除
+                                        {t.sidebar.delete}
                                     </button>
                                 </>
                             );
@@ -303,7 +303,7 @@ export default function Sidebar() {
                         }
                     >
                         <Inbox className="w-4 h-4" />
-                        <span className="flex-1">收件箱</span>
+                        <span className="flex-1">{t.sidebar.inbox}</span>
                         {inboxTotalUnread > 0 && (
                             <span className="min-w-[18px] h-[18px] flex items-center justify-center rounded-full bg-primary text-[10px] font-bold text-white px-1">
                                 {inboxTotalUnread > 99 ? "99+" : inboxTotalUnread}
