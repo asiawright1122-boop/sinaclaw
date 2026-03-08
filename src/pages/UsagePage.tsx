@@ -11,6 +11,7 @@ import {
     ArrowDownRight,
 } from "lucide-react";
 import { useUsageStore, type DailySummary } from "@/store/usageStore";
+import { useTranslate } from "@/lib/i18n";
 
 function formatTokens(n: number): string {
     if (n >= 1_000_000) return `${(n / 1_000_000).toFixed(1)}M`;
@@ -100,6 +101,7 @@ function ModelBreakdown({ summaries }: { summaries: DailySummary[] }) {
 
 // ── 主页面 ──
 export default function UsagePage() {
+    const t = useTranslate();
     const {
         dailySummaries,
         budget,
@@ -152,8 +154,8 @@ export default function UsagePage() {
                         <BarChart3 className="w-4.5 h-4.5 text-primary" />
                     </div>
                     <div>
-                        <h1 className="text-lg font-semibold text-foreground">用量与成本</h1>
-                        <p className="text-[12px] text-muted-foreground">Token 消耗追踪与成本估算</p>
+                        <h1 className="text-lg font-semibold text-foreground">{t.usage.title}</h1>
+                        <p className="text-[12px] text-muted-foreground">{t.usage.subtitle}</p>
                     </div>
                 </div>
             </div>
@@ -163,14 +165,14 @@ export default function UsagePage() {
                 {/* 今日成本 */}
                 <div className="bg-card/80 dark:bg-card/50 border border-border/50 dark:border-white/[0.06] rounded-xl p-4" style={{ boxShadow: 'var(--panel-shadow)' }}>
                     <div className="flex items-center justify-between mb-2">
-                        <span className="text-xs text-muted-foreground font-medium">今日成本</span>
+                        <span className="text-xs text-muted-foreground font-medium">{t.usage.todayCost}</span>
                         <DollarSign className="w-4 h-4 text-muted-foreground/50" />
                     </div>
                     <div className="text-2xl font-bold text-foreground">{formatCost(todayCost)}</div>
                     {yesterdayCost > 0 && (
                         <div className={`flex items-center gap-0.5 mt-1 text-[11px] font-medium ${costDelta >= 0 ? "text-red-400" : "text-emerald-400"}`}>
                             {costDelta >= 0 ? <ArrowUpRight className="w-3 h-3" /> : <ArrowDownRight className="w-3 h-3" />}
-                            {Math.abs(costDelta).toFixed(1)}% vs 昨日
+                            {Math.abs(costDelta).toFixed(1)}% {t.usage.vsYesterday}
                         </div>
                     )}
                 </div>
@@ -178,31 +180,31 @@ export default function UsagePage() {
                 {/* 本月成本 */}
                 <div className="bg-card/80 dark:bg-card/50 border border-border/50 dark:border-white/[0.06] rounded-xl p-4" style={{ boxShadow: 'var(--panel-shadow)' }}>
                     <div className="flex items-center justify-between mb-2">
-                        <span className="text-xs text-muted-foreground font-medium">本月成本</span>
+                        <span className="text-xs text-muted-foreground font-medium">{t.usage.monthCost}</span>
                         <TrendingUp className="w-4 h-4 text-muted-foreground/50" />
                     </div>
                     <div className="text-2xl font-bold text-foreground">{formatCost(currentMonthCost)}</div>
                     <div className="text-[11px] text-muted-foreground mt-1">
-                        预算 {formatCost(budget.monthlyLimit)}
+                        {t.usage.budget.replace('{amount}', formatCost(budget.monthlyLimit))}
                     </div>
                 </div>
 
                 {/* 30天 Token */}
                 <div className="bg-card/80 dark:bg-card/50 border border-border/50 dark:border-white/[0.06] rounded-xl p-4" style={{ boxShadow: 'var(--panel-shadow)' }}>
                     <div className="flex items-center justify-between mb-2">
-                        <span className="text-xs text-muted-foreground font-medium">30天 Token</span>
+                        <span className="text-xs text-muted-foreground font-medium">{t.usage.tokens30d}</span>
                         <Cpu className="w-4 h-4 text-muted-foreground/50" />
                     </div>
                     <div className="text-2xl font-bold text-foreground">{formatTokens(totalTokens30d)}</div>
                     <div className="text-[11px] text-muted-foreground mt-1">
-                        成本 {formatCost(totalCost30d)}
+                        {t.usage.cost.replace('{amount}', formatCost(totalCost30d))}
                     </div>
                 </div>
 
                 {/* 预算进度 */}
                 <div className={`bg-card/80 dark:bg-card/50 border rounded-xl p-4 ${overBudgetThreshold ? "border-amber-500/40" : "border-border/50 dark:border-white/[0.06]"}`} style={{ boxShadow: 'var(--panel-shadow)' }}>
                     <div className="flex items-center justify-between mb-2">
-                        <span className="text-xs text-muted-foreground font-medium">预算使用</span>
+                        <span className="text-xs text-muted-foreground font-medium">{t.usage.budgetUsage}</span>
                         <button onClick={() => { setShowBudgetEdit(!showBudgetEdit); setBudgetInput(String(budget.monthlyLimit)); }}>
                             <Settings className="w-4 h-4 text-muted-foreground/50 hover:text-foreground transition-colors" />
                         </button>
@@ -217,7 +219,7 @@ export default function UsagePage() {
                     {overBudgetThreshold && (
                         <div className="flex items-center gap-1 mt-1.5 text-[10px] text-amber-500 font-medium">
                             <AlertTriangle className="w-3 h-3" />
-                            已超过预警阈值
+                            {t.usage.overThreshold}
                         </div>
                     )}
                 </div>
@@ -226,7 +228,7 @@ export default function UsagePage() {
             {/* 预算编辑 */}
             {showBudgetEdit && (
                 <div className="bg-card/80 dark:bg-card/50 border border-border/50 dark:border-white/[0.06] rounded-xl p-4 flex items-center gap-3" style={{ boxShadow: 'var(--panel-shadow)' }}>
-                    <span className="text-xs font-medium text-foreground">月度预算 (USD):</span>
+                    <span className="text-xs font-medium text-foreground">{t.usage.monthlyBudget}</span>
                     <input
                         type="number"
                         value={budgetInput}
@@ -237,7 +239,7 @@ export default function UsagePage() {
                         onClick={() => { setBudget({ ...budget, monthlyLimit: parseFloat(budgetInput) || 50 }); setShowBudgetEdit(false); }}
                         className="px-3 py-1 rounded-lg text-xs font-medium bg-primary text-primary-foreground hover:bg-primary/90 transition-colors"
                     >
-                        保存
+                        {t.common.save}
                     </button>
                 </div>
             )}
@@ -245,9 +247,9 @@ export default function UsagePage() {
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
                 {/* 成本趋势图 */}
                 <div className="bg-card/80 dark:bg-card/50 border border-border/50 dark:border-white/[0.06] rounded-xl p-5" style={{ boxShadow: 'var(--panel-shadow)' }}>
-                    <h3 className="text-sm font-semibold text-foreground mb-4">30天成本趋势</h3>
+                    <h3 className="text-sm font-semibold text-foreground mb-4">{t.usage.costTrend}</h3>
                     {chartData.length === 0 ? (
-                        <div className="h-24 flex items-center justify-center text-xs text-muted-foreground/50">暂无数据</div>
+                        <div className="h-24 flex items-center justify-center text-xs text-muted-foreground/50">{t.usage.noData}</div>
                     ) : (
                         <MiniBarChart data={chartData} maxVal={maxChartVal} />
                     )}
@@ -255,9 +257,9 @@ export default function UsagePage() {
 
                 {/* 模型分布 */}
                 <div className="bg-card/80 dark:bg-card/50 border border-border/50 dark:border-white/[0.06] rounded-xl p-5" style={{ boxShadow: 'var(--panel-shadow)' }}>
-                    <h3 className="text-sm font-semibold text-foreground mb-4">模型用量分布</h3>
+                    <h3 className="text-sm font-semibold text-foreground mb-4">{t.usage.modelDistribution}</h3>
                     {last30.length === 0 ? (
-                        <div className="h-24 flex items-center justify-center text-xs text-muted-foreground/50">暂无数据</div>
+                        <div className="h-24 flex items-center justify-center text-xs text-muted-foreground/50">{t.usage.noData}</div>
                     ) : (
                         <ModelBreakdown summaries={last30} />
                     )}
@@ -267,14 +269,14 @@ export default function UsagePage() {
             {/* 每日明细 */}
             {last7.length > 0 && (
                 <div className="bg-card/80 dark:bg-card/50 border border-border/50 dark:border-white/[0.06] rounded-xl p-5" style={{ boxShadow: 'var(--panel-shadow)' }}>
-                    <h3 className="text-sm font-semibold text-foreground mb-3">最近 7 天明细</h3>
+                    <h3 className="text-sm font-semibold text-foreground mb-3">{t.usage.last7Days}</h3>
                     <div className="space-y-1 overflow-x-auto">
                         <div className="grid grid-cols-5 min-w-[400px] text-[10px] font-bold text-muted-foreground uppercase tracking-wider px-2 pb-1">
-                            <span>日期</span>
-                            <span className="text-right">输入 Token</span>
-                            <span className="text-right">输出 Token</span>
-                            <span className="text-right">总 Token</span>
-                            <span className="text-right">成本</span>
+                            <span>{t.usage.colDate}</span>
+                            <span className="text-right">{t.usage.colInput}</span>
+                            <span className="text-right">{t.usage.colOutput}</span>
+                            <span className="text-right">{t.usage.colTotal}</span>
+                            <span className="text-right">{t.usage.colCost}</span>
                         </div>
                         {last7.slice().reverse().map((s) => (
                             <div key={s.date} className="grid grid-cols-5 min-w-[400px] text-xs px-2 py-1.5 hover:bg-muted/30 rounded-lg transition-colors">
