@@ -26,6 +26,7 @@ import {
 } from "@/store/channelStore";
 import { useGatewayStore } from "@/store/gatewayStore";
 import IconById from "@/components/ui/IconById";
+import { useTranslate } from "@/lib/i18n";
 
 function StatusDot({ status }: { status: ChannelStatus }) {
     const cls = {
@@ -37,13 +38,13 @@ function StatusDot({ status }: { status: ChannelStatus }) {
     return <span className={`w-2 h-2 rounded-full ${cls} ${status === "connected" ? "animate-pulse" : ""}`} />;
 }
 
-function formatTimeAgo(ts?: number): string {
+function formatTimeAgo(ts: number | undefined, t: ReturnType<typeof useTranslate>): string {
     if (!ts) return "—";
     const diff = Date.now() - ts;
-    if (diff < 60_000) return "刚刚";
-    if (diff < 3600_000) return `${Math.floor(diff / 60_000)}分钟前`;
-    if (diff < 86400_000) return `${Math.floor(diff / 3600_000)}小时前`;
-    return `${Math.floor(diff / 86400_000)}天前`;
+    if (diff < 60_000) return t.channels.justNow;
+    if (diff < 3600_000) return t.channels.minutesAgo.replace('{n}', String(Math.floor(diff / 60_000)));
+    if (diff < 86400_000) return t.channels.hoursAgo.replace('{n}', String(Math.floor(diff / 3600_000)));
+    return t.channels.daysAgo.replace('{n}', String(Math.floor(diff / 86400_000)));
 }
 
 function ChannelCard({
@@ -55,6 +56,7 @@ function ChannelCard({
     instance?: ChannelInstance;
     onClick: () => void;
 }) {
+    const t = useTranslate();
     const status = instance?.status ?? "disconnected";
     const totalMsgs = (instance?.messageCountIn ?? 0) + (instance?.messageCountOut ?? 0);
     return (
@@ -81,9 +83,9 @@ function ChannelCard({
             </div>
             {instance && status === "connected" && (
                 <div className="flex items-center gap-4 mt-2.5 ml-11 text-[11px] text-muted-foreground">
-                    <span className="flex items-center gap-1"><Clock className="w-3 h-3" />{formatTimeAgo(instance.lastActive)}</span>
+                    <span className="flex items-center gap-1"><Clock className="w-3 h-3" />{formatTimeAgo(instance.lastActive, t)}</span>
                     <span className="flex items-center gap-1"><ArrowDownUp className="w-3 h-3" />{instance.messageCountIn}↓ {instance.messageCountOut}↑</span>
-                    {totalMsgs > 0 && <span className="flex items-center gap-1"><MessageSquare className="w-3 h-3" />共 {totalMsgs}</span>}
+                    {totalMsgs > 0 && <span className="flex items-center gap-1"><MessageSquare className="w-3 h-3" />{t.channels.totalMsgs.replace('{count}', String(totalMsgs))}</span>}
                 </div>
             )}
         </motion.button>
@@ -99,6 +101,7 @@ function ChannelConfigPanel({
     instance?: ChannelInstance;
     onClose: () => void;
 }) {
+    const t = useTranslate();
     const { saveChannelConfig, testChannel, removeChannel, loading } = useChannelStore();
     const [config, setConfig] = useState<Record<string, string>>({});
     const [showPasswords, setShowPasswords] = useState<Record<string, boolean>>({});
@@ -152,7 +155,7 @@ function ChannelConfigPanel({
                         target="_blank"
                         rel="noreferrer"
                         className="p-2 rounded-lg hover:bg-muted/50 text-muted-foreground hover:text-foreground transition-colors"
-                        title="查看文档"
+                        title={t.channels.viewDocs}
                     >
                         <ExternalLink className="w-4 h-4" />
                     </a>
@@ -169,7 +172,7 @@ function ChannelConfigPanel({
             <div className="p-4 space-y-4">
                 {allFields.length === 0 ? (
                     <div className="text-sm text-muted-foreground py-4 text-center">
-                        此通道无需配置，Gateway 启动后自动可用。
+                        {t.channels.noConfig}
                     </div>
                 ) : (
                     allFields.map((field) => (
@@ -226,7 +229,7 @@ function ChannelConfigPanel({
                         className="flex items-center gap-1.5 px-4 py-2 rounded-lg text-xs font-medium bg-primary text-primary-foreground hover:bg-primary/90 disabled:opacity-50 transition-colors"
                     >
                         {loading ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Save className="w-3.5 h-3.5" />}
-                        保存配置
+                        {t.channels.saveConfig}
                     </button>
                     <button
                         onClick={handleTest}
@@ -234,33 +237,33 @@ function ChannelConfigPanel({
                         className="flex items-center gap-1.5 px-4 py-2 rounded-lg text-xs font-medium bg-amber-500/10 text-amber-600 dark:text-amber-400 border border-amber-500/20 hover:bg-amber-500/15 disabled:opacity-50 transition-colors"
                     >
                         {testing ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <TestTube className="w-3.5 h-3.5" />}
-                        测试连接
+                        {t.channels.testConnection}
                     </button>
                     <button
                         onClick={handleRemove}
                         className="flex items-center gap-1.5 px-4 py-2 rounded-lg text-xs font-medium bg-destructive/10 text-destructive border border-destructive/20 hover:bg-destructive/15 transition-colors ml-auto"
                     >
                         <Trash2 className="w-3.5 h-3.5" />
-                        移除
+                        {t.channels.remove}
                     </button>
                 </div>
 
                 {/* 监控信息 */}
                 {instance && instance.status === "connected" && (
                     <div className="mt-4 pt-4 border-t border-border/40 space-y-2">
-                        <h4 className="text-xs font-bold text-muted-foreground uppercase tracking-wider">运行状态</h4>
+                        <h4 className="text-xs font-bold text-muted-foreground uppercase tracking-wider">{t.channels.runningStatus}</h4>
                         <div className="grid grid-cols-3 gap-2">
                             <div className="bg-muted/20 rounded-lg p-2 text-center">
                                 <div className="text-lg font-bold text-foreground">{instance.messageCountIn}</div>
-                                <div className="text-[10px] text-muted-foreground">收到消息</div>
+                                <div className="text-[10px] text-muted-foreground">{t.channels.messagesIn}</div>
                             </div>
                             <div className="bg-muted/20 rounded-lg p-2 text-center">
                                 <div className="text-lg font-bold text-foreground">{instance.messageCountOut}</div>
-                                <div className="text-[10px] text-muted-foreground">发送消息</div>
+                                <div className="text-[10px] text-muted-foreground">{t.channels.messagesOut}</div>
                             </div>
                             <div className="bg-muted/20 rounded-lg p-2 text-center">
-                                <div className="text-sm font-medium text-foreground">{formatTimeAgo(instance.lastActive)}</div>
-                                <div className="text-[10px] text-muted-foreground">最后活跃</div>
+                                <div className="text-sm font-medium text-foreground">{formatTimeAgo(instance.lastActive, t)}</div>
+                                <div className="text-[10px] text-muted-foreground">{t.channels.lastActive}</div>
                             </div>
                         </div>
                     </div>
@@ -270,7 +273,7 @@ function ChannelConfigPanel({
                 {instance && instance.errors.length > 0 && (
                     <div className="mt-4 pt-4 border-t border-border/40 space-y-2">
                         <h4 className="text-xs font-bold text-destructive uppercase tracking-wider flex items-center gap-1">
-                            <AlertCircle className="w-3 h-3" /> 错误日志 ({instance.errors.length})
+                            <AlertCircle className="w-3 h-3" /> {t.channels.errorLogs} ({instance.errors.length})
                         </h4>
                         <div className="max-h-32 overflow-y-auto space-y-1">
                             {instance.errors.slice().reverse().map((err, i) => (
@@ -290,6 +293,7 @@ function ChannelConfigPanel({
 }
 
 export default function ChannelsPage() {
+    const t = useTranslate();
     const { channels, startMonitoring } = useChannelStore();
     const { status: gwStatus } = useGatewayStore();
     const [search, setSearch] = useState("");
@@ -328,20 +332,20 @@ export default function ChannelsPage() {
                         <Radio className="w-4.5 h-4.5 text-primary" />
                     </div>
                     <div>
-                        <h1 className="text-lg font-semibold text-foreground">通道管理</h1>
+                        <h1 className="text-lg font-semibold text-foreground">{t.channels.title}</h1>
                         <p className="text-xs text-muted-foreground">
-                            配置和管理 {CHANNEL_DEFINITIONS.length} 个消息通道
+                            {t.channels.subtitle.replace('{count}', String(CHANNEL_DEFINITIONS.length))}
                         </p>
                     </div>
                 </div>
                 <div className="flex items-center gap-3">
                     <span className="text-xs text-muted-foreground">
-                        {connectedCount} 个已连接
+                        {t.channels.connectedCount.replace('{count}', String(connectedCount))}
                     </span>
                     {!gwRunning && (
                         <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-medium bg-amber-500/10 text-amber-600 dark:text-amber-400 border border-amber-500/20">
                             <AlertCircle className="w-3 h-3" />
-                            Gateway 未运行
+                            {t.channels.gwNotRunning}
                         </span>
                     )}
                 </div>
@@ -354,7 +358,7 @@ export default function ChannelsPage() {
                     type="text"
                     value={search}
                     onChange={(e) => setSearch(e.target.value)}
-                    placeholder="搜索通道..."
+                    placeholder={`${t.channels.title}...`}
                     className="w-full bg-black/[0.03] dark:bg-white/[0.04] border border-border/50 dark:border-white/[0.06] rounded-lg pl-9 pr-4 py-2.5 text-sm text-foreground placeholder:text-muted-foreground/50 focus:outline-none focus:ring-1 focus:ring-primary/30 transition-all"
                 />
             </div>
@@ -374,7 +378,7 @@ export default function ChannelsPage() {
                     </div>
                     {filtered.length === 0 && (
                         <div className="text-center py-12 text-muted-foreground text-sm">
-                            未找到匹配的通道
+                            {t.channels.emptyChannelsDesc}
                         </div>
                     )}
                 </div>
