@@ -278,6 +278,7 @@ export default function SettingsPage() {
                 { id: "api" as const, icon: Settings, label: t.settings.apiTab },
                 { id: "ext" as const, icon: Zap, label: t.settings.extTab },
                 { id: "memory" as const, icon: Brain, label: t.settings.memoryTab },
+                { id: "connections" as const, icon: Radio, label: "连接与通道" },
             ],
         },
         {
@@ -286,12 +287,6 @@ export default function SettingsPage() {
                 { id: "agents" as const, icon: Bot, label: "Agent 管理" },
                 { id: "knowledge" as const, icon: Database, label: "知识库" },
                 { id: "skills" as const, icon: Puzzle, label: "技能商店" },
-            ],
-        },
-        {
-            label: "连接",
-            items: [
-                { id: "connections" as const, icon: Radio, label: "连接与通道" },
             ],
         },
         {
