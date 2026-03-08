@@ -86,6 +86,6 @@ export default defineConfig(async () => ({
   },
   // 5. Vitest 配置 — 排除 Playwright e2e 测试
   test: {
-    exclude: ['e2e/**', 'node_modules/**'],
+    exclude: ['e2e/**', 'node_modules/**', 'src-tauri/**'],
   },
 }));

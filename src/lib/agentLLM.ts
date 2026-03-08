@@ -12,7 +12,7 @@ import type { ToolCall, AgentMessage, StreamToolCallAccumulator } from "./agentT
 const MAX_RETRIES = 3;
 const RETRY_DELAYS = [1000, 2000, 4000]; // 指数退避
 
-function isRetryableError(errorMsg: string): boolean {
+export function isRetryableError(errorMsg: string): boolean {
     const lower = errorMsg.toLowerCase();
     // 网络错误 / 5xx / 429 速率限制可重试；4xx（认证、参数错误）不重试
     return (
