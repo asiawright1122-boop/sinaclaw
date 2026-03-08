@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 import {
     RefreshCw, Search, Plus, Sparkles, Filter,
-    Globe, Calculator, Terminal,
+    Globe, Terminal,
     Check, Loader2, LayoutTemplate, Download, ShoppingBag, ArrowUpRight
 } from "lucide-react";
 import { useToastStore } from "@/store/toastStore";
@@ -235,19 +235,12 @@ export default function SkillStorePage() {
                                         ) : (
                                             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
                                                 {filteredLocal.map(skill => {
-                                                    let IconComponent = Terminal;
-                                                    let colorClass = "text-foreground/80 bg-primary/5 dark:bg-primary/10";
-                                                    if (skill.definition.name.toLowerCase().includes("calc")) {
-                                                        IconComponent = Calculator;
-                                                        colorClass = "text-yellow-600 dark:text-yellow-400 bg-yellow-50 dark:bg-yellow-900/20";
-                                                    }
-
                                                     return (
                                                         <div key={skill.id} className="bg-card/80 dark:bg-card/50 border border-border/50 dark:border-white/[0.06] rounded-xl p-4.5 flex flex-col hover:border-border/80 dark:hover:border-white/[0.12] transition-all duration-150 group" style={{ boxShadow: 'var(--panel-shadow)' }}>
                                                             <div className="flex items-center justify-between mb-3 text-foreground">
                                                                 <div className="flex items-center gap-3 overflow-hidden">
-                                                                    <div className={`w-9 h-9 rounded-lg flex items-center justify-center shrink-0 border border-border/40 ${!skill.enabled ? 'grayscale opacity-60' : ''} ${colorClass}`}>
-                                                                        <IconComponent className="w-5 h-5" />
+                                                                    <div className={`w-9 h-9 rounded-lg bg-primary/[0.06] dark:bg-primary/10 flex items-center justify-center shrink-0 border border-border/40 ${!skill.enabled ? 'grayscale opacity-60' : ''}`}>
+                                                                        <IconById id={skill.definition.icon || 'wrench'} size={20} />
                                                                     </div>
                                                                     <h4 className={`font-semibold text-[13px] truncate ${!skill.enabled ? 'text-muted-foreground' : ''}`}>
                                                                         {skill.definition.name}
