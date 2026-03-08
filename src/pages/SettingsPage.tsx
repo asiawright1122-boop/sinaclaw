@@ -1,6 +1,7 @@
-import { useState, useRef, useEffect } from "react";
+import { useState, useRef, useEffect, lazy, Suspense, useMemo } from "react";
+import { useSearchParams } from "react-router-dom";
 import { motion, AnimatePresence } from "framer-motion";
-import { Key, Globe, Zap, ChevronDown, Settings } from "lucide-react";
+import { Key, Globe, Zap, ChevronDown, Settings, Brain, Heart } from "lucide-react";
 import { useSettingsStore, MODEL_OPTIONS, PROVIDER_INFO, type AIProvider } from "@/store/settingsStore";
 import { useCloudStore } from "@/store/cloudStore";
 import { useMCPStore } from "@/store/mcpStore";
@@ -24,17 +25,322 @@ import {
     PostgresIcon,
     WorldIcon
 } from "@/components/icons/ProviderIcons";
-import { Plus, X, Server, Trash2 } from "lucide-react";
+import { Plus, X, Server, Trash2, Volume2, Download, Loader2, Pencil, BarChart3, HardDrive, Cloud, Shield, Bot, Database, Puzzle, Radio } from "lucide-react";
 import { MCP_PRESETS } from "@/store/mcpStore";
+import { getAllCoreMemories, deleteMemory, updateMemory } from "@/lib/db";
+
+const UsagePage = lazy(() => import("@/pages/UsagePage"));
+const LocalModelsPage = lazy(() => import("@/pages/LocalModelsPage"));
+const SyncPage = lazy(() => import("@/pages/SyncPage"));
+const SecurityPage = lazy(() => import("@/pages/SecurityPage"));
+const AgentWorkbenchPage = lazy(() => import("@/pages/AgentWorkbenchPage"));
+const KnowledgePage = lazy(() => import("@/pages/KnowledgePage"));
+const SkillStorePage = lazy(() => import("@/pages/SkillStorePage"));
+const ConnectionsPage = lazy(() => import("@/pages/ConnectionsPage"));
+
+function MemoryManager() {
+    const [memories, setMemories] = useState<any[]>([]);
+    const [filterCategory, setFilterCategory] = useState<string>("all");
+    const [editingId, setEditingId] = useState<string | null>(null);
+    const [editContent, setEditContent] = useState("");
+
+    const categories = [
+        { id: "all", label: "全部", icon: "📋" },
+        { id: "preferences", label: "偏好", icon: "⚙️" },
+        { id: "contacts", label: "联系人", icon: "👤" },
+        { id: "projects", label: "项目", icon: "📁" },
+        { id: "learnings", label: "学习", icon: "💡" },
+        { id: "tools", label: "工具", icon: "🔧" },
+        { id: "custom", label: "通用", icon: "📝" },
+    ];
+
+    const loadMemories = async () => {
+        const mems = await getAllCoreMemories();
+        setMemories(mems);
+    };
+
+    useEffect(() => { loadMemories(); }, []);
+
+    const filtered = filterCategory === "all"
+        ? memories
+        : memories.filter(m => (m.category || 'custom') === filterCategory);
+
+    const handleDelete = async (id: string) => {
+        await deleteMemory(id);
+        await loadMemories();
+    };
+
+    const handleSaveEdit = async (id: string) => {
+        await updateMemory(id, editContent);
+        setEditingId(null);
+        await loadMemories();
+    };
+
+    return (
+        <motion.div
+            initial={{ opacity: 0, y: 10 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: -10 }}
+            className="space-y-6"
+        >
+            <motion.section
+                className="bg-card/80 dark:bg-card/50 border border-border/50 dark:border-white/[0.06] rounded-xl p-6 space-y-5" style={{ boxShadow: 'var(--panel-shadow)' }}
+            >
+                <div className="flex items-center gap-3 mb-2">
+                    <div className="w-9 h-9 rounded-lg bg-primary/[0.06] border border-border/50 flex items-center justify-center">
+                        <Brain className="w-4.5 h-4.5 text-primary" />
+                    </div>
+                    <div>
+                        <h2 className="text-[17px] font-bold">长期记忆</h2>
+                        <p className="text-[13px] text-muted-foreground mt-0.5">
+                            Agent 记住的关于您的重要信息，共 {memories.length} 条记忆
+                        </p>
+                    </div>
+                </div>
+
+                {/* Category Filter */}
+                <div className="flex gap-2 flex-wrap">
+                    {categories.map(cat => (
+                        <button
+                            key={cat.id}
+                            onClick={() => setFilterCategory(cat.id)}
+                            className={`px-3 py-1.5 rounded-xl text-[12px] font-semibold transition-all ${filterCategory === cat.id
+                                ? "bg-primary text-primary-foreground shadow-sm"
+                                : "bg-black/[0.04] dark:bg-white/[0.04] text-muted-foreground hover:bg-black/[0.07] dark:hover:bg-white/[0.07]"
+                            }`}
+                        >
+                            {cat.icon} {cat.label}
+                            {cat.id !== "all" && (
+                                <span className="ml-1 opacity-60">
+                                    {memories.filter(m => (m.category || 'custom') === cat.id).length}
+                                </span>
+                            )}
+                        </button>
+                    ))}
+                </div>
+
+                {/* Memory List */}
+                <div className="space-y-3 max-h-[400px] overflow-y-auto no-scrollbar">
+                    {filtered.length === 0 ? (
+                        <div className="text-center py-8 text-muted-foreground text-sm">
+                            暂无记忆数据
+                        </div>
+                    ) : (
+                        filtered.map(mem => (
+                            <div key={mem.id} className="group p-4 rounded-xl border border-border/50 dark:border-white/[0.06] bg-card/60 dark:bg-card/40">
+                                {editingId === mem.id ? (
+                                    <div className="space-y-2">
+                                        <textarea
+                                            value={editContent}
+                                            onChange={e => setEditContent(e.target.value)}
+                                            className="w-full bg-black/[0.03] dark:bg-white/[0.04] border border-border/50 dark:border-white/[0.06] rounded-lg px-3 py-2 text-[13px] resize-none min-h-[60px] outline-none focus:border-primary/30 focus:ring-1 focus:ring-primary/20 transition-all"
+                                        />
+                                        <div className="flex gap-2 justify-end">
+                                            <button onClick={() => setEditingId(null)} className="px-3 py-1 text-[12px] rounded-lg bg-muted/50 hover:bg-muted/70 transition-colors">取消</button>
+                                            <button onClick={() => handleSaveEdit(mem.id)} className="px-3 py-1 text-[12px] rounded-lg bg-primary text-primary-foreground hover:opacity-90 transition-opacity">保存</button>
+                                        </div>
+                                    </div>
+                                ) : (
+                                    <div className="flex items-start justify-between gap-3">
+                                        <div className="flex-1 min-w-0">
+                                            <div className="flex items-center gap-2 mb-1">
+                                                <span className="text-[11px] px-1.5 py-0.5 rounded-md bg-violet-500/15 text-violet-400 font-semibold">
+                                                    {categories.find(c => c.id === (mem.category || 'custom'))?.icon} {categories.find(c => c.id === (mem.category || 'custom'))?.label || '通用'}
+                                                </span>
+                                                <span className="text-[11px] text-muted-foreground/50">
+                                                    {new Date(mem.created_at).toLocaleDateString()}
+                                                </span>
+                                            </div>
+                                            <p className="text-[13px] text-foreground/80 leading-relaxed">{mem.content}</p>
+                                        </div>
+                                        <div className="flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity shrink-0">
+                                            <button
+                                                onClick={() => { setEditingId(mem.id); setEditContent(mem.content); }}
+                                                className="p-1.5 rounded-lg hover:bg-muted/50 text-muted-foreground hover:text-foreground transition-colors"
+                                            >
+                                                <Pencil className="w-3.5 h-3.5" />
+                                            </button>
+                                            <button
+                                                onClick={() => handleDelete(mem.id)}
+                                                className="p-1.5 rounded-lg hover:bg-destructive/10 text-muted-foreground hover:text-destructive transition-colors"
+                                            >
+                                                <Trash2 className="w-3.5 h-3.5" />
+                                            </button>
+                                        </div>
+                                    </div>
+                                )}
+                            </div>
+                        ))
+                    )}
+                </div>
+            </motion.section>
+        </motion.div>
+    );
+}
+
+function OpenClawManager() {
+    const [gwStatus, setGwStatus] = useState<{ running: boolean; version: string; pid?: number }>({ running: false, version: "" });
+    const [cliOutput, setCliOutput] = useState("");
+    const [cliCommand, setCliCommand] = useState("");
+    const [isRunning, setIsRunning] = useState(false);
+
+    const checkStatus = async () => {
+        try {
+            const { invoke } = await import("@tauri-apps/api/core");
+            const status = await invoke<{ running: boolean; version: string; pid?: number }>("openclaw_gateway_status");
+            setGwStatus(status);
+        } catch {}
+    };
+
+    useEffect(() => {
+        checkStatus();
+        const interval = setInterval(checkStatus, 5000);
+        return () => clearInterval(interval);
+    }, []);
+
+    const handleStart = async () => {
+        setIsRunning(true);
+        setCliOutput("启动 Gateway 中...");
+        try {
+            const { invoke } = await import("@tauri-apps/api/core");
+            const result = await invoke<string>("openclaw_start_gateway");
+            setCliOutput(result);
+            await checkStatus();
+            const { openclawBridge } = await import("@/lib/openclawBridge");
+            openclawBridge.connectWs();
+        } catch (err) {
+            setCliOutput(`启动失败: ${err}`);
+        } finally {
+            setIsRunning(false);
+        }
+    };
+
+    const handleStop = async () => {
+        try {
+            const { invoke } = await import("@tauri-apps/api/core");
+            await invoke("openclaw_stop_gateway");
+            setCliOutput("Gateway 已停止");
+            await checkStatus();
+        } catch (err) {
+            setCliOutput(`停止失败: ${err}`);
+        }
+    };
+
+    const handleRunCli = async () => {
+        if (!cliCommand.trim()) return;
+        setIsRunning(true);
+        try {
+            const { invoke } = await import("@tauri-apps/api/core");
+            const result = await invoke<string>("openclaw_run_cli", { command: cliCommand.trim() });
+            setCliOutput(result);
+        } catch (err) {
+            setCliOutput(`命令失败: ${err}`);
+        } finally {
+            setIsRunning(false);
+            setCliCommand("");
+        }
+    };
+
+    const quickCommands = [
+        { label: "诊断", cmd: "doctor" },
+        { label: "渠道列表", cmd: "channels list" },
+        { label: "技能列表", cmd: "plugins list" },
+        { label: "配置查看", cmd: "config list" },
+    ];
+
+    return (
+        <motion.div
+            initial={{ opacity: 0, y: 10 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: -10 }}
+            className="space-y-6"
+        >
+            <motion.section className="bg-card/80 dark:bg-card/50 border border-border/50 dark:border-white/[0.06] rounded-2xl p-5 space-y-4" style={{ boxShadow: 'var(--panel-shadow)' }}>
+                <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-3">
+                        <div className={`w-9 h-9 rounded-lg flex items-center justify-center ${gwStatus.running ? 'bg-accent/10 border border-accent/20' : 'bg-destructive/10 border border-destructive/20'}`}>
+                            <Heart className={`w-4.5 h-4.5 ${gwStatus.running ? 'text-accent' : 'text-destructive'}`} />
+                        </div>
+                        <div>
+                            <h2 className="text-[17px] font-bold">OpenClaw Gateway</h2>
+                            <p className="text-[13px] text-muted-foreground mt-0.5">
+                                {gwStatus.running
+                                    ? `运行中 · v${gwStatus.version || 'unknown'} · 端口 18789`
+                                    : '未运行 · 启动 Gateway 以解锁完整功能'}
+                            </p>
+                        </div>
+                    </div>
+                    <button
+                        onClick={gwStatus.running ? handleStop : handleStart}
+                        disabled={isRunning}
+                        className={`px-4 py-2 rounded-lg text-[13px] font-semibold transition-all duration-150 ${gwStatus.running
+                            ? 'bg-destructive/10 text-destructive hover:bg-destructive/15'
+                            : 'bg-primary text-primary-foreground hover:bg-primary/90'
+                        } disabled:opacity-40`}
+                    >
+                        {isRunning ? '处理中...' : gwStatus.running ? '停止' : '启动 Gateway'}
+                    </button>
+                </div>
+
+                {gwStatus.running && (
+                    <div className="grid grid-cols-4 gap-2">
+                        {quickCommands.map(qc => (
+                            <button
+                                key={qc.cmd}
+                                onClick={() => { setCliCommand(qc.cmd); }}
+                                className="px-3 py-2 rounded-lg text-[12px] font-medium bg-black/[0.03] dark:bg-white/[0.04] border border-border/40 dark:border-white/[0.06] hover:bg-black/[0.06] dark:hover:bg-white/[0.08] transition-colors text-muted-foreground hover:text-foreground"
+                            >
+                                {qc.label}
+                            </button>
+                        ))}
+                    </div>
+                )}
+
+                <div className="flex gap-2">
+                    <input
+                        type="text"
+                        placeholder="openclaw CLI 命令（如 channels add telegram）..."
+                        value={cliCommand}
+                        onChange={e => setCliCommand(e.target.value)}
+                        onKeyDown={e => e.key === 'Enter' && handleRunCli()}
+                        className="flex-1 bg-black/[0.03] dark:bg-white/[0.04] border border-border/50 dark:border-white/[0.06] rounded-lg px-4 py-2 text-[13px] outline-none focus:border-primary/40 focus:ring-1 focus:ring-primary/20 font-mono transition-all"
+                    />
+                    <button
+                        onClick={handleRunCli}
+                        disabled={!cliCommand.trim() || isRunning}
+                        className="px-4 py-2 rounded-lg bg-primary/10 text-primary text-[13px] font-semibold hover:bg-primary/15 disabled:opacity-40 transition-all"
+                    >
+                        {isRunning ? <Loader2 className="w-4 h-4 animate-spin" /> : '执行'}
+                    </button>
+                </div>
+
+                {cliOutput && (
+                    <pre className="text-[12px] text-muted-foreground bg-black/5 dark:bg-white/5 rounded-xl px-4 py-3 font-mono whitespace-pre-wrap max-h-[300px] overflow-y-auto no-scrollbar">
+                        {cliOutput}
+                    </pre>
+                )}
+
+                <div className="text-[12px] text-muted-foreground bg-primary/[0.04] border border-primary/10 rounded-lg p-4 space-y-1">
+                    <p><strong>Gateway 提供：</strong>22 个消息渠道（WhatsApp/Telegram/Discord/Slack/Signal 等）、5700+ ClawHub 技能、完整的 Memory/Heartbeat/Browser 自动化。</p>
+                    <p><strong>Fallback 模式：</strong>Gateway 未运行时，Sinaclaw 自动使用内置 Agent 引擎（功能有限但可用）。</p>
+                </div>
+            </motion.section>
+        </motion.div>
+    );
+}
 
 export default function SettingsPage() {
     const {
         apiKey,
         provider,
         model,
+        localModels,
+        refreshLocalModels,
+        enableTTS,
         setApiKey,
         setProvider,
         setModel,
+        setEnableTTS,
     } = useSettingsStore();
     const t = useTranslate();
     const { servers, removeServer, toggleServer } = useMCPStore();
@@ -47,6 +353,9 @@ export default function SettingsPage() {
     const [customUrl, setCustomUrl] = useState("");
     const [customName, setCustomName] = useState("");
     const dropdownRef = useRef<HTMLDivElement>(null);
+    const [pullModelName, setPullModelName] = useState("");
+    const [isPullingModel, setIsPullingModel] = useState(false);
+    const [pullProgress, setPullProgress] = useState("");
 
     // 点击外部关闭下拉
     useEffect(() => {
@@ -59,10 +368,18 @@ export default function SettingsPage() {
         return () => document.removeEventListener("mousedown", handleClickOutside);
     }, []);
 
-    const currentModelOption = MODEL_OPTIONS[provider].find(m => m.id === model) || MODEL_OPTIONS[provider][0];
+    const currentOptions = provider === 'local' && localModels.length > 0 ? localModels : MODEL_OPTIONS[provider];
+    const currentModelOption = currentOptions.find(m => m.id === model) || currentOptions[0];
 
     // Tabs 逻辑
-    const [activeTab, setActiveTab] = useState<"api" | "cloud" | "ext">("api");
+    const [searchParams] = useSearchParams();
+    const validTabs = ["api", "cloud", "ext", "memory", "openclaw", "usage", "models", "sync", "security", "agents", "knowledge", "skills", "connections"] as const;
+    type TabId = typeof validTabs[number];
+    const initialTab = useMemo(() => {
+        const t = searchParams.get("tab");
+        return (t && validTabs.includes(t as TabId)) ? t as TabId : "api";
+    }, []);
+    const [activeTab, setActiveTab] = useState<TabId>(initialTab);
     const { accounts, initCloudAccounts, disconnectProvider } = useCloudStore();
     useEffect(() => { initCloudAccounts(); }, [initCloudAccounts]);
     const connectedProviders = Object.entries(accounts).filter(([, acc]) => acc !== null);
@@ -84,43 +401,145 @@ export default function SettingsPage() {
         setIsAddExtModalOpen(false);
     };
 
-    return (
-        <div className="flex-1 p-10 pb-0 overflow-y-auto no-scrollbar">
-            <motion.div
-                initial={{ opacity: 0, y: 20 }}
-                animate={{ opacity: 1, y: 0 }}
-                transition={{ duration: 0.5 }}
-                className="max-w-3xl mx-auto space-y-6 pb-12"
-            >
-                <div>
-                    <h1 className="text-4xl font-black tracking-tight mb-2">{t.settings.title}</h1>
-                    <p className="text-[15px] text-muted-foreground font-medium">{t.settings.subtitle}</p>
-                </div>
+    const handlePullModel = async () => {
+        if (!pullModelName.trim()) return;
+        setIsPullingModel(true);
+        setPullProgress("正在连接 Ollama...");
+        try {
+            const { listen } = await import("@tauri-apps/api/event");
+            const unlisten = await listen<{ status: string; completed?: number; total?: number }>("ollama-pull-progress", (event) => {
+                const { status, completed, total } = event.payload;
+                if (completed && total) {
+                    const pct = Math.round((completed / total) * 100);
+                    setPullProgress(`${status} ${pct}%`);
+                } else {
+                    setPullProgress(status);
+                }
+            });
+            const { invoke } = await import("@tauri-apps/api/core");
+            await invoke("ollama_pull_model", { modelName: pullModelName.trim() });
+            unlisten();
+            setPullProgress(`${pullModelName} 拉取完成！`);
+            setPullModelName("");
+            refreshLocalModels();
+        } catch (err) {
+            setPullProgress(`拉取失败: ${err}`);
+        } finally {
+            setIsPullingModel(false);
+        }
+    };
 
-                {/* Tabs */}
-                <div className="flex items-center gap-2 p-1 bg-white/10 dark:bg-black/20 backdrop-blur-md rounded-2xl w-fit mb-4 border border-white/20 dark:border-white/5 shadow-inner">
-                    <button
-                        onClick={() => setActiveTab("api")}
-                        className={`flex items-center gap-2 px-5 py-2.5 rounded-xl text-sm font-semibold transition-all cursor-pointer ${activeTab === "api" ? "bg-white dark:bg-card text-foreground shadow-sm" : "text-muted-foreground hover:text-foreground hover:bg-white/5"}`}
-                    >
-                        <Settings className="w-4 h-4" />
-                        {t.settings.apiTab}
-                    </button>
-                    <button
-                        onClick={() => setActiveTab("cloud")}
-                        className={`flex items-center gap-2 px-5 py-2.5 rounded-xl text-sm font-semibold transition-all cursor-pointer ${activeTab === "cloud" ? "bg-white dark:bg-card text-foreground shadow-sm" : "text-muted-foreground hover:text-foreground hover:bg-white/5"}`}
-                    >
-                        <Globe className="w-4 h-4" />
-                        {t.settings.cloudTab}
-                    </button>
-                    <button
-                        onClick={() => setActiveTab("ext")}
-                        className={`flex items-center gap-2 px-5 py-2.5 rounded-xl text-sm font-semibold transition-all cursor-pointer ${activeTab === "ext" ? "bg-white dark:bg-card text-foreground shadow-sm" : "text-muted-foreground hover:text-foreground hover:bg-white/5"}`}
-                    >
-                        <Zap className="w-4 h-4" />
-                        {t.settings.extTab}
-                    </button>
+    const NAV_GROUPS = [
+        {
+            label: "通用",
+            items: [
+                { id: "api" as const, icon: Settings, label: t.settings.apiTab },
+                { id: "cloud" as const, icon: Globe, label: t.settings.cloudTab },
+                { id: "ext" as const, icon: Zap, label: t.settings.extTab },
+                { id: "memory" as const, icon: Brain, label: t.settings.memoryTab },
+                { id: "openclaw" as const, icon: Heart, label: "OpenClaw" },
+            ],
+        },
+        {
+            label: "AI 功能",
+            items: [
+                { id: "agents" as const, icon: Bot, label: "Agent 管理" },
+                { id: "knowledge" as const, icon: Database, label: "知识库" },
+                { id: "skills" as const, icon: Puzzle, label: "技能商店" },
+                { id: "models" as const, icon: HardDrive, label: "本地模型" },
+            ],
+        },
+        {
+            label: "连接",
+            items: [
+                { id: "connections" as const, icon: Radio, label: "连接与通道" },
+            ],
+        },
+        {
+            label: "数据",
+            items: [
+                { id: "usage" as const, icon: BarChart3, label: "用量统计" },
+                { id: "sync" as const, icon: Cloud, label: "同步与备份" },
+                { id: "security" as const, icon: Shield, label: "安全与隐私" },
+            ],
+        },
+    ];
+
+    return (
+        <div className="flex-1 flex h-full overflow-hidden">
+            {/* 左侧导航 */}
+            <div className="w-[200px] shrink-0 border-r border-border/60 overflow-y-auto no-scrollbar py-5 px-2.5 space-y-4">
+                <div className="px-2.5 mb-1">
+                    <h1 className="text-[15px] font-semibold text-foreground">{t.settings.title}</h1>
                 </div>
+                {NAV_GROUPS.map((group) => (
+                    <div key={group.label} className="space-y-0.5">
+                        <div className="px-2.5 mb-0.5">
+                            <span className="text-[10px] font-semibold uppercase tracking-widest text-muted-foreground/50">{group.label}</span>
+                        </div>
+                        {group.items.map((item) => {
+                            const Icon = item.icon;
+                            const isActive = activeTab === item.id;
+                            return (
+                                <button
+                                    key={item.id}
+                                    onClick={() => setActiveTab(item.id as typeof activeTab)}
+                                    className={`w-full flex items-center gap-2.5 px-2.5 py-[7px] rounded-lg text-[13px] font-medium transition-all duration-150 cursor-pointer ${
+                                        isActive
+                                            ? "bg-primary/10 text-primary"
+                                            : "text-muted-foreground hover:bg-black/[0.04] dark:hover:bg-white/[0.05] hover:text-foreground"
+                                    }`}
+                                >
+                                    <Icon className="w-4 h-4 shrink-0" />
+                                    {item.label}
+                                </button>
+                            );
+                        })}
+                    </div>
+                ))}
+            </div>
+
+            {/* 右侧内容 */}
+            {["agents", "knowledge", "skills", "connections"].includes(activeTab) ? (
+                <div className="flex-1 flex flex-col overflow-hidden">
+                    <motion.div
+                        key={activeTab}
+                        initial={{ opacity: 0 }}
+                        animate={{ opacity: 1 }}
+                        transition={{ duration: 0.2 }}
+                        className="flex-1 overflow-hidden"
+                    >
+                        {activeTab === "agents" && (
+                            <Suspense fallback={<div className="flex justify-center py-12"><div className="w-5 h-5 border-2 border-primary/30 border-t-primary rounded-full animate-spin" /></div>}>
+                                <AgentWorkbenchPage />
+                            </Suspense>
+                        )}
+                        {activeTab === "knowledge" && (
+                            <Suspense fallback={<div className="flex justify-center py-12"><div className="w-5 h-5 border-2 border-primary/30 border-t-primary rounded-full animate-spin" /></div>}>
+                                <KnowledgePage />
+                            </Suspense>
+                        )}
+                        {activeTab === "skills" && (
+                            <Suspense fallback={<div className="flex justify-center py-12"><div className="w-5 h-5 border-2 border-primary/30 border-t-primary rounded-full animate-spin" /></div>}>
+                                <SkillStorePage />
+                            </Suspense>
+                        )}
+                        {activeTab === "connections" && (
+                            <Suspense fallback={<div className="flex justify-center py-12"><div className="w-5 h-5 border-2 border-primary/30 border-t-primary rounded-full animate-spin" /></div>}>
+                                <ConnectionsPage />
+                            </Suspense>
+                        )}
+                    </motion.div>
+                </div>
+            ) : (
+            <div className="flex-1 overflow-y-auto no-scrollbar p-6 pb-0">
+                <motion.div
+                    key={activeTab}
+                    initial={{ opacity: 0, y: 8 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    transition={{ duration: 0.2 }}
+                    className="max-w-3xl mx-auto space-y-5 pb-10"
+                >
 
                 {activeTab === "api" && (
                     <motion.div
@@ -134,11 +553,11 @@ export default function SettingsPage() {
                             initial={{ opacity: 0, y: 10 }}
                             animate={{ opacity: 1, y: 0 }}
                             transition={{ delay: 0.1 }}
-                            className="bg-card/60 dark:bg-card/40 backdrop-blur-3xl border border-white/40 dark:border-white/10 shadow-lg rounded-[2rem] p-6 space-y-5"
+                            className="bg-card/80 dark:bg-card/50 border border-border/50 dark:border-white/[0.06] rounded-xl p-6 space-y-5" style={{ boxShadow: 'var(--panel-shadow)' }}
                         >
                             <div className="flex items-center gap-3">
-                                <div className="w-10 h-10 rounded-xl bg-primary/10 border border-primary/20 flex items-center justify-center shadow-inner">
-                                    <Globe className="w-5 h-5 text-primary" />
+                                <div className="w-9 h-9 rounded-lg bg-primary/[0.06] border border-border/50 flex items-center justify-center">
+                                    <Globe className="w-4.5 h-4.5 text-primary" />
                                 </div>
                                 <h2 className="text-[17px] font-bold">{t.settings.provider}</h2>
                             </div>
@@ -150,7 +569,7 @@ export default function SettingsPage() {
                                         onClick={() => setProvider(p)}
                                         className={`h-12 px-4 rounded-[14px] text-[14px] font-semibold transition-all border cursor-pointer text-center whitespace-nowrap flex items-center justify-center gap-3 ${provider === p
                                             ? "bg-primary text-primary-foreground border-primary shadow-md hover:-translate-y-[1px]"
-                                            : "border-white/20 dark:border-white/5 bg-white/40 dark:bg-black/20 text-foreground/70 hover:bg-white/60 dark:hover:bg-black/40 hover:text-foreground shadow-sm"
+                                            : "border-border/50 dark:border-white/[0.06] bg-card/60 dark:bg-card/40 text-foreground/70 hover:bg-card/80 dark:hover:bg-card/60 hover:text-foreground"
                                             }`}
                                     >
                                         <div className="w-5 h-5 flex items-center justify-center shrink-0">
@@ -173,11 +592,11 @@ export default function SettingsPage() {
                             initial={{ opacity: 0, y: 10 }}
                             animate={{ opacity: 1, y: 0 }}
                             transition={{ delay: 0.2 }}
-                            className="bg-card/60 dark:bg-card/40 backdrop-blur-3xl border border-white/40 dark:border-white/10 shadow-lg rounded-[2rem] p-6 space-y-4"
+                            className="bg-card/80 dark:bg-card/50 border border-border/50 dark:border-white/[0.06] rounded-xl p-6 space-y-4" style={{ boxShadow: 'var(--panel-shadow)' }}
                         >
                             <div className="flex items-center gap-3">
-                                <div className="w-10 h-10 rounded-xl bg-primary/10 border border-primary/20 flex items-center justify-center shadow-inner">
-                                    <Key className="w-5 h-5 text-primary" />
+                                <div className="w-9 h-9 rounded-lg bg-primary/[0.06] border border-border/50 flex items-center justify-center">
+                                    <Key className="w-4.5 h-4.5 text-primary" />
                                 </div>
                                 <h2 className="text-[17px] font-bold">{t.settings.apiKey}</h2>
                             </div>
@@ -186,13 +605,13 @@ export default function SettingsPage() {
                                 type="password"
                                 value={apiKey}
                                 onChange={(e) => setApiKey(e.target.value)}
-                                placeholder={`Enter your ${PROVIDER_INFO[provider].label} API Key...`}
-                                className="w-full bg-white/40 dark:bg-black/30 border border-white/40 dark:border-white/10 rounded-[14px] px-5 py-4 text-[15px] font-medium text-foreground placeholder:text-muted-foreground/50 outline-none focus:border-primary/50 focus:ring-2 focus:ring-primary/20 transition-all shadow-inner"
+                                placeholder={t.settings.apiKeyPlaceholder.replace("{provider}", PROVIDER_INFO[provider].label)}
+                                className="w-full bg-black/[0.03] dark:bg-white/[0.04] border border-border/50 dark:border-white/[0.06] rounded-lg px-5 py-3.5 text-[15px] font-medium text-foreground placeholder:text-muted-foreground/40 outline-none focus:border-primary/30 focus:ring-1 focus:ring-primary/20 transition-all"
                             />
                             <p className="text-[13px] font-medium text-muted-foreground/80 pl-1">
                                 {provider === "local"
-                                    ? "Local models do not require an API Key. Ensure Ollama is running."
-                                    : "Your API Key is stored securely on your local device."}
+                                    ? t.settings.localModelTip
+                                    : t.settings.apiKeySecureTip}
                             </p>
                         </motion.section>
 
@@ -201,19 +620,27 @@ export default function SettingsPage() {
                             initial={{ opacity: 0, y: 10 }}
                             animate={{ opacity: 1, y: 0 }}
                             transition={{ delay: 0.3 }}
-                            className="bg-card/60 dark:bg-card/40 backdrop-blur-3xl border border-white/40 dark:border-white/10 shadow-lg rounded-[2rem] p-6 space-y-4"
+                            className="bg-card/80 dark:bg-card/50 border border-border/50 dark:border-white/[0.06] rounded-xl p-6 space-y-4" style={{ boxShadow: 'var(--panel-shadow)' }}
                         >
                             <div className="flex items-center gap-3">
-                                <div className="w-10 h-10 rounded-xl bg-primary/10 border border-primary/20 flex items-center justify-center shadow-inner">
-                                    <Zap className="w-5 h-5 text-primary" />
+                                <div className="w-9 h-9 rounded-lg bg-primary/[0.06] border border-border/50 flex items-center justify-center">
+                                    <Zap className="w-4.5 h-4.5 text-primary" />
                                 </div>
                                 <h2 className="text-[17px] font-bold">{t.settings.model}</h2>
+                                {provider === 'local' && (
+                                    <button
+                                        onClick={() => refreshLocalModels()}
+                                        className="ml-auto text-xs px-2 py-1 bg-muted/50 hover:bg-muted/70 rounded-md transition-colors"
+                                    >
+                                        刷新本地模型
+                                    </button>
+                                )}
                             </div>
 
                             <div className="relative" ref={dropdownRef}>
                                 <button
                                     onClick={() => setIsModelDropdownOpen(!isModelDropdownOpen)}
-                                    className="w-full flex items-center justify-between px-5 py-4 rounded-[14px] text-[15px] font-semibold transition-all border border-white/40 dark:border-white/10 bg-white/40 dark:bg-black/20 text-foreground hover:bg-white/60 dark:hover:bg-black/30 shadow-sm"
+                                    className="w-full flex items-center justify-between px-5 py-3.5 rounded-lg text-[15px] font-semibold transition-all border border-border/50 dark:border-white/[0.06] bg-card/60 dark:bg-card/40 text-foreground hover:bg-card/80 dark:hover:bg-card/60"
                                 >
                                     <div className="flex items-center gap-3">
                                         <span>{currentModelOption?.name}</span>
@@ -244,9 +671,9 @@ export default function SettingsPage() {
                                             animate={{ opacity: 1, y: 0 }}
                                             exit={{ opacity: 0, y: -5 }}
                                             transition={{ duration: 0.15 }}
-                                            className="absolute z-50 top-full left-0 right-0 mt-2 p-2 bg-card/90 backdrop-blur-2xl border border-white/20 dark:border-white/10 rounded-2xl shadow-2xl max-h-72 overflow-y-auto no-scrollbar"
+                                            className="absolute z-50 top-full left-0 right-0 mt-2 p-2 bg-card dark:bg-card border border-border/60 dark:border-white/[0.08] rounded-xl max-h-72 overflow-y-auto no-scrollbar" style={{ boxShadow: 'var(--panel-shadow)' }}
                                         >
-                                            {MODEL_OPTIONS[provider].map((m) => (
+                                            {currentOptions.map((m) => (
                                                 <button
                                                     key={m.id}
                                                     onClick={() => {
@@ -281,6 +708,66 @@ export default function SettingsPage() {
                                     )}
                                 </AnimatePresence>
                             </div>
+
+                            {provider === 'local' && (
+                                <div className="space-y-3 pt-2 border-t border-border/40">
+                                    <div className="flex items-center gap-2">
+                                        <div className={`w-2 h-2 rounded-full ${localModels.length > 0 ? 'bg-green-400' : 'bg-red-400'} animate-pulse`} />
+                                        <span className="text-[13px] text-muted-foreground font-medium">
+                                            {localModels.length > 0
+                                                ? `Ollama 已连接 · ${localModels.length} 个模型`
+                                                : 'Ollama 未检测到 · 请确保 ollama serve 正在运行'}
+                                        </span>
+                                    </div>
+                                    <div className="flex gap-2">
+                                        <input
+                                            type="text"
+                                            placeholder="输入模型名拉取，如 llama3.3, qwen2.5..."
+                                            value={pullModelName}
+                                            onChange={(e) => setPullModelName(e.target.value)}
+                                            className="flex-1 bg-black/[0.03] dark:bg-white/[0.04] border border-border/50 dark:border-white/[0.06] rounded-lg px-4 py-2.5 text-[13px] focus:border-primary/30 focus:ring-1 focus:ring-primary/20 outline-none transition-all placeholder:text-muted-foreground/40"
+                                        />
+                                        <button
+                                            onClick={handlePullModel}
+                                            disabled={!pullModelName.trim() || isPullingModel}
+                                            className="px-4 py-2.5 rounded-xl bg-primary/10 text-primary text-[13px] font-bold hover:bg-primary/20 disabled:opacity-50 transition-all flex items-center gap-2"
+                                        >
+                                            {isPullingModel ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Download className="w-3.5 h-3.5" />}
+                                            {isPullingModel ? '拉取中...' : '拉取模型'}
+                                        </button>
+                                    </div>
+                                    {pullProgress && (
+                                        <div className="text-[12px] text-muted-foreground bg-black/[0.03] dark:bg-white/[0.04] border border-border/30 rounded-lg px-3 py-2 font-mono">
+                                            {pullProgress}
+                                        </div>
+                                    )}
+                                </div>
+                            )}
+                        </motion.section>
+
+                        {/* TTS (Voice Interaction) */}
+                        <motion.section
+                            initial={{ opacity: 0, y: 10 }}
+                            animate={{ opacity: 1, y: 0 }}
+                            transition={{ delay: 0.4 }}
+                            className="bg-card/80 dark:bg-card/50 border border-border/50 dark:border-white/[0.06] rounded-xl p-6 space-y-4 flex items-center justify-between" style={{ boxShadow: 'var(--panel-shadow)' }}
+                        >
+                            <div className="flex items-center gap-3">
+                                <div className="w-9 h-9 rounded-lg bg-primary/[0.06] border border-border/50 flex items-center justify-center shrink-0">
+                                    <Volume2 className="w-4.5 h-4.5 text-primary" />
+                                </div>
+                                <div>
+                                    <h2 className="text-[17px] font-bold">自动语音播报</h2>
+                                    <p className="text-[13px] text-muted-foreground mt-0.5">当 Agent 回复完成时，自动播放语音读出回答。</p>
+                                </div>
+                            </div>
+
+                            <button
+                                onClick={() => setEnableTTS(!enableTTS)}
+                                className={`relative inline-flex h-6 w-11 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:outline-none ${enableTTS ? 'bg-primary' : 'bg-slate-200 dark:bg-slate-700'}`}
+                            >
+                                <span className={`pointer-events-none inline-block h-5 w-5 transform rounded-full bg-white shadow ring-0 transition duration-200 ease-in-out ${enableTTS ? 'translate-x-5' : 'translate-x-0'}`} />
+                            </button>
                         </motion.section>
                     </motion.div>
                 )}
@@ -292,11 +779,11 @@ export default function SettingsPage() {
                         exit={{ opacity: 0, y: -10 }}
                     >
                         <motion.section
-                            className="bg-card/60 dark:bg-card/40 backdrop-blur-3xl border border-white/40 dark:border-white/10 shadow-lg rounded-[2rem] p-6 space-y-5"
+                            className="bg-card/80 dark:bg-card/50 border border-border/50 dark:border-white/[0.06] rounded-xl p-6 space-y-5" style={{ boxShadow: 'var(--panel-shadow)' }}
                         >
                             <div className="flex items-center gap-3 mb-6">
-                                <div className="w-10 h-10 rounded-xl bg-blue-500/10 border border-blue-500/20 flex items-center justify-center shadow-inner">
-                                    <Globe className="w-5 h-5 text-blue-500" />
+                                <div className="w-9 h-9 rounded-lg bg-primary/[0.06] border border-border/50 flex items-center justify-center">
+                                    <Globe className="w-4.5 h-4.5 text-primary" />
                                 </div>
                                 <div>
                                     <h2 className="text-[17px] font-bold">Authorized Cloud Drives</h2>
@@ -310,9 +797,9 @@ export default function SettingsPage() {
                                     {connectedProviders.map(([p, acc]) => {
                                         const info = CLOUD_PROVIDERS[p as keyof typeof CLOUD_PROVIDERS];
                                         return (
-                                            <div key={p} className="flex items-center justify-between p-4 rounded-2xl border border-white/10 dark:border-white/5 bg-white/40 dark:bg-black/20 shadow-sm">
+                                            <div key={p} className="flex items-center justify-between p-4 rounded-xl border border-border/50 dark:border-white/[0.06] bg-card/60 dark:bg-card/40">
                                                 <div className="flex items-center gap-3">
-                                                    <div className="w-10 h-10 rounded-xl flex items-center justify-center p-2 bg-white/10 dark:bg-black/20">
+                                                    <div className="w-10 h-10 rounded-xl flex items-center justify-center p-2 bg-muted/20">
                                                         {p === "google_drive" && <GoogleDriveIcon className="w-full h-full" />}
                                                         {p === "dropbox" && <DropboxIcon className="w-full h-full" />}
                                                         {p === "onedrive" && <OneDriveIcon className="w-full h-full" />}
@@ -353,12 +840,12 @@ export default function SettingsPage() {
                         className="space-y-6"
                     >
                         <motion.section
-                            className="bg-card/60 dark:bg-card/40 backdrop-blur-3xl border border-white/40 dark:border-white/10 shadow-lg rounded-[2rem] p-6 space-y-5"
+                            className="bg-card/80 dark:bg-card/50 border border-border/50 dark:border-white/[0.06] rounded-xl p-6 space-y-5" style={{ boxShadow: 'var(--panel-shadow)' }}
                         >
                             <div className="flex items-center justify-between gap-3 mb-2">
                                 <div className="flex items-center gap-3">
-                                    <div className="w-10 h-10 rounded-xl bg-amber-500/10 border border-amber-500/20 flex items-center justify-center shadow-inner">
-                                        <Zap className="w-5 h-5 text-amber-500" />
+                                    <div className="w-9 h-9 rounded-lg bg-primary/[0.06] border border-border/50 flex items-center justify-center">
+                                        <Zap className="w-4.5 h-4.5 text-primary" />
                                     </div>
                                     <div>
                                         <h2 className="text-[17px] font-bold">{t.extensions.title}</h2>
@@ -377,9 +864,9 @@ export default function SettingsPage() {
                             <div className="grid grid-cols-1 gap-4">
                                 {servers.length > 0 ? (
                                     servers.map((s) => (
-                                        <div key={s.id} className="flex items-center justify-between p-5 rounded-2xl border border-white/10 dark:border-white/5 bg-white/40 dark:bg-black/20 shadow-sm group">
+                                        <div key={s.id} className="flex items-center justify-between p-5 rounded-xl border border-border/50 dark:border-white/[0.06] bg-card/60 dark:bg-card/40 group">
                                             <div className="flex items-center gap-4">
-                                                <div className={`w-12 h-12 rounded-xl flex items-center justify-center border transition-colors ${s.status === 'active' ? 'bg-primary/10 border-primary/20 text-primary' : 'bg-black/5 dark:bg-white/5 border-white/10 text-muted-foreground'}`}>
+                                                <div className={`w-12 h-12 rounded-xl flex items-center justify-center border transition-colors ${s.status === 'active' ? 'bg-primary/10 border-primary/20 text-primary' : 'bg-muted/20 border-border/50 text-muted-foreground'}`}>
                                                     <Zap className="w-6 h-6" />
                                                 </div>
                                                 <div>
@@ -412,7 +899,7 @@ export default function SettingsPage() {
                                         </div>
                                     ))
                                 ) : (
-                                    <div className="text-center py-12 bg-white/5 dark:bg-black/5 rounded-3xl border border-dashed border-white/20">
+                                    <div className="text-center py-12 bg-black/[0.02] dark:bg-white/[0.02] rounded-xl border border-dashed border-border/50">
                                         <p className="text-muted-foreground font-medium">{t.extensions.empty}</p>
                                     </div>
                                 )}
@@ -420,7 +907,42 @@ export default function SettingsPage() {
                         </motion.section>
                     </motion.div>
                 )}
-            </motion.div>
+
+                {activeTab === "memory" && (
+                    <MemoryManager />
+                )}
+
+                {activeTab === "openclaw" && (
+                    <OpenClawManager />
+                )}
+
+                {activeTab === "usage" && (
+                    <Suspense fallback={<div className="flex justify-center py-12"><div className="w-5 h-5 border-2 border-primary/30 border-t-primary rounded-full animate-spin" /></div>}>
+                        <UsagePage />
+                    </Suspense>
+                )}
+
+                {activeTab === "models" && (
+                    <Suspense fallback={<div className="flex justify-center py-12"><div className="w-5 h-5 border-2 border-primary/30 border-t-primary rounded-full animate-spin" /></div>}>
+                        <LocalModelsPage />
+                    </Suspense>
+                )}
+
+                {activeTab === "sync" && (
+                    <Suspense fallback={<div className="flex justify-center py-12"><div className="w-5 h-5 border-2 border-primary/30 border-t-primary rounded-full animate-spin" /></div>}>
+                        <SyncPage />
+                    </Suspense>
+                )}
+
+                {activeTab === "security" && (
+                    <Suspense fallback={<div className="flex justify-center py-12"><div className="w-5 h-5 border-2 border-primary/30 border-t-primary rounded-full animate-spin" /></div>}>
+                        <SecurityPage />
+                    </Suspense>
+                )}
+
+                </motion.div>
+            </div>
+            )}
 
             {/* Add Extension Modal */}
             <AnimatePresence>
@@ -470,7 +992,8 @@ export default function SettingsPage() {
                                                     {p.name === "Slack" && <SlackIcon className="w-full h-full" />}
                                                     {p.name === "PostgreSQL" && <PostgresIcon className="w-full h-full" />}
                                                     {p.name === "Browser Fetch" && <WorldIcon className="w-full h-full font-bold" />}
-                                                    {!["Notion", "GitHub", "Slack", "PostgreSQL", "Browser Fetch"].includes(p.name) && <Server className="w-full h-full p-1" />}
+                                                    {p.name === "OpenClaw Interpreter" && <Zap className="w-full h-full p-1 text-emerald-400" />}
+                                                    {!["Notion", "GitHub", "Slack", "PostgreSQL", "Browser Fetch", "OpenClaw Interpreter"].includes(p.name) && <Server className="w-full h-full p-1" />}
                                                 </div>
                                                 <div>
                                                     <div className="font-bold text-[14px]">{p.name}</div>
@@ -479,7 +1002,8 @@ export default function SettingsPage() {
                                                             p.name === "GitHub" ? t.extensions.githubDesc :
                                                                 p.name === "Slack" ? t.extensions.slackDesc :
                                                                     p.name === "Browser Fetch" ? t.extensions.fetchDesc :
-                                                                        p.name === "PostgreSQL" ? t.extensions.postgresDesc : ""}
+                                                                        p.name === "PostgreSQL" ? t.extensions.postgresDesc :
+                                                                            p.name === "OpenClaw Interpreter" ? "Python 代码沙盒 · 数据分析 · 图表生成" : ""}
                                                     </div>
                                                 </div>
                                             </button>

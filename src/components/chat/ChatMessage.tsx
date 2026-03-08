@@ -42,7 +42,7 @@ export default function ChatMessage({ message }: ChatMessageProps) {
                                     typeof text === "string" ? text : ""
                                 );
                             }}
-                            className="absolute top-2 right-2 opacity-0 group-hover/code:opacity-100 transition-opacity px-2 py-1 rounded-md bg-white/10 hover:bg-white/20 text-xs text-muted-foreground"
+                            className="absolute top-2 right-2 opacity-0 group-hover/code:opacity-100 transition-opacity px-2 py-1 rounded-md bg-muted/50 hover:bg-muted/70 text-xs text-muted-foreground"
                         >
                             复制
                         </button>
@@ -59,7 +59,7 @@ export default function ChatMessage({ message }: ChatMessageProps) {
                 if (isInline) {
                     return (
                         <code
-                            className="px-1.5 py-0.5 rounded-md bg-white/10 text-primary/90 text-sm font-mono"
+                            className="px-1.5 py-0.5 rounded-md bg-black/[0.06] dark:bg-white/10 text-primary/90 text-sm font-mono"
                             {...props}
                         >
                             {children}
@@ -75,7 +75,7 @@ export default function ChatMessage({ message }: ChatMessageProps) {
             // 表格
             table({ children, ...props }: any) {
                 return (
-                    <div className="overflow-x-auto my-3 rounded-xl border border-white/10">
+                    <div className="overflow-x-auto my-3 rounded-lg border border-border/60 dark:border-white/[0.08]">
                         <table
                             className="w-full text-sm"
                             {...props}
@@ -88,7 +88,7 @@ export default function ChatMessage({ message }: ChatMessageProps) {
             th({ children, ...props }: any) {
                 return (
                     <th
-                        className="px-4 py-2 text-left font-semibold bg-white/5 border-b border-white/10"
+                        className="px-4 py-2 text-left font-semibold bg-black/[0.03] dark:bg-white/[0.04] border-b border-border/60 dark:border-white/[0.08]"
                         {...props}
                     >
                         {children}
@@ -98,7 +98,7 @@ export default function ChatMessage({ message }: ChatMessageProps) {
             td({ children, ...props }: any) {
                 return (
                     <td
-                        className="px-4 py-2 border-b border-white/5"
+                        className="px-4 py-2 border-b border-border/30 dark:border-white/5"
                         {...props}
                     >
                         {children}
@@ -139,18 +139,25 @@ export default function ChatMessage({ message }: ChatMessageProps) {
             initial={{ opacity: 0, y: 10 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.3 }}
-            className={`flex gap-5 px-6 py-6 mb-5 rounded-[2rem] group transition-all duration-300 ${isUser ? "bg-transparent hover:bg-black/[0.02] dark:hover:bg-white/[0.02]" : "bg-card/60 dark:bg-card/30 backdrop-blur-3xl border border-white/40 dark:border-white/10 shadow-xl"
+            className={`flex gap-4 px-5 py-5 mb-3 rounded-2xl group transition-all duration-200 ${isUser ? "bg-transparent hover:bg-black/[0.02] dark:hover:bg-white/[0.02]" : "bg-card/70 dark:bg-card/40 border border-border/40 dark:border-white/[0.06]"
                 }`}
+            style={!isUser ? { boxShadow: 'var(--panel-shadow)' } : undefined}
         >
             {/* 头像 */}
             <div className="shrink-0 mt-1">
                 {isUser ? (
-                    <div className="w-9 h-9 rounded-[10px] bg-gradient-to-br from-cyan-400 to-blue-500 flex items-center justify-center shadow-md">
-                        <User className="w-5 h-5 text-white" />
+                    <div className="w-8 h-8 rounded-lg bg-primary/80 flex items-center justify-center">
+                        <User className="w-4 h-4 text-white" />
+                    </div>
+                ) : message.agentAvatar ? (
+                    /* 多 Agent 模式：显示 Agent emoji 头像 + 辉光边框 */
+                    <div className="w-8 h-8 rounded-lg bg-violet-500/10 border border-violet-500/20 flex items-center justify-center text-base relative">
+                        <span>{message.agentAvatar}</span>
+                        <div className="absolute -bottom-0.5 -right-0.5 w-2.5 h-2.5 bg-accent rounded-full border-2 border-card" />
                     </div>
                 ) : (
-                    <div className="w-9 h-9 rounded-[10px] bg-gradient-to-br from-primary to-accent flex items-center justify-center shadow-lg icon-glow">
-                        <Bot className="w-5 h-5 text-white" />
+                    <div className="w-8 h-8 rounded-lg bg-primary flex items-center justify-center">
+                        <Bot className="w-4 h-4 text-white" />
                     </div>
                 )}
             </div>
@@ -158,9 +165,14 @@ export default function ChatMessage({ message }: ChatMessageProps) {
             {/* 内容 */}
             <div className="flex-1 min-w-0 space-y-3">
                 <div className="flex items-center gap-3">
-                    <span className="text-[15px] font-bold text-foreground">
-                        {isUser ? "You" : "Sinaclaw"}
+                    <span className="text-[14px] font-semibold text-foreground">
+                        {isUser ? "You" : (message.agentName || "Sinaclaw")}
                     </span>
+                    {message.agentName && !isUser && (
+                        <span className="text-[10px] font-semibold px-2 py-0.5 rounded-full bg-violet-500/15 text-violet-400 border border-violet-500/20">
+                            Sub-Agent
+                        </span>
+                    )}
                     <span className="text-[11px] font-semibold text-muted-foreground/50">
                         {new Date(message.timestamp).toLocaleTimeString(undefined, {
                             hour: "2-digit",
@@ -169,10 +181,25 @@ export default function ChatMessage({ message }: ChatMessageProps) {
                     </span>
                 </div>
 
+
                 {isUser ? (
-                    /* 用户消息：纯文本 */
-                    <div className="prose prose-invert prose-sm max-w-none text-foreground leading-relaxed whitespace-pre-wrap break-words font-medium text-[15px]">
-                        {message.content}
+                    <div className="space-y-3">
+                        {message.images && message.images.length > 0 && (
+                            <div className="flex gap-2 flex-wrap">
+                                {message.images.map((img, i) => (
+                                    <img
+                                        key={i}
+                                        src={img}
+                                        alt=""
+                                        className="max-w-[200px] max-h-[200px] object-cover rounded-xl border border-white/20 shadow-md cursor-pointer hover:scale-105 transition-transform"
+                                        onClick={() => window.open(img, '_blank')}
+                                    />
+                                ))}
+                            </div>
+                        )}
+                        <div className="prose prose-invert prose-sm max-w-none text-foreground leading-relaxed whitespace-pre-wrap break-words font-medium text-[15px]">
+                            {message.content}
+                        </div>
                     </div>
                 ) : (
                     /* AI 回复：Markdown 渲染 */
@@ -192,7 +219,7 @@ export default function ChatMessage({ message }: ChatMessageProps) {
                     <div className="opacity-0 group-hover:opacity-100 transition-opacity flex items-center gap-1 mt-2">
                         <button
                             onClick={handleCopy}
-                            className="flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-xs text-muted-foreground hover:text-foreground hover:bg-white/10 transition-colors"
+                            className="flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-xs text-muted-foreground hover:text-foreground hover:bg-black/[0.04] dark:hover:bg-white/[0.06] transition-colors"
                         >
                             {copied ? (
                                 <>
@@ -211,6 +238,6 @@ export default function ChatMessage({ message }: ChatMessageProps) {
                     </div>
                 )}
             </div>
-        </motion.div>
+        </motion.div >
     );
 }

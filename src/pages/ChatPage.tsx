@@ -1,18 +1,24 @@
-import { motion } from "framer-motion";
-import { Sparkles } from "lucide-react";
-import { useRef, useEffect } from "react";
+import { motion, AnimatePresence } from "framer-motion";
+import { Sparkles, ChevronDown, Settings, PanelRight, X } from "lucide-react";
+import { useRef, useEffect, useState } from "react";
+import { useNavigate } from "react-router-dom";
 import { useChatStore } from "@/store/chatStore";
 import { useSettingsStore } from "@/store/settingsStore";
+import { useAgentStore } from "@/store/agentStore";
 import { runAgentLoop } from "@/lib/agent";
 import type { AgentMessage, ToolCall } from "@/lib/agent";
+import { openclawBridge } from "@/lib/openclawBridge";
 import ChatMessage from "@/components/chat/ChatMessage";
 import ChatInput from "@/components/chat/ChatInput";
 import TypingIndicator from "@/components/chat/TypingIndicator";
 import ToolCallBlock from "@/components/chat/ToolCallBlock";
 import { useTranslate } from "@/lib/i18n";
+import { runDeepResearch } from "@/lib/deepResearchAgent";
+import { speak, DEFAULT_VOICE_CONFIG } from "@/lib/voiceManager";
 
 export default function ChatPage() {
     const t = useTranslate();
+    const navigate = useNavigate();
     const {
         conversations,
         activeConversationId,
@@ -24,7 +30,7 @@ export default function ChatPage() {
         setInputValue,
     } = useChatStore();
 
-    const { apiKey, provider, model, temperature, maxTokens } = useSettingsStore();
+    const { apiKey, provider, model, temperature, maxTokens, enableTTS } = useSettingsStore();
 
     const activeConversation = conversations.find((c) => c.id === activeConversationId);
     const hasMessages = activeConversation && activeConversation.messages.length > 0;
@@ -35,19 +41,21 @@ export default function ChatPage() {
         messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
     }, [activeConversation?.messages]);
 
-    const handleSend = async (message: string) => {
+    const handleSend = async (message: string, imageDataUrls?: string[]) => {
         let convId = activeConversationId;
+
+        // 检查是否是 deep research 指令
+        const isDeepResearch = message.trim().startsWith("/research ") || message.trim().startsWith("/deep ");
+        const actualTopic = isDeepResearch ? (message.startsWith("/research") ? message.slice(9).trim() : message.slice(5).trim()) : message;
 
         // 如果没有活跃对话，先创建一个
         if (!convId) {
             convId = await createConversation();
         }
 
-        // 添加用户消息到 DB
-        await addMessageToDb(convId, "user", message);
+        await addMessageToDb(convId, "user", message, imageDataUrls);
 
-        // 如果没有配置 API Key，使用模拟回复
-        if (!apiKey) {
+        if (!apiKey && provider !== "local") {
             setIsGenerating(true);
 
             const mt = t.chat.mockReply;
@@ -104,7 +112,11 @@ export default function ChatPage() {
         }));
 
         // 构建历史消息
+        // 获取当前会话关联的 Agent 配置
         const currentConv = useChatStore.getState().conversations.find(c => c.id === convId);
+        const currentAgentId = currentConv?.agentId || useAgentStore.getState().activeAgentId;
+        const currentAgent = useAgentStore.getState().agents.find(a => a.id === currentAgentId) || useAgentStore.getState().agents[0];
+
         const history: AgentMessage[] = (currentConv?.messages || [])
             .filter(m => m.content && m.id !== tempMsg.id)
             .map(m => ({
@@ -114,77 +126,286 @@ export default function ChatPage() {
 
         let assistantContent = "";
 
-        try {
-            await runAgentLoop({
-                userMessage: message,
-                conversationHistory: history,
-                apiKey,
-                provider,
-                model,
-                temperature,
-                maxTokens,
-                onTextChunk: (text) => {
-                    assistantContent += text;
-                    updateLocalLastAssistantMessage(convId!, assistantContent);
-                },
-                onToolCallStart: (toolCall) => {
-                    useChatStore.setState((s) => ({
-                        conversations: s.conversations.map(c => {
-                            if (c.id !== convId) return c;
-                            const msgs = [...c.messages];
-                            const lastMsg = msgs[msgs.length - 1];
-                            if (lastMsg && lastMsg.role === "assistant") {
-                                const existing = lastMsg.toolCalls || [];
-                                msgs[msgs.length - 1] = {
-                                    ...lastMsg,
-                                    toolCalls: [...existing, toolCall],
-                                };
+        // ================= Deep Research 专用路线 =================
+        if (isDeepResearch) {
+            try {
+                // 仅传递实际的主题过去
+                await runDeepResearch({
+                    topic: actualTopic,
+                    apiKey,
+                    provider,
+                    model,
+                    temperature,
+                    maxTokens,
+                    onStateChange: (state, info) => {
+                        // 在 UI 渲染进度块
+                        const iconMap: Record<string, string> = {
+                            "Planning": "🧠", "Searching": "🌐", "Reading": "📖", "Synthesizing": "✍️", "Done": "✅", "Error": "❌"
+                        };
+                        assistantContent += `> [!NOTE] ${iconMap[state] || "🔄"} **[Deep Research: ${state}]**\\n> ${info.replace(/\\n/g, "\\n> ")}\\n\\n`;
+                        updateLocalLastAssistantMessage(convId!, assistantContent);
+                    },
+                    onTextChunk: (text) => {
+                        assistantContent += text;
+                        updateLocalLastAssistantMessage(convId!, assistantContent);
+                    },
+                    onDone: async (_finalReport) => {
+                        await addMessageToDb(convId!, "assistant", assistantContent);
+                        setIsGenerating(false);
+                    },
+                    onError: (error) => {
+                        assistantContent += `\\n❌ **Research Error**: ${error}`;
+                        updateLocalLastAssistantMessage(convId!, assistantContent);
+                        addMessageToDb(convId!, "assistant", assistantContent).catch(console.error);
+                        setIsGenerating(false);
+                    },
+                    checkAbort: () => !useChatStore.getState().isGenerating,
+                });
+            } catch (error) {
+                const errorMsg = error instanceof Error ? error.message : String(error);
+                updateLocalLastAssistantMessage(convId!, `❌ **初始化深研失败**: ${errorMsg}`);
+                setIsGenerating(false);
+            }
+            return;
+        }
+
+        // ================= 常规 Agent 对话路线 =================
+        // 策略: 优先通过 OpenClaw Gateway WebSocket 路由，不可用时 fallback 到内置 agent loop
+        const gatewayAvailable = openclawBridge.isConnected();
+
+        if (gatewayAvailable) {
+            // ── OpenClaw Gateway 路线 ──
+            const sent = await openclawBridge.sendAgentMessage(
+                message,
+                {
+                    onTextChunk: (text) => {
+                        assistantContent += text;
+                        updateLocalLastAssistantMessage(convId!, assistantContent);
+                    },
+                    onToolCall: (name, args) => {
+                        const tc: ToolCall = {
+                            id: crypto.randomUUID(),
+                            functionName: name,
+                            arguments: args,
+                            status: "running",
+                        };
+                        useChatStore.setState((s) => ({
+                            conversations: s.conversations.map(c => {
+                                if (c.id !== convId) return c;
+                                const msgs = [...c.messages];
+                                const lastMsg = msgs[msgs.length - 1];
+                                if (lastMsg && lastMsg.role === "assistant") {
+                                    msgs[msgs.length - 1] = { ...lastMsg, toolCalls: [...(lastMsg.toolCalls || []), tc] };
+                                }
+                                return { ...c, messages: msgs };
+                            }),
+                        }));
+                    },
+                    onToolResult: (name, result) => {
+                        useChatStore.setState((s) => ({
+                            conversations: s.conversations.map(c => {
+                                if (c.id !== convId) return c;
+                                const msgs = [...c.messages];
+                                const lastMsg = msgs[msgs.length - 1];
+                                if (lastMsg?.role === "assistant" && lastMsg.toolCalls) {
+                                    const pending = lastMsg.toolCalls.find(tc => tc.functionName === name && tc.status === "running");
+                                    if (pending) {
+                                        pending.result = result;
+                                        pending.status = "done";
+                                        msgs[msgs.length - 1] = { ...lastMsg, toolCalls: [...lastMsg.toolCalls] };
+                                    }
+                                }
+                                return { ...c, messages: msgs };
+                            }),
+                        }));
+                    },
+                    onDone: async (fullText) => {
+                        const text = assistantContent || fullText;
+                        if (text) {
+                            await addMessageToDb(convId!, "assistant", text);
+                            if (enableTTS) {
+                                const clean = text.replace(/[\*\#\`\~\_\>\[\]\(\)]/g, "");
+                                speak(clean, DEFAULT_VOICE_CONFIG, apiKey).catch(console.error);
                             }
-                            return { ...c, messages: msgs };
-                        }),
-                    }));
-                },
-                onToolCallResult: (toolCallId, result) => {
-                    useChatStore.setState((s) => ({
-                        conversations: s.conversations.map(c => {
-                            if (c.id !== convId) return c;
-                            const msgs = [...c.messages];
-                            const lastMsg = msgs[msgs.length - 1];
-                            if (lastMsg && lastMsg.role === "assistant" && lastMsg.toolCalls) {
-                                const updatedToolCalls = lastMsg.toolCalls.map(tc =>
-                                    tc.id === toolCallId ? { ...tc, result, status: "done" as const } : tc
-                                );
-                                msgs[msgs.length - 1] = {
-                                    ...lastMsg,
-                                    toolCalls: updatedToolCalls,
-                                };
+                        }
+                        setIsGenerating(false);
+                    },
+                    onError: (error) => {
+                        updateLocalLastAssistantMessage(convId!, `❌ **Gateway 错误**: ${error}`);
+                        addMessageToDb(convId!, "assistant", `❌ **错误**: ${error}`).catch(console.error);
+                        setIsGenerating(false);
+                    },
+                }
+            );
+
+            if (!sent) {
+                updateLocalLastAssistantMessage(convId!, "❌ Gateway 连接已断开，请检查 OpenClaw 服务状态。");
+                setIsGenerating(false);
+            }
+        } else {
+            // ── 内置 Agent Loop Fallback ──
+            try {
+                await runAgentLoop({
+                    userMessage: message,
+                    imageDataUrls,
+                    conversationHistory: history,
+                    systemPrompt: currentAgent.systemPrompt,
+                    enabledTools: currentAgent.enabledTools,
+                    apiKey,
+                    provider,
+                    model,
+                    temperature,
+                    maxTokens,
+                    onTextChunk: (text) => {
+                        assistantContent += text;
+                        updateLocalLastAssistantMessage(convId!, assistantContent);
+                    },
+                    onToolCallStart: (toolCall) => {
+                        useChatStore.setState((s) => ({
+                            conversations: s.conversations.map(c => {
+                                if (c.id !== convId) return c;
+                                const msgs = [...c.messages];
+                                const lastMsg = msgs[msgs.length - 1];
+                                if (lastMsg && lastMsg.role === "assistant") {
+                                    const existing = lastMsg.toolCalls || [];
+                                    msgs[msgs.length - 1] = {
+                                        ...lastMsg,
+                                        toolCalls: [...existing, toolCall],
+                                    };
+                                }
+                                return { ...c, messages: msgs };
+                            }),
+                        }));
+                    },
+                    onToolCallResult: (toolCallId, result) => {
+                        useChatStore.setState((s) => ({
+                            conversations: s.conversations.map(c => {
+                                if (c.id !== convId) return c;
+                                const msgs = [...c.messages];
+                                const lastMsg = msgs[msgs.length - 1];
+                                if (lastMsg && lastMsg.role === "assistant" && lastMsg.toolCalls) {
+                                    const updatedToolCalls = lastMsg.toolCalls.map(tc =>
+                                        tc.id === toolCallId ? { ...tc, result, status: "done" as const } : tc
+                                    );
+                                    msgs[msgs.length - 1] = {
+                                        ...lastMsg,
+                                        toolCalls: updatedToolCalls,
+                                    };
+                                }
+                                return { ...c, messages: msgs };
+                            }),
+                        }));
+                    },
+                    onDone: async (finalContent) => {
+                        const fullText = assistantContent || finalContent;
+                        if (fullText) {
+                            await addMessageToDb(convId!, "assistant", fullText);
+                            if (enableTTS) {
+                                const cleanText = fullText.replace(/[\*\#\`\~\_\>\[\]\(\)]/g, "");
+                                speak(cleanText, DEFAULT_VOICE_CONFIG, apiKey).catch(console.error);
                             }
-                            return { ...c, messages: msgs };
-                        }),
-                    }));
-                },
-                onDone: async (finalContent) => {
-                    const fullText = assistantContent || finalContent;
-                    if (fullText) {
-                        await addMessageToDb(convId!, "assistant", fullText);
-                    }
-                    setIsGenerating(false);
-                },
-                onError: (error) => {
-                    updateLocalLastAssistantMessage(convId!, `❌ **错误**: ${error}`);
-                    addMessageToDb(convId!, "assistant", `❌ **错误**: ${error}`).catch(console.error);
-                    setIsGenerating(false);
-                },
-            });
-        } catch (error) {
-            const errorMsg = error instanceof Error ? error.message : String(error);
-            updateLocalLastAssistantMessage(convId!, `❌ **错误**: ${errorMsg}`);
-            setIsGenerating(false);
+                        }
+                        setIsGenerating(false);
+                    },
+                    onError: (error) => {
+                        updateLocalLastAssistantMessage(convId!, `❌ **错误**: ${error}`);
+                        addMessageToDb(convId!, "assistant", `❌ **错误**: ${error}`).catch(console.error);
+                        setIsGenerating(false);
+                    },
+                });
+            } catch (error) {
+                const errorMsg = error instanceof Error ? error.message : String(error);
+                updateLocalLastAssistantMessage(convId!, `❌ **错误**: ${errorMsg}`);
+                setIsGenerating(false);
+            }
         }
     };
 
+    const { agents, activeAgentId, setActiveAgent } = useAgentStore();
+    const currentAgent = agents.find(a => a.id === activeAgentId) || agents[0];
+    const [showAgentPicker, setShowAgentPicker] = useState(false);
+    const [showCanvas, setShowCanvas] = useState(false);
+    const agentPickerRef = useRef<HTMLDivElement>(null);
+
+    useEffect(() => {
+        const handleClick = (e: MouseEvent) => {
+            if (agentPickerRef.current && !agentPickerRef.current.contains(e.target as Node)) {
+                setShowAgentPicker(false);
+            }
+        };
+        document.addEventListener("mousedown", handleClick);
+        return () => document.removeEventListener("mousedown", handleClick);
+    }, []);
+
     return (
         <div className="flex-1 flex flex-col h-full overflow-hidden">
+            {/* 顶栏 — Agent 选择器 + Canvas */}
+            <div className="flex items-center justify-between px-5 py-2.5 border-b border-border/40 shrink-0">
+                <div className="relative" ref={agentPickerRef}>
+                    <button
+                        onClick={() => setShowAgentPicker(!showAgentPicker)}
+                        className="flex items-center gap-2 px-2.5 py-1.5 rounded-lg text-sm font-medium hover:bg-black/[0.04] dark:hover:bg-white/[0.05] transition-colors"
+                    >
+                        <span className="text-base">{currentAgent?.avatar || '🤖'}</span>
+                        <span className="text-foreground">{currentAgent?.name || 'Sinaclaw'}</span>
+                        <ChevronDown className={`w-3.5 h-3.5 text-muted-foreground transition-transform ${showAgentPicker ? 'rotate-180' : ''}`} />
+                    </button>
+
+                    <AnimatePresence>
+                        {showAgentPicker && (
+                            <motion.div
+                                initial={{ opacity: 0, y: -4, scale: 0.97 }}
+                                animate={{ opacity: 1, y: 0, scale: 1 }}
+                                exit={{ opacity: 0, y: -4, scale: 0.97 }}
+                                className="absolute top-full left-0 mt-1.5 w-64 bg-card dark:bg-card border border-border/60 dark:border-white/[0.08] rounded-xl py-1.5 z-50" style={{ boxShadow: 'var(--panel-shadow)' }}
+                            >
+                                <div className="px-3 py-1.5 text-[11px] font-bold uppercase tracking-wider text-muted-foreground">
+                                    切换 Agent
+                                </div>
+                                <div className="max-h-[300px] overflow-y-auto no-scrollbar">
+                                    {agents.filter(a => a.role === 'primary').map((agent) => (
+                                        <button
+                                            key={agent.id}
+                                            onClick={() => { setActiveAgent(agent.id); setShowAgentPicker(false); }}
+                                            className={`w-full flex items-center gap-3 px-3 py-2.5 text-left transition-colors ${
+                                                agent.id === activeAgentId
+                                                    ? 'bg-primary/10 text-primary'
+                                                    : 'text-foreground/80 hover:bg-muted/30'
+                                            }`}
+                                        >
+                                            <span className="text-lg">{agent.avatar}</span>
+                                            <div className="flex-1 min-w-0">
+                                                <div className="text-[13px] font-medium truncate">{agent.name}</div>
+                                                <div className="text-[11px] text-muted-foreground truncate">{agent.description}</div>
+                                            </div>
+                                        </button>
+                                    ))}
+                                </div>
+                                <div className="border-t border-border/40 mt-1 pt-1">
+                                    <button
+                                        className="w-full flex items-center gap-2.5 px-3 py-2 text-[12px] text-muted-foreground hover:text-foreground hover:bg-muted/30 transition-colors"
+                                        onClick={() => { setShowAgentPicker(false); navigate("/settings?tab=agents"); }}
+                                    >
+                                        <Settings className="w-3.5 h-3.5" />
+                                        管理 Agent →
+                                    </button>
+                                </div>
+                            </motion.div>
+                        )}
+                    </AnimatePresence>
+                </div>
+                <button
+                    onClick={() => setShowCanvas(!showCanvas)}
+                    className={`flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg text-xs font-medium transition-colors ${showCanvas ? 'bg-primary/10 text-primary' : 'text-muted-foreground hover:bg-black/[0.04] dark:hover:bg-white/[0.05] hover:text-foreground'}`}
+                >
+                    <PanelRight className="w-3.5 h-3.5" />
+                    Canvas
+                </button>
+            </div>
+
+            {/* 主内容区（对话 + Canvas 分屏） */}
+            <div className="flex-1 flex overflow-hidden">
+            <div className={`flex-1 flex flex-col overflow-hidden ${showCanvas ? 'w-1/2' : 'w-full'} transition-all duration-300`}>
             {/* 消息区域 */}
             {hasMessages ? (
                 <div className="flex-1 overflow-y-auto pt-6 px-4 no-scrollbar">
@@ -213,9 +434,9 @@ export default function ChatPage() {
                         transition={{ duration: 0.7, delay: 0.2, type: "spring" }}
                         className="relative mb-8 group"
                     >
-                        <div className="absolute inset-0 bg-primary/30 blur-[50px] rounded-full group-hover:bg-primary/50 transition-colors duration-700" />
-                        <div className="relative w-28 h-28 rounded-[2rem] bg-card/60 dark:bg-card/40 backdrop-blur-3xl flex items-center justify-center border border-white/40 dark:border-white/10 shadow-2xl overflow-hidden">
-                            <div className="absolute inset-0 bg-gradient-to-tr from-primary/20 to-transparent" />
+                        <div className="absolute inset-0 bg-primary/20 blur-[40px] rounded-full group-hover:bg-primary/30 transition-colors duration-700" />
+                        <div className="relative w-24 h-24 rounded-3xl bg-card dark:bg-card/60 flex items-center justify-center border border-border/60 dark:border-white/[0.08] shadow-lg overflow-hidden">
+                            <div className="absolute inset-0 bg-gradient-to-tr from-primary/10 to-transparent" />
                             <motion.div
                                 animate={{ rotate: [0, 5, -5, 0] }}
                                 transition={{ repeat: Infinity, duration: 6, ease: "easeInOut" }}
@@ -229,7 +450,7 @@ export default function ChatPage() {
                         initial={{ y: 20, opacity: 0 }}
                         animate={{ y: 0, opacity: 1 }}
                         transition={{ duration: 0.5, delay: 0.3 }}
-                        className="text-5xl font-black tracking-tight mb-5 bg-gradient-to-br from-foreground to-foreground/50 bg-clip-text text-transparent"
+                        className="text-4xl font-bold tracking-tight mb-4 text-foreground"
                     >
                         {t.chat.title}
                     </motion.h1>
@@ -269,7 +490,7 @@ export default function ChatPage() {
                             <div
                                 key={i}
                                 onClick={() => setInputValue(s.text)}
-                                className="p-4 rounded-2xl border border-white/30 dark:border-white/5 bg-white/40 dark:bg-black/20 text-[13px] font-semibold text-foreground/70 hover:bg-white/60 dark:hover:bg-black/40 hover:text-foreground cursor-pointer transition-all duration-300 backdrop-blur-xl shadow-sm hover:shadow-md hover:-translate-y-[2px]"
+                                className="p-3.5 rounded-xl border border-border/60 dark:border-white/[0.06] bg-card/60 dark:bg-white/[0.02] text-[13px] font-medium text-muted-foreground hover:bg-card dark:hover:bg-white/[0.04] hover:text-foreground cursor-pointer transition-all duration-200 hover:shadow-sm hover:-translate-y-px"
                             >
                                 {s.text}
                             </div>
@@ -279,6 +500,40 @@ export default function ChatPage() {
             )}
 
             <ChatInput onSend={handleSend} />
+            </div>
+
+            {/* Canvas 侧面板 */}
+            <AnimatePresence>
+                {showCanvas && (
+                    <motion.div
+                        initial={{ width: 0, opacity: 0 }}
+                        animate={{ width: '50%', opacity: 1 }}
+                        exit={{ width: 0, opacity: 0 }}
+                        transition={{ duration: 0.3, ease: 'easeInOut' }}
+                        className="border-l border-border/60 dark:border-white/[0.08] overflow-hidden"
+                    >
+                        <div className="h-full flex flex-col">
+                            <div className="flex items-center justify-between px-4 py-2.5 border-b border-border/40 shrink-0">
+                                <span className="text-sm font-medium text-foreground">Canvas</span>
+                                <button
+                                    onClick={() => setShowCanvas(false)}
+                                    className="p-1 rounded-lg text-muted-foreground hover:text-foreground hover:bg-muted/50 transition-colors"
+                                >
+                                    <X className="w-4 h-4" />
+                                </button>
+                            </div>
+                            <div className="flex-1 overflow-hidden">
+                                <iframe
+                                    src="http://127.0.0.1:18789/__openclaw__/canvas/"
+                                    className="w-full h-full border-0"
+                                    title="Canvas"
+                                />
+                            </div>
+                        </div>
+                    </motion.div>
+                )}
+            </AnimatePresence>
+            </div>
         </div>
     );
 }

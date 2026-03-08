@@ -6,71 +6,71 @@
 
 @layer base {
   :root {
-    --background: 183 100% 96%;
-    /* #ECFEFF */
-    --foreground: 195 64% 24%;
-    /* #164E63 */
+    --background: 210 20% 97%;
+    --foreground: 220 25% 16%;
 
     --card: 0 0% 100%;
-    --card-foreground: 195 64% 24%;
+    --card-foreground: 220 25% 16%;
 
     --popover: 0 0% 100%;
-    --popover-foreground: 195 64% 24%;
+    --popover-foreground: 220 25% 16%;
 
-    /* Primary: #0891B2 */
-    --primary: 192 91% 36%;
+    --primary: 192 85% 38%;
     --primary-foreground: 0 0% 100%;
 
-    /* Secondary: #22D3EE */
-    --secondary: 188 86% 53%;
-    --secondary-foreground: 195 64% 24%;
+    --secondary: 210 15% 93%;
+    --secondary-foreground: 220 25% 16%;
 
-    --muted: 183 20% 90%;
-    --muted-foreground: 195 20% 50%;
+    --muted: 210 15% 93%;
+    --muted-foreground: 220 10% 46%;
 
-    /* Accent/CTA: #22C55E */
-    --accent: 142 71% 45%;
+    --accent: 160 60% 42%;
     --accent-foreground: 0 0% 100%;
 
-    --destructive: 0 84.2% 60.2%;
+    --destructive: 0 72% 55%;
     --destructive-foreground: 0 0% 98%;
 
-    --border: 183 30% 85%;
-    --input: 183 30% 85%;
-    --ring: 192 91% 36%;
+    --border: 210 15% 89%;
+    --input: 210 15% 89%;
+    --ring: 192 85% 38%;
 
     --radius: 1rem;
+
+    --sidebar-bg: 210 20% 98%;
+    --panel-shadow: 0 1px 3px 0 rgb(0 0 0 / 0.04), 0 1px 2px -1px rgb(0 0 0 / 0.04);
   }
 
-  /* Sleek Apple-style Dark Mode */
   .dark {
-    --background: 220 10% 6%;
-    --foreground: 183 30% 96%;
+    --background: 225 15% 8%;
+    --foreground: 210 20% 93%;
 
-    --card: 220 10% 8%;
-    --card-foreground: 183 30% 96%;
+    --card: 225 15% 10%;
+    --card-foreground: 210 20% 93%;
 
-    --popover: 220 10% 8%;
-    --popover-foreground: 183 30% 96%;
+    --popover: 225 15% 10%;
+    --popover-foreground: 210 20% 93%;
 
-    --primary: 192 91% 45%;
+    --primary: 192 80% 50%;
     --primary-foreground: 0 0% 100%;
 
-    --secondary: 188 86% 65%;
-    --secondary-foreground: 220 10% 6%;
+    --secondary: 225 15% 15%;
+    --secondary-foreground: 210 20% 93%;
 
-    --muted: 220 10% 15%;
-    --muted-foreground: 183 10% 60%;
+    --muted: 225 12% 16%;
+    --muted-foreground: 210 10% 55%;
 
-    --accent: 142 71% 45%;
+    --accent: 160 60% 45%;
     --accent-foreground: 0 0% 100%;
 
-    --destructive: 0 62.8% 30.6%;
-    --destructive-foreground: 210 40% 98%;
+    --destructive: 0 62% 40%;
+    --destructive-foreground: 0 0% 98%;
 
-    --border: 220 10% 15%;
-    --input: 220 10% 15%;
-    --ring: 192 91% 45%;
+    --border: 225 12% 16%;
+    --input: 225 12% 16%;
+    --ring: 192 80% 50%;
+
+    --sidebar-bg: 225 15% 9%;
+    --panel-shadow: 0 1px 3px 0 rgb(0 0 0 / 0.2), 0 4px 16px -2px rgb(0 0 0 / 0.15);
   }
 }
 
@@ -88,24 +88,25 @@
 
   /* Premium Glassmorphism Utilities */
   .glass {
-    @apply bg-white/5 dark:bg-black/10 backdrop-blur-xl border border-white/20 dark:border-white/10;
-    box-shadow: 0 8px 32px 0 rgba(0, 0, 0, 0.3);
+    @apply bg-white/60 dark:bg-white/5 backdrop-blur-xl border border-black/[0.06] dark:border-white/[0.06];
+    box-shadow: var(--panel-shadow);
   }
 
   .glass-panel {
-    @apply bg-white/5 dark:bg-[#151522]/40 backdrop-blur-2xl border border-white/10 dark:border-white/5 shadow-2xl;
+    @apply bg-white/70 dark:bg-white/[0.03] backdrop-blur-2xl border border-black/[0.06] dark:border-white/[0.06];
+    box-shadow: var(--panel-shadow);
   }
 
   .glass-input {
-    @apply bg-black/20 dark:bg-black/40 backdrop-blur-md border border-white/10 dark:border-white/5 focus-within:border-primary/50 focus-within:bg-black/30 transition-all duration-300 shadow-inner;
+    @apply bg-black/[0.03] dark:bg-white/[0.04] border border-black/[0.08] dark:border-white/[0.08] focus-within:border-primary/50 transition-all duration-200;
   }
 
   .text-glow {
-    text-shadow: 0 0 20px rgba(139, 92, 246, 0.5);
+    text-shadow: 0 0 20px hsl(var(--primary) / 0.3);
   }
 
   .icon-glow {
-    filter: drop-shadow(0 0 12px rgba(8, 145, 178, 0.4));
+    filter: drop-shadow(0 0 8px hsl(var(--primary) / 0.35));
   }
 
   .no-scrollbar::-webkit-scrollbar {
