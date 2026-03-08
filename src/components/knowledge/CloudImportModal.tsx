@@ -139,7 +139,7 @@ export default function CloudImportModal({ isOpen, onClose, onImport }: CloudImp
                     <div className="flex-1 flex flex-col overflow-hidden relative">
                         {/* Breadcrumbs */}
                         {selectedProvider && (
-                            <div className="flex items-center gap-1.5 px-4 py-3 border-b border-white/5 bg-white/5 text-[13px] font-medium shrink-0 overflow-x-auto no-scrollbar">
+                            <div className="flex items-center gap-1.5 px-4 py-3 border-b border-border/30 dark:border-white/5 bg-muted/20 dark:bg-white/[0.03] text-[13px] font-medium shrink-0 overflow-x-auto no-scrollbar">
                                 <button
                                     className="hover:text-primary transition-colors text-foreground/70"
                                     onClick={() => {

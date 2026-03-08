@@ -88,10 +88,10 @@ export default function ToolCallBlock({ toolCall }: ToolCallBlockProps) {
                 <motion.div
                     initial={{ height: 0 }}
                     animate={{ height: "auto" }}
-                    className="border-t border-white/5"
+                    className="border-t border-border/30 dark:border-white/5"
                 >
                     {/* 参数 */}
-                    <div className="px-3 py-2 bg-black/20">
+                    <div className="px-3 py-2 bg-black/[0.03] dark:bg-black/20">
                         <div className="text-[10px] uppercase tracking-wider text-muted-foreground/50 mb-1 font-bold">
                             参数
                         </div>
@@ -102,7 +102,7 @@ export default function ToolCallBlock({ toolCall }: ToolCallBlockProps) {
 
                     {/* 执行结果 — 使用 CodeOutput 智能渲染 */}
                     {toolCall.result && (
-                        <div className="px-3 py-2 bg-black/30 border-t border-white/5">
+                        <div className="px-3 py-2 bg-black/[0.04] dark:bg-black/30 border-t border-border/30 dark:border-white/5">
                             {isScreenshotResult(toolCall) ? (
                                 <div className="flex items-center gap-2 text-xs text-emerald-400">
                                     <Camera className="w-3.5 h-3.5" />
