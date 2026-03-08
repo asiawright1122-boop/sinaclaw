@@ -9,6 +9,7 @@ import { useToastStore } from "@/store/toastStore";
 import { useTranslate } from "@/lib/i18n";
 import { useSettingsStore } from "@/store/settingsStore";
 import { useAgentStore } from "@/store/agentStore";
+import Tooltip from "@/components/ui/Tooltip";
 
 // 数据文件扩展名
 const DATA_FILE_EXTENSIONS = [".csv", ".xlsx", ".xls", ".tsv"];
@@ -396,52 +397,46 @@ export default function ChatInput({ onSend }: ChatInputProps) {
 
                 <div className="flex items-center justify-between px-2 pb-1 mt-2">
                     <div className="flex items-center space-x-2">
-                        <button
-                            onClick={() => fileInputRef.current?.click()}
-                            className="p-2 rounded-lg bg-black/[0.03] dark:bg-white/[0.04] border border-border/50 dark:border-white/[0.06] hover:bg-black/[0.06] dark:hover:bg-white/[0.08] text-muted-foreground hover:text-foreground transition-all duration-150 active:scale-[0.90] group relative"
-                            disabled={isProcessingFile}
-                        >
-                            <Plus className="w-4 h-4" />
-                            <span className="absolute -top-10 left-1/2 -translate-x-1/2 px-3 py-1.5 bg-foreground text-background text-xs font-semibold rounded-lg opacity-0 group-hover:opacity-100 transition-opacity duration-200 whitespace-nowrap pointer-events-none shadow-md">
-                                {t.chat.attachContext}
-                            </span>
-                        </button>
-                        <button className="p-2 rounded-lg bg-transparent hover:bg-black/[0.04] dark:hover:bg-white/[0.05] text-muted-foreground hover:text-foreground transition-all duration-150 group relative"
-                            onClick={() => imageInputRef.current?.click()}
-                        >
-                            <ImageIcon className="w-4 h-4" />
-                            <span className="absolute -top-10 left-1/2 -translate-x-1/2 px-3 py-1.5 bg-foreground text-background text-xs font-semibold rounded-lg opacity-0 group-hover:opacity-100 transition-opacity duration-200 whitespace-nowrap pointer-events-none shadow-md">
-                                添加图片
-                            </span>
-                        </button>
+                        <Tooltip content={t.chat.attachContext}>
+                            <button
+                                onClick={() => fileInputRef.current?.click()}
+                                className="p-2 rounded-lg bg-black/[0.03] dark:bg-white/[0.04] border border-border/50 dark:border-white/[0.06] hover:bg-black/[0.06] dark:hover:bg-white/[0.08] text-muted-foreground hover:text-foreground transition-all duration-150 active:scale-[0.90]"
+                                disabled={isProcessingFile}
+                            >
+                                <Plus className="w-4 h-4" />
+                            </button>
+                        </Tooltip>
+                        <Tooltip content="添加图片">
+                            <button className="p-2 rounded-lg bg-transparent hover:bg-black/[0.04] dark:hover:bg-white/[0.05] text-muted-foreground hover:text-foreground transition-all duration-150"
+                                onClick={() => imageInputRef.current?.click()}
+                            >
+                                <ImageIcon className="w-4 h-4" />
+                            </button>
+                        </Tooltip>
                         {/* 数据分析快捷入口 */}
-                        <button
-                            className="p-2 rounded-lg bg-transparent hover:bg-accent/10 text-muted-foreground hover:text-accent transition-all duration-150 group relative"
-                            onClick={() => {
-                                fileInputRef.current?.setAttribute("accept", ".csv,.xlsx,.xls,.tsv");
-                                fileInputRef.current?.click();
-                                // 恢复全格式 accept
-                                setTimeout(() => fileInputRef.current?.setAttribute("accept", ".pdf,.docx,.txt,.md,.json,.csv,.xlsx,.xls,.tsv"), 1000);
-                            }}
-                        >
-                            <FileSpreadsheet className="w-4 h-4" />
-                            <span className="absolute -top-10 left-1/2 -translate-x-1/2 px-3 py-1.5 bg-foreground text-background text-xs font-semibold rounded-lg opacity-0 group-hover:opacity-100 transition-opacity duration-200 whitespace-nowrap pointer-events-none shadow-md">
-                                数据分析
-                            </span>
-                        </button>
-                        <button
-                            onMouseDown={startRecording}
-                            onMouseUp={stopRecording}
-                            onMouseLeave={stopRecording}
-                            className={`p-2 rounded-lg transition-all duration-150 group relative ${isRecording ? "bg-primary text-primary-foreground animate-pulse scale-105" : "bg-transparent hover:bg-black/[0.04] dark:hover:bg-white/[0.05] text-muted-foreground hover:text-foreground"}`}
-                        >
-                            <Mic className="w-4 h-4" />
-                            {!isRecording && (
-                                <span className="absolute -top-10 left-1/2 -translate-x-1/2 px-3 py-1.5 bg-foreground text-background text-xs font-semibold rounded-lg opacity-0 group-hover:opacity-100 transition-opacity duration-200 whitespace-nowrap pointer-events-none shadow-md">
-                                    按住说话
-                                </span>
-                            )}
-                        </button>
+                        <Tooltip content="数据分析">
+                            <button
+                                className="p-2 rounded-lg bg-transparent hover:bg-accent/10 text-muted-foreground hover:text-accent transition-all duration-150"
+                                onClick={() => {
+                                    fileInputRef.current?.setAttribute("accept", ".csv,.xlsx,.xls,.tsv");
+                                    fileInputRef.current?.click();
+                                    // 恢复全格式 accept
+                                    setTimeout(() => fileInputRef.current?.setAttribute("accept", ".pdf,.docx,.txt,.md,.json,.csv,.xlsx,.xls,.tsv"), 1000);
+                                }}
+                            >
+                                <FileSpreadsheet className="w-4 h-4" />
+                            </button>
+                        </Tooltip>
+                        <Tooltip content="按住说话">
+                            <button
+                                onMouseDown={startRecording}
+                                onMouseUp={stopRecording}
+                                onMouseLeave={stopRecording}
+                                className={`p-2 rounded-lg transition-all duration-150 ${isRecording ? "bg-primary text-primary-foreground animate-pulse scale-105" : "bg-transparent hover:bg-black/[0.04] dark:hover:bg-white/[0.05] text-muted-foreground hover:text-foreground"}`}
+                            >
+                                <Mic className="w-4 h-4" />
+                            </button>
+                        </Tooltip>
                     </div>
 
                     {isGenerating ? (

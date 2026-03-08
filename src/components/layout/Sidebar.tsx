@@ -8,6 +8,7 @@ import { translations } from "@/lib/i18n";
 import { useInboxStore } from "@/store/inboxStore";
 import { useChannelStore } from "@/store/channelStore";
 import { ConversationSkeleton } from "@/components/ui/Skeleton";
+import Tooltip from "@/components/ui/Tooltip";
 
 export default function Sidebar() {
     const inboxTotalUnread = useInboxStore((s) => s.totalUnread);
@@ -181,13 +182,14 @@ export default function Sidebar() {
                         Sinaclaw
                     </span>
                 </div>
-                <button
-                    onClick={handleNewChat}
-                    className="w-7 h-7 rounded-lg bg-black/[0.04] dark:bg-white/[0.06] hover:bg-black/[0.08] dark:hover:bg-white/[0.1] text-muted-foreground hover:text-foreground flex items-center justify-center transition-all active:scale-[0.90]"
-                    title={t.sidebar.newAgent}
-                >
-                    <Plus className="w-3.5 h-3.5" />
-                </button>
+                <Tooltip content={t.sidebar.newAgent} shortcut="⌘N">
+                    <button
+                        onClick={handleNewChat}
+                        className="w-7 h-7 rounded-lg bg-black/[0.04] dark:bg-white/[0.06] hover:bg-black/[0.08] dark:hover:bg-white/[0.1] text-muted-foreground hover:text-foreground flex items-center justify-center transition-all active:scale-[0.90]"
+                    >
+                        <Plus className="w-3.5 h-3.5" />
+                    </button>
+                </Tooltip>
             </div>
 
             {/* 搜索框 */}
