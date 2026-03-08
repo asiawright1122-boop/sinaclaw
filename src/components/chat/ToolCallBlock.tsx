@@ -3,6 +3,7 @@ import { Terminal, FileText, FolderOpen, Wrench, CheckCircle, XCircle, Loader2, 
 import { useState } from "react";
 import type { ToolCall } from "@/lib/agent";
 import CodeOutput from "./CodeOutput";
+import { useTranslate } from "@/lib/i18n";
 
 interface ToolCallBlockProps {
     toolCall: ToolCall;
@@ -22,19 +23,6 @@ const TOOL_ICONS: Record<string, React.ReactNode> = {
     delegate_to_agent: <Users className="w-3.5 h-3.5" />,
 };
 
-const TOOL_LABELS: Record<string, string> = {
-    run_command: "执行命令",
-    read_file: "读取文件",
-    write_file: "写入文件",
-    list_directory: "列出目录",
-    detect_environment: "检测环境",
-    install_dependency: "安装依赖",
-    browser_open: "打开网页",
-    browser_screenshot_url: "网页截图",
-    browser_extract_text: "提取文本",
-    search_web: "网络搜索",
-    delegate_to_agent: "委派子Agent",
-};
 
 const STATUS_ICONS: Record<string, React.ReactNode> = {
     pending: <Loader2 className="w-3.5 h-3.5 animate-spin text-blue-400" />,
@@ -44,7 +32,22 @@ const STATUS_ICONS: Record<string, React.ReactNode> = {
 };
 
 export default function ToolCallBlock({ toolCall }: ToolCallBlockProps) {
+    const t = useTranslate();
     const [isExpanded, setIsExpanded] = useState(false);
+
+    const TOOL_LABELS: Record<string, string> = {
+        run_command: t.chat.toolRunCommand,
+        read_file: t.chat.toolReadFile,
+        write_file: t.chat.toolWriteFile,
+        list_directory: t.chat.toolListDir,
+        detect_environment: t.chat.toolDetectEnv,
+        install_dependency: t.chat.toolInstallDep,
+        browser_open: t.chat.toolBrowserOpen,
+        browser_screenshot_url: t.chat.toolScreenshot,
+        browser_extract_text: t.chat.toolExtractText,
+        search_web: t.chat.toolSearchWeb,
+        delegate_to_agent: t.chat.toolDelegate,
+    };
 
     const icon = TOOL_ICONS[toolCall.functionName] || <Wrench className="w-3.5 h-3.5" />;
     const label = TOOL_LABELS[toolCall.functionName] || toolCall.functionName;
@@ -98,7 +101,7 @@ export default function ToolCallBlock({ toolCall }: ToolCallBlockProps) {
                     {/* 参数 */}
                     <div className="px-3 py-2 bg-black/[0.03] dark:bg-black/20">
                         <div className="text-[10px] uppercase tracking-wider text-muted-foreground/50 mb-1 font-bold">
-                            参数
+                            {t.chat.toolParams}
                         </div>
                         <pre className="text-xs text-foreground/70 font-mono whitespace-pre-wrap break-all max-h-32 overflow-y-auto">
                             {JSON.stringify(toolCall.arguments, null, 2)}
@@ -123,7 +126,7 @@ export default function ToolCallBlock({ toolCall }: ToolCallBlockProps) {
                     {toolCall.status === "running" && !toolCall.result && (
                         <div className="px-3 py-3 flex items-center gap-2 text-amber-400 text-xs">
                             <Loader2 className="w-3 h-3 animate-spin" />
-                            <span>正在执行...</span>
+                            <span>{t.chat.toolRunning}</span>
                         </div>
                     )}
                 </motion.div>
