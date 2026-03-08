@@ -8,6 +8,32 @@ import rehypeHighlight from "rehype-highlight";
 import "highlight.js/styles/github-dark-dimmed.css";
 import type { Message } from "@/store/chatStore";
 
+function CodeBlock({ children, ...props }: any) {
+    const [codeCopied, setCodeCopied] = useState(false);
+    const handleCodeCopy = () => {
+        const text = (children as any)?.props?.children || "";
+        navigator.clipboard.writeText(typeof text === "string" ? text : "");
+        setCodeCopied(true);
+        setTimeout(() => setCodeCopied(false), 2000);
+    };
+    return (
+        <div className="relative group/code my-3">
+            <pre
+                className="rounded-xl bg-[#0d1117] border border-white/5 p-4 overflow-x-auto text-sm leading-relaxed"
+                {...props}
+            >
+                {children}
+            </pre>
+            <button
+                onClick={handleCodeCopy}
+                className="absolute top-2 right-2 opacity-0 group-hover/code:opacity-100 transition-all px-2 py-1 rounded-md bg-white/10 hover:bg-white/20 text-xs text-white/60 hover:text-white/90 flex items-center gap-1"
+            >
+                {codeCopied ? <><Check className="w-3 h-3 text-green-400" />已复制</> : <><Copy className="w-3 h-3" />复制</>}
+            </button>
+        </div>
+    );
+}
+
 interface ChatMessageProps {
     message: Message;
     onRetry?: () => void;
@@ -28,28 +54,7 @@ export default function ChatMessage({ message, onRetry }: ChatMessageProps) {
         () => ({
             // 代码块
             pre({ children, ...props }: any) {
-                return (
-                    <div className="relative group/code my-3">
-                        <pre
-                            className="rounded-xl bg-[#0d1117] border border-white/5 p-4 overflow-x-auto text-sm leading-relaxed"
-                            {...props}
-                        >
-                            {children}
-                        </pre>
-                        <button
-                            onClick={() => {
-                                const text =
-                                    (children as any)?.props?.children || "";
-                                navigator.clipboard.writeText(
-                                    typeof text === "string" ? text : ""
-                                );
-                            }}
-                            className="absolute top-2 right-2 opacity-0 group-hover/code:opacity-100 transition-opacity px-2 py-1 rounded-md bg-muted/50 hover:bg-muted/70 text-xs text-muted-foreground"
-                        >
-                            复制
-                        </button>
-                    </div>
-                );
+                return <CodeBlock {...props}>{children}</CodeBlock>;
             },
             // 内联代码
             code({
