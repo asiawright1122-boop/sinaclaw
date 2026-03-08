@@ -16,6 +16,7 @@ import {
 } from "lucide-react";
 import { useAgentStore, type AgentConfig } from "@/store/agentStore";
 import AgentAvatar from "@/components/ui/AgentAvatar";
+import { useTranslate } from "@/lib/i18n";
 
 const AutomationPage = lazy(() => import("@/pages/AutomationPage"));
 
@@ -89,6 +90,7 @@ function AgentCard({
     onClick: () => void;
     onActivate: () => void;
 }) {
+    const t = useTranslate();
     return (
         <motion.div
             whileHover={{ scale: 1.01 }}
@@ -110,13 +112,13 @@ function AgentCard({
                     <div className="flex items-center gap-2">
                         <span className="font-semibold text-sm text-foreground truncate">{agent.name}</span>
                         {agent.role === "sub" && (
-                            <span className="text-[9px] px-1.5 py-0.5 rounded bg-amber-500/10 text-amber-500 font-medium">子Agent</span>
+                            <span className="text-[9px] px-1.5 py-0.5 rounded bg-amber-500/10 text-amber-500 font-medium">{t.agents.subAgent}</span>
                         )}
                     </div>
                     <p className="text-xs text-muted-foreground mt-0.5 line-clamp-1">{agent.description}</p>
                     <div className="flex items-center gap-2 mt-2 text-[10px] text-muted-foreground">
                         <span className="px-1.5 py-0.5 rounded bg-muted/30 font-mono">{agent.model.split("-").slice(0, 2).join("-")}</span>
-                        <span>{agent.enabledTools.length === 1 && agent.enabledTools[0] === "*" ? "全部工具" : `${agent.enabledTools.length} 个工具`}</span>
+                        <span>{agent.enabledTools.length === 1 && agent.enabledTools[0] === "*" ? t.agents.allTools : t.agents.toolCount.replace('{count}', String(agent.enabledTools.length))}</span>
                     </div>
                 </div>
             </div>
@@ -125,7 +127,7 @@ function AgentCard({
                     onClick={(e) => { e.stopPropagation(); onActivate(); }}
                     className="px-2 py-1 rounded-lg text-[10px] font-medium bg-primary/10 text-primary hover:bg-primary/20 transition-colors"
                 >
-                    激活
+                    {t.agents.activate}
                 </button>
             </div>
         </motion.div>
@@ -140,6 +142,7 @@ function AgentEditPanel({
     agent: AgentConfig;
     onClose: () => void;
 }) {
+    const t = useTranslate();
     const { updateAgent, removeAgent, setActiveAgent } = useAgentStore();
     const [form, setForm] = useState({
         name: agent.name,
@@ -173,7 +176,7 @@ function AgentEditPanel({
                     <AgentAvatar avatar={agent.avatar} size={24} className="text-foreground/70" />
                     <div>
                         <h3 className="font-semibold text-foreground">{agent.name}</h3>
-                        <p className="text-xs text-muted-foreground">{agent.role === "sub" ? "子 Agent" : "主 Agent"}</p>
+                        <p className="text-xs text-muted-foreground">{agent.role === "sub" ? t.agents.subAgent : t.agents.primaryAgent}</p>
                     </div>
                 </div>
                 <button onClick={onClose} className="p-2 rounded-lg hover:bg-muted/50 text-muted-foreground hover:text-foreground transition-colors">
@@ -184,7 +187,7 @@ function AgentEditPanel({
             <div className="p-4 space-y-4 max-h-[60vh] overflow-y-auto">
                 <div className="grid grid-cols-2 gap-3">
                     <div className="space-y-1.5">
-                        <label className="text-xs font-medium text-foreground">名称</label>
+                        <label className="text-xs font-medium text-foreground">{t.agents.labelName}</label>
                         <input
                             value={form.name}
                             onChange={(e) => setForm({ ...form, name: e.target.value })}
@@ -192,7 +195,7 @@ function AgentEditPanel({
                         />
                     </div>
                     <div className="space-y-1.5">
-                        <label className="text-xs font-medium text-foreground">头像图标</label>
+                        <label className="text-xs font-medium text-foreground">{t.agents.labelAvatar}</label>
                         <input
                             value={form.avatar}
                             onChange={(e) => setForm({ ...form, avatar: e.target.value })}
@@ -203,7 +206,7 @@ function AgentEditPanel({
                 </div>
 
                 <div className="space-y-1.5">
-                    <label className="text-xs font-medium text-foreground">描述</label>
+                    <label className="text-xs font-medium text-foreground">{t.agents.labelDesc}</label>
                     <input
                         value={form.description}
                         onChange={(e) => setForm({ ...form, description: e.target.value })}
@@ -212,7 +215,7 @@ function AgentEditPanel({
                 </div>
 
                 <div className="space-y-1.5">
-                    <label className="text-xs font-medium text-foreground">模型</label>
+                    <label className="text-xs font-medium text-foreground">{t.agents.labelModel}</label>
                     <select
                         value={form.model}
                         onChange={(e) => setForm({ ...form, model: e.target.value })}
@@ -228,7 +231,7 @@ function AgentEditPanel({
                 </div>
 
                 <div className="space-y-1.5">
-                    <label className="text-xs font-medium text-foreground">系统提示词</label>
+                    <label className="text-xs font-medium text-foreground">{t.agents.labelPrompt}</label>
                     <textarea
                         value={form.systemPrompt}
                         onChange={(e) => setForm({ ...form, systemPrompt: e.target.value })}
@@ -243,14 +246,14 @@ function AgentEditPanel({
                         className="flex items-center gap-1.5 px-4 py-2 rounded-lg text-xs font-medium bg-primary text-primary-foreground hover:bg-primary/90 transition-colors"
                     >
                         <Save className="w-3.5 h-3.5" />
-                        保存
+                        {t.common.save}
                     </button>
                     <button
                         onClick={() => setActiveAgent(agent.id)}
                         className="flex items-center gap-1.5 px-4 py-2 rounded-lg text-xs font-medium bg-accent/10 text-accent border border-accent/20 hover:bg-accent/15 transition-colors"
                     >
                         <Zap className="w-3.5 h-3.5" />
-                        设为活跃
+                        {t.agents.setActive}
                     </button>
                     {!isPreset && (
                         <button
@@ -258,7 +261,7 @@ function AgentEditPanel({
                             className="flex items-center gap-1.5 px-4 py-2 rounded-lg text-xs font-medium bg-destructive/10 text-destructive border border-destructive/20 hover:bg-destructive/15 transition-colors ml-auto"
                         >
                             <Trash2 className="w-3.5 h-3.5" />
-                            删除
+                            {t.common.delete}
                         </button>
                     )}
                 </div>
@@ -269,6 +272,7 @@ function AgentEditPanel({
 
 // ── Swarm 编排面板 ──
 function SwarmPanel({ agents }: { agents: AgentConfig[] }) {
+    const t = useTranslate();
     const primaryAgents = agents.filter((a) => a.role === "primary");
     const { spawnSubAgent } = useAgentStore();
 
@@ -276,10 +280,10 @@ function SwarmPanel({ agents }: { agents: AgentConfig[] }) {
         <div className="bg-card/80 dark:bg-card/50 border border-border/50 dark:border-white/[0.06] rounded-xl p-5 space-y-4" style={{ boxShadow: 'var(--panel-shadow)' }}>
             <div className="flex items-center gap-2">
                 <GitBranch className="w-4 h-4 text-primary" />
-                <h3 className="font-semibold text-sm text-foreground">Swarm 编排</h3>
+                <h3 className="font-semibold text-sm text-foreground">{t.agents.swarmTitle}</h3>
             </div>
             <p className="text-xs text-muted-foreground">
-                配置 Agent 之间的任务委托关系。主 Agent 可以将子任务分配给子 Agent。
+                {t.agents.swarmDesc}
             </p>
 
             <div className="space-y-3">
@@ -295,10 +299,10 @@ function SwarmPanel({ agents }: { agents: AgentConfig[] }) {
                                 <button
                                     onClick={() =>
                                         spawnSubAgent(agent.id, {
-                                            name: `${agent.name} 的子Agent`,
-                                            description: "自动创建的子Agent",
+                                            name: `${agent.name}${t.agents.spawnSubName}`,
+                                            description: t.agents.spawnSubDesc,
                                             avatar: "wrench",
-                                            systemPrompt: "你是一个辅助子Agent。",
+                                            systemPrompt: t.agents.spawnSubPrompt,
                                             model: agent.model,
                                             enabledTools: [],
                                         })
@@ -306,7 +310,7 @@ function SwarmPanel({ agents }: { agents: AgentConfig[] }) {
                                     className="flex items-center gap-1 px-2 py-1 rounded-lg text-[10px] font-medium text-primary hover:bg-primary/10 transition-colors"
                                 >
                                     <Plus className="w-3 h-3" />
-                                    添加子Agent
+                                    {t.agents.addSubAgent}
                                 </button>
                             </div>
                             {subs.length > 0 && (
@@ -330,6 +334,7 @@ function SwarmPanel({ agents }: { agents: AgentConfig[] }) {
 
 // ── 主页面 ──
 export default function AgentWorkbenchPage() {
+    const t = useTranslate();
     const [topTab, setTopTab] = useState<"agents" | "automation">("agents");
 
     return (
@@ -341,8 +346,8 @@ export default function AgentWorkbenchPage() {
                         <Bot className="w-4.5 h-4.5 text-primary" />
                     </div>
                     <div>
-                        <h1 className="text-lg font-semibold text-foreground">Agent</h1>
-                        <p className="text-[12px] text-muted-foreground">管理 Agent 和自动化任务</p>
+                        <h1 className="text-lg font-semibold text-foreground">{t.agents.title}</h1>
+                        <p className="text-[12px] text-muted-foreground">{t.agents.subtitle}</p>
                     </div>
                 </div>
                 <div className="flex gap-0.5 bg-black/[0.04] dark:bg-white/[0.04] border border-border/40 rounded-lg p-0.5 w-fit mb-4">
@@ -355,7 +360,7 @@ export default function AgentWorkbenchPage() {
                         }`}
                     >
                         <Bot className="w-3.5 h-3.5" />
-                        Agent 管理
+                        {t.agents.tabAgents}
                     </button>
                     <button
                         onClick={() => setTopTab("automation")}
@@ -366,7 +371,7 @@ export default function AgentWorkbenchPage() {
                         }`}
                     >
                         <Timer className="w-3.5 h-3.5" />
-                        自动化
+                        {t.agents.tabAutomation}
                     </button>
                 </div>
             </div>
@@ -384,6 +389,7 @@ export default function AgentWorkbenchPage() {
 }
 
 function AgentWorkbenchContent() {
+    const t = useTranslate();
     const { agents, activeAgentId, addAgent, setActiveAgent } = useAgentStore();
     const [selectedAgent, setSelectedAgent] = useState<AgentConfig | null>(null);
     const [view, setView] = useState<"agents" | "templates" | "swarm">("agents");
@@ -400,13 +406,13 @@ function AgentWorkbenchContent() {
         >
             {/* 操作栏 */}
             <div className="flex items-center justify-between">
-                <p className="text-sm text-muted-foreground">共 {agents.length} 个 Agent</p>
+                <p className="text-sm text-muted-foreground">{t.agents.agentCount.replace('{count}', String(agents.length))}</p>
                 <button
                     onClick={() => addAgent({
-                        name: "新 Agent",
-                        description: "自定义 Agent",
+                        name: "New Agent",
+                        description: "Custom Agent",
                         avatar: "bot",
-                        systemPrompt: "你是一个有用的 AI 助手。",
+                        systemPrompt: "You are a helpful AI assistant.",
                         model: "gpt-4o",
                         enabledTools: [],
                         role: "primary",
@@ -414,28 +420,28 @@ function AgentWorkbenchContent() {
                     className="flex items-center gap-1.5 px-4 py-1.5 rounded-lg text-xs font-medium bg-primary text-primary-foreground hover:bg-primary/90 transition-colors"
                 >
                     <Plus className="w-3.5 h-3.5" />
-                    创建 Agent
+                    {t.agents.createAgent}
                 </button>
             </div>
 
             {/* 视图切换 */}
             <div className="flex items-center gap-0.5 bg-black/[0.04] dark:bg-white/[0.04] border border-border/40 rounded-lg p-0.5 w-fit">
                 {([
-                    { id: "agents" as const, label: "我的 Agent", icon: Users },
-                    { id: "templates" as const, label: "模板市场", icon: Star },
-                    { id: "swarm" as const, label: "Swarm 编排", icon: GitBranch },
-                ]).map((t) => (
+                    { id: "agents" as const, label: t.agents.tabAgents, icon: Users },
+                    { id: "templates" as const, label: t.agents.templateTitle, icon: Star },
+                    { id: "swarm" as const, label: t.agents.swarmTitle, icon: GitBranch },
+                ]).map((tab) => (
                     <button
-                        key={t.id}
-                        onClick={() => setView(t.id)}
+                        key={tab.id}
+                        onClick={() => setView(tab.id)}
                         className={`flex items-center gap-1.5 px-3 py-1.5 rounded-md text-xs font-medium transition-all duration-150 ${
-                            view === t.id
+                            view === tab.id
                                 ? "bg-card dark:bg-white/[0.08] text-foreground shadow-sm"
                                 : "text-muted-foreground hover:text-foreground"
                         }`}
                     >
-                        <t.icon className="w-3.5 h-3.5" />
-                        {t.label}
+                        <tab.icon className="w-3.5 h-3.5" />
+                        {tab.label}
                     </button>
                 ))}
             </div>
@@ -494,14 +500,14 @@ function AgentWorkbenchContent() {
                                     className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-[11px] font-medium bg-primary/10 text-primary hover:bg-primary/20 transition-colors"
                                 >
                                     <Plus className="w-3 h-3" />
-                                    添加
+                                    {t.common.add}
                                 </button>
                                 <button
                                     onClick={() => handleAddFromTemplate(tpl)}
                                     className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-[11px] font-medium text-muted-foreground hover:bg-muted/30 transition-colors"
                                 >
                                     <Copy className="w-3 h-3" />
-                                    复制为新Agent
+                                    {t.agents.copyAsNew}
                                 </button>
                             </div>
                         </motion.div>
