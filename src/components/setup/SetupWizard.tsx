@@ -1,5 +1,6 @@
 import { motion, AnimatePresence } from "framer-motion";
 import { Shield, CheckCircle, XCircle, Loader2, Sparkles, ChevronRight, Eye, EyeOff, ArrowLeft, Bot } from "lucide-react";
+import IconById from "@/components/ui/IconById";
 import { useEffect, useState } from "react";
 import { runEnvironmentScan, type ScanItem } from "@/lib/scanner";
 import { useSettingsStore, PROVIDER_INFO, MODEL_OPTIONS, type AIProvider } from "@/store/settingsStore";
@@ -98,7 +99,7 @@ function ScanStep({ onNext }: { onNext: () => void }) {
                                             : "bg-black/[0.02] dark:bg-white/[0.03] border border-transparent"
                                     }`}
                             >
-                                <span className="text-base w-6 text-center">{item.icon}</span>
+                                <span className="w-6 flex justify-center"><IconById id={item.icon} size={18} className="text-foreground/60" /></span>
                                 <span className="text-sm font-medium text-foreground/80 w-20">{item.label}</span>
                                 {item.required && (
                                     <span className="text-[10px] px-1.5 py-0.5 rounded-full bg-primary/20 text-primary-foreground/70 font-bold uppercase tracking-wider">必需</span>

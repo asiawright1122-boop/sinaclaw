@@ -3,6 +3,7 @@ import { motion } from "framer-motion";
 import { X, Cloud, Loader2, Folder, File as FileIcon, ChevronRight, Download } from "lucide-react";
 import { useCloudStore } from "@/store/cloudStore";
 import { CLOUD_PROVIDERS, type CloudProvider, type CloudFile, listFiles, downloadFile } from "@/lib/cloud";
+import IconById from "@/components/ui/IconById";
 import { readFile } from "@tauri-apps/plugin-fs";
 import { documentDir, join } from "@tauri-apps/api/path";
 
@@ -128,7 +129,7 @@ export default function CloudImportModal({ isOpen, onClose, onImport }: CloudImp
                                     }}
                                     className={`w-full flex items-center gap-2 px-3 py-2.5 rounded-xl text-sm font-medium transition-colors ${selectedProvider === p ? "bg-primary text-primary-foreground shadow-sm" : "hover:bg-muted/40 text-foreground/80"}`}
                                 >
-                                    <span>{CLOUD_PROVIDERS[p].icon}</span>
+                                    <IconById id={CLOUD_PROVIDERS[p].icon} size={16} />
                                     <span>{CLOUD_PROVIDERS[p].label}</span>
                                 </button>
                             ))

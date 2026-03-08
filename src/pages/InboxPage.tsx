@@ -10,14 +10,7 @@ import {
     ChevronLeft,
 } from "lucide-react";
 import { useInboxStore, type InboxSession, type InboxMessage } from "@/store/inboxStore";
-import { CHANNEL_DEFINITIONS } from "@/store/channelStore";
-
-const CHANNEL_ICON: Record<string, string> = {};
-CHANNEL_DEFINITIONS.forEach((d) => { CHANNEL_ICON[d.id] = d.icon; });
-
-function channelIcon(channel: string): string {
-    return CHANNEL_ICON[channel] || "msg";
-}
+import IconById from "@/components/ui/IconById";
 
 function channelColor(channel: string): string {
     const map: Record<string, string> = {
@@ -69,8 +62,8 @@ function SessionItem({
             }`}
         >
             <div className="flex items-start gap-3">
-                <div className={`w-9 h-9 rounded-xl flex items-center justify-center text-base shrink-0 ${channelColor(session.channel)}`}>
-                    {channelIcon(session.channel)}
+                <div className={`w-9 h-9 rounded-xl flex items-center justify-center shrink-0 ${channelColor(session.channel)}`}>
+                    <IconById id={session.channel} size={18} />
                 </div>
                 <div className="flex-1 min-w-0">
                     <div className="flex items-center justify-between">
@@ -102,8 +95,8 @@ function MessageBubble({ msg }: { msg: InboxMessage }) {
         <div className={`flex ${isOut ? "justify-end" : "justify-start"} mb-2`}>
             <div className={`flex items-end gap-2 max-w-[75%] ${isOut ? "flex-row-reverse" : ""}`}>
                 {!isOut && (
-                    <div className={`w-7 h-7 rounded-lg flex items-center justify-center text-xs shrink-0 ${channelColor(msg.channel)}`}>
-                        {channelIcon(msg.channel)}
+                    <div className={`w-7 h-7 rounded-lg flex items-center justify-center shrink-0 ${channelColor(msg.channel)}`}>
+                        <IconById id={msg.channel} size={14} />
                     </div>
                 )}
                 <div
@@ -165,8 +158,8 @@ function ChatView({
                 <button onClick={onBack} className="md:hidden p-1 rounded-lg hover:bg-muted/50 text-muted-foreground">
                     <ChevronLeft className="w-5 h-5" />
                 </button>
-                <div className={`w-9 h-9 rounded-xl flex items-center justify-center text-base ${channelColor(session.channel)}`}>
-                    {channelIcon(session.channel)}
+                <div className={`w-9 h-9 rounded-xl flex items-center justify-center ${channelColor(session.channel)}`}>
+                    <IconById id={session.channel} size={18} />
                 </div>
                 <div className="flex-1 min-w-0">
                     <div className="text-sm font-semibold text-foreground truncate">
@@ -316,7 +309,7 @@ export default function InboxPage() {
                                         filter === ch ? "bg-primary/15 text-primary" : "text-muted-foreground hover:bg-muted/30"
                                     }`}
                                 >
-                                    <span>{channelIcon(ch)}</span>
+                                    <IconById id={ch} size={14} />
                                     <span className="capitalize">{ch}</span>
                                 </button>
                             ))}

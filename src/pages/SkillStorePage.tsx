@@ -8,6 +8,7 @@ import { useToastStore } from "@/store/toastStore";
 import { skillManager, type LoadedSkill } from "@/lib/skills";
 import { fetchRegistry, installSkill, isSkillInstalled, exportSkillForPublish, type RemoteSkill } from "@/lib/skillRegistry";
 import { useTranslate } from "@/lib/i18n";
+import IconById from "@/components/ui/IconById";
 import SkillMakerPage from "./SkillMakerPage";
 
 export default function SkillStorePage() {
@@ -302,7 +303,7 @@ export default function SkillStorePage() {
                                                 <div key={skill.id} className="bg-card/80 dark:bg-card/50 border border-border/50 dark:border-white/[0.06] rounded-xl p-4.5 flex flex-col hover:border-border/80 dark:hover:border-white/[0.12] transition-all duration-150 relative group" style={{ boxShadow: 'var(--panel-shadow)' }}>
                                                     <div className="flex items-center gap-3 mb-4">
                                                         <div className="w-9 h-9 rounded-lg bg-primary/[0.06] dark:bg-primary/10 border border-border/40 flex items-center justify-center text-lg shrink-0">
-                                                            {skill.icon || 'pkg'}
+                                                            <IconById id={skill.icon || 'pkg'} size={20} />
                                                         </div>
                                                         <div className="overflow-hidden">
                                                             <h4 className="font-semibold text-[13px] truncate text-foreground">{skill.name}</h4>

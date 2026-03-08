@@ -192,11 +192,12 @@ function AgentEditPanel({
                         />
                     </div>
                     <div className="space-y-1.5">
-                        <label className="text-xs font-medium text-foreground">头像 (Emoji)</label>
+                        <label className="text-xs font-medium text-foreground">头像图标</label>
                         <input
                             value={form.avatar}
                             onChange={(e) => setForm({ ...form, avatar: e.target.value })}
-                            className="w-full bg-black/[0.03] dark:bg-white/[0.04] border border-border/50 dark:border-white/[0.06] rounded-lg px-3 py-2 text-sm text-foreground focus:outline-none focus:ring-1 focus:ring-primary/30 transition-all"
+                            placeholder="bot, code, pen-tool, wrench..."
+                            className="w-full bg-black/[0.03] dark:bg-white/[0.04] border border-border/50 dark:border-white/[0.06] rounded-lg px-3 py-2 text-sm text-foreground placeholder:text-muted-foreground/40 focus:outline-none focus:ring-1 focus:ring-primary/30 transition-all"
                         />
                     </div>
                 </div>
