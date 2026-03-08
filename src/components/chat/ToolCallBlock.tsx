@@ -1,5 +1,5 @@
 import { motion } from "framer-motion";
-import { Terminal, FileText, FolderOpen, Wrench, CheckCircle, XCircle, Loader2, Globe, Camera, FileSearch } from "lucide-react";
+import { Terminal, FileText, FolderOpen, Wrench, CheckCircle, XCircle, Loader2, Globe, Camera, FileSearch, ChevronDown, Search, Users } from "lucide-react";
 import { useState } from "react";
 import type { ToolCall } from "@/lib/agent";
 import CodeOutput from "./CodeOutput";
@@ -18,6 +18,8 @@ const TOOL_ICONS: Record<string, React.ReactNode> = {
     browser_open: <Globe className="w-3.5 h-3.5" />,
     browser_screenshot_url: <Camera className="w-3.5 h-3.5" />,
     browser_extract_text: <FileSearch className="w-3.5 h-3.5" />,
+    search_web: <Search className="w-3.5 h-3.5" />,
+    delegate_to_agent: <Users className="w-3.5 h-3.5" />,
 };
 
 const TOOL_LABELS: Record<string, string> = {
@@ -30,6 +32,8 @@ const TOOL_LABELS: Record<string, string> = {
     browser_open: "打开网页",
     browser_screenshot_url: "网页截图",
     browser_extract_text: "提取文本",
+    search_web: "网络搜索",
+    delegate_to_agent: "委派子Agent",
 };
 
 const STATUS_ICONS: Record<string, React.ReactNode> = {
@@ -77,9 +81,10 @@ export default function ToolCallBlock({ toolCall }: ToolCallBlockProps) {
                 {/* 展开箭头 */}
                 <motion.span
                     animate={{ rotate: isExpanded ? 180 : 0 }}
-                    className="text-muted-foreground text-xs"
+                    transition={{ duration: 0.2 }}
+                    className="text-muted-foreground/50"
                 >
-                    ▾
+                    <ChevronDown className="w-3.5 h-3.5" />
                 </motion.span>
             </button>
 
