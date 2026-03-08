@@ -282,7 +282,7 @@ function OpenClawManager() {
                 </div>
 
                 {gwStatus.running && (
-                    <div className="grid grid-cols-4 gap-2">
+                    <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
                         {quickCommands.map(qc => (
                             <button
                                 key={qc.cmd}
@@ -1048,7 +1048,7 @@ export default function SettingsPage() {
                                 {/* Presets Section */}
                                 <div className="space-y-4">
                                     <h3 className="text-[13px] font-bold text-muted-foreground uppercase tracking-wider px-1">{t.extensions.presets}</h3>
-                                    <div className="grid grid-cols-2 gap-3">
+                                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                                         {MCP_PRESETS.map((p) => (
                                             <button
                                                 key={p.name}

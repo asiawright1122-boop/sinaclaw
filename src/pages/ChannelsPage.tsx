@@ -359,9 +359,9 @@ export default function ChannelsPage() {
                 />
             </div>
 
-            <div className="flex gap-6">
+            <div className="flex flex-col lg:flex-row gap-6">
                 {/* 通道列表 */}
-                <div className={`space-y-2 ${selectedChannel ? "w-1/2" : "w-full"} transition-all`}>
+                <div className={`space-y-2 ${selectedChannel ? "lg:w-1/2" : "w-full"} transition-all`}>
                     <div className="grid grid-cols-1 gap-2">
                         {filtered.map((def) => (
                             <ChannelCard
@@ -382,7 +382,7 @@ export default function ChannelsPage() {
                 {/* 配置面板 */}
                 <AnimatePresence mode="wait">
                     {selectedChannel && (
-                        <div className="w-1/2 sticky top-0">
+                        <div className="w-full lg:w-1/2 lg:sticky lg:top-0">
                             <ChannelConfigPanel
                                 key={selectedChannel.id}
                                 def={selectedChannel}

@@ -442,9 +442,9 @@ function AgentWorkbenchContent() {
 
             {/* 内容区 */}
             {view === "agents" && (
-                <div className="flex gap-6">
-                    <div className={`${selectedAgent ? "w-1/2" : "w-full"} transition-all`}>
-                        <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                <div className="flex flex-col lg:flex-row gap-6">
+                    <div className={`${selectedAgent ? "lg:w-1/2" : "w-full"} transition-all`}>
+                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                             {agents.map((agent) => (
                                 <AgentCard
                                     key={agent.id}
@@ -458,7 +458,7 @@ function AgentWorkbenchContent() {
                     </div>
                     <AnimatePresence mode="wait">
                         {selectedAgent && (
-                            <div className="w-1/2 sticky top-0">
+                            <div className="w-full lg:w-1/2 lg:sticky lg:top-0">
                                 <AgentEditPanel
                                     key={selectedAgent.id}
                                     agent={selectedAgent}
