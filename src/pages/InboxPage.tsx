@@ -11,6 +11,7 @@ import {
 } from "lucide-react";
 import { useInboxStore, type InboxSession, type InboxMessage } from "@/store/inboxStore";
 import IconById from "@/components/ui/IconById";
+import { useTranslate } from "@/lib/i18n";
 
 function channelColor(channel: string): string {
     const map: Record<string, string> = {
@@ -27,18 +28,18 @@ function channelColor(channel: string): string {
     return map[channel] || "bg-gray-500/15 text-gray-600 dark:text-gray-400";
 }
 
-function formatTime(ts: number): string {
+function formatTime(ts: number, t: ReturnType<typeof useTranslate>): string {
     const d = new Date(ts);
     const now = new Date();
     const diffMs = now.getTime() - d.getTime();
-    if (diffMs < 60_000) return "刚刚";
-    if (diffMs < 3600_000) return `${Math.floor(diffMs / 60_000)}分钟前`;
+    if (diffMs < 60_000) return t.inbox.justNow;
+    if (diffMs < 3600_000) return t.inbox.minutesAgo.replace('{n}', String(Math.floor(diffMs / 60_000)));
     if (d.toDateString() === now.toDateString()) {
         return d.toLocaleTimeString("en-GB", { hour: "2-digit", minute: "2-digit", hour12: false });
     }
     const yesterday = new Date(now);
     yesterday.setDate(yesterday.getDate() - 1);
-    if (d.toDateString() === yesterday.toDateString()) return "昨天";
+    if (d.toDateString() === yesterday.toDateString()) return t.inbox.yesterday;
     return d.toLocaleDateString("zh-CN", { month: "short", day: "numeric" });
 }
 
@@ -52,6 +53,7 @@ function SessionItem({
     active: boolean;
     onClick: () => void;
 }) {
+    const t = useTranslate();
     return (
         <button
             onClick={onClick}
@@ -71,7 +73,7 @@ function SessionItem({
                             {session.channelUserName || session.channelUserId || session.channel}
                         </span>
                         <span className="text-[10px] text-muted-foreground shrink-0 ml-2">
-                            {formatTime(session.lastMessageAt)}
+                            {formatTime(session.lastMessageAt, t)}
                         </span>
                     </div>
                     <div className="flex items-center justify-between mt-0.5">
@@ -136,6 +138,7 @@ function ChatView({
     onSend: (content: string) => void;
     onBack: () => void;
 }) {
+    const t = useTranslate();
     const [input, setInput] = useState("");
     const scrollRef = useRef<HTMLDivElement>(null);
 
@@ -173,7 +176,7 @@ function ChatView({
                             session.status === "agent" ? "text-blue-500" : "text-muted-foreground"
                         }`}>
                             {session.status === "agent" ? <Bot className="w-3 h-3" /> : <User className="w-3 h-3" />}
-                            {session.status === "active" ? "活跃" : session.status === "agent" ? "Agent 处理中" : "已关闭"}
+                            {session.status === "active" ? t.inbox.active : session.status === "agent" ? t.inbox.agentHandling : t.inbox.closed}
                         </span>
                     </div>
                 </div>
@@ -184,7 +187,7 @@ function ChatView({
                 {messages.length === 0 ? (
                     <div className="flex flex-col items-center justify-center h-full text-muted-foreground/40 gap-1.5">
                         <Send className="w-5 h-5" />
-                        <span className="text-xs font-medium">暂无消息</span>
+                        <span className="text-xs font-medium">{t.inbox.noMessagesYet}</span>
                     </div>
                 ) : (
                     messages.map((msg) => <MessageBubble key={msg.id} msg={msg} />)
@@ -199,7 +202,7 @@ function ChatView({
                         value={input}
                         onChange={(e) => setInput(e.target.value)}
                         onKeyDown={(e) => { if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); handleSend(); } }}
-                        placeholder="输入回复..."
+                        placeholder={t.inbox.replyPlaceholder}
                         className="flex-1 bg-black/[0.03] dark:bg-white/[0.04] border border-border/50 dark:border-white/[0.06] rounded-lg px-3.5 py-2.5 text-sm text-foreground placeholder:text-muted-foreground/40 focus:outline-none focus:ring-1 focus:ring-primary/30 transition-all"
                     />
                     <button
@@ -217,6 +220,7 @@ function ChatView({
 
 /* ── 主页面 ── */
 export default function InboxPage() {
+    const t = useTranslate();
     const {
         sessions,
         activeSessionId,
@@ -269,7 +273,7 @@ export default function InboxPage() {
                     <div className="flex items-center justify-between mb-3">
                         <div className="flex items-center gap-2">
                             <Inbox className="w-5 h-5 text-primary" />
-                            <h1 className="text-lg font-bold text-foreground">收件箱</h1>
+                            <h1 className="text-lg font-bold text-foreground">{t.inbox.title}</h1>
                             {totalUnread > 0 && (
                                 <span className="min-w-[20px] h-[20px] flex items-center justify-center rounded-full bg-primary text-[11px] font-bold text-white px-1.5">
                                     {totalUnread > 99 ? "99+" : totalUnread}
@@ -285,7 +289,7 @@ export default function InboxPage() {
                             type="text"
                             value={search}
                             onChange={(e) => setSearch(e.target.value)}
-                            placeholder="搜索会话..."
+                            placeholder={t.inbox.searchSessions}
                             className="w-full bg-black/[0.03] dark:bg-white/[0.04] border border-border/50 dark:border-white/[0.06] rounded-lg pl-8 pr-3 py-1.5 text-xs text-foreground placeholder:text-muted-foreground/40 focus:outline-none focus:ring-1 focus:ring-primary/30 transition-all"
                         />
                     </div>
@@ -299,7 +303,7 @@ export default function InboxPage() {
                                     filter === "all" ? "bg-primary/15 text-primary" : "text-muted-foreground hover:bg-muted/30"
                                 }`}
                             >
-                                全部
+                                {t.inbox.all}
                             </button>
                             {channelOptions.map((ch) => (
                                 <button
@@ -321,13 +325,13 @@ export default function InboxPage() {
                 <div className="flex-1 overflow-y-auto px-2 pb-2 space-y-0.5">
                     {loading && sessions.length === 0 ? (
                         <div className="flex items-center justify-center py-12 text-muted-foreground text-sm">
-                            加载中...
+                            {t.inbox.loading}
                         </div>
                     ) : filtered.length === 0 ? (
                         <div className="flex flex-col items-center justify-center py-12 text-muted-foreground/50">
                             <Inbox className="w-8 h-8 mb-2" />
-                            <p className="text-sm">{search ? "未找到匹配会话" : "暂无消息"}</p>
-                            <p className="text-xs mt-1">通道消息将在此处显示</p>
+                            <p className="text-sm">{search ? t.inbox.noMatch : t.inbox.noMessages}</p>
+                            <p className="text-xs mt-1">{t.inbox.channelMessagesHint}</p>
                         </div>
                     ) : (
                         filtered.map((s) => (
@@ -354,8 +358,8 @@ export default function InboxPage() {
                 ) : (
                     <div className="flex-1 flex flex-col items-center justify-center text-muted-foreground/40">
                         <Inbox className="w-12 h-12 mb-3" />
-                        <p className="text-sm font-medium">选择一个会话开始回复</p>
-                        <p className="text-xs mt-1">来自各通道的消息将实时显示</p>
+                        <p className="text-sm font-medium">{t.inbox.selectSession}</p>
+                        <p className="text-xs mt-1">{t.inbox.realtimeHint}</p>
                     </div>
                 )}
             </div>
