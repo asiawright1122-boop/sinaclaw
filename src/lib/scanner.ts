@@ -34,12 +34,12 @@ function getCheckList(): ScanItem[] {
     return [
         {
             name: "node_sidecar",
-            label: "Sinaclaw 引擎",
+            label: "Sinaclaw Engine",
             icon: "gear",
             required: true,
             status: "checking",
             version: "",
-            installNote: "内置执行引擎",
+            installNote: "Built-in execution engine",
         }
     ];
 }
@@ -69,12 +69,12 @@ export async function runEnvironmentScan(
         } else {
             console.error("Sidecar process error:", output.stderr);
             engineItem.status = "failed";
-            engineItem.installNote = "无法唤起内置 Node: " + (output.stderr || "Native execution failed");
+            engineItem.installNote = "Cannot invoke built-in Node: " + (output.stderr || "Native execution failed");
         }
     } catch (e: any) {
         console.error("Sidecar error IPC:", e);
         engineItem.status = "failed";
-        engineItem.installNote = "Sidecar IPC 调用错误: " + String(e);
+        engineItem.installNote = "Sidecar IPC error: " + String(e);
     }
 
     onUpdate([...items]);
@@ -132,7 +132,7 @@ export async function runProjectHealthCheck(
         const hasNodeModules = await fileExists(`${projectPath}/node_modules`);
         const nmItem: ProjectHealthItem = {
             name: "node_modules",
-            label: "依赖目录",
+            label: "Dependencies",
             icon: "folder",
             status: "checking",
             detail: "",
@@ -142,28 +142,28 @@ export async function runProjectHealthCheck(
 
         if (!hasNodeModules) {
             nmItem.status = "fixing";
-            nmItem.detail = "node_modules 缺失，正在自动安装...";
+            nmItem.detail = "node_modules missing, auto-installing...";
             onUpdate([...items]);
 
             const installResult = await runCmd("npm install", projectPath);
             if (installResult.success) {
                 nmItem.status = "fixed";
-                nmItem.detail = "已自动执行 npm install";
+                nmItem.detail = "Auto-ran npm install";
                 autoFixed++;
             } else {
                 nmItem.status = "error";
-                nmItem.detail = "npm install 失败: " + extractFirstLine(installResult.stderr);
+                nmItem.detail = "npm install failed: " + extractFirstLine(installResult.stderr);
             }
         } else {
             nmItem.status = "ok";
-            nmItem.detail = "已存在";
+            nmItem.detail = "Present";
         }
         onUpdate([...items]);
 
         // 检查 2: package-lock.json 完整性
         const lockItem: ProjectHealthItem = {
             name: "lockfile",
-            label: "Lock 文件",
+            label: "Lock File",
             icon: "lock",
             status: "checking",
             detail: "",
@@ -176,17 +176,17 @@ export async function runProjectHealthCheck(
             await fileExists(`${projectPath}/pnpm-lock.yaml`);
         if (hasLockfile) {
             lockItem.status = "ok";
-            lockItem.detail = "完整";
+            lockItem.detail = "Present";
         } else {
             lockItem.status = "warning";
-            lockItem.detail = "缺失 lock 文件（建议运行 npm install 生成）";
+            lockItem.detail = "Lock file missing (run npm install to generate)";
         }
         onUpdate([...items]);
 
         // 检查 3: 依赖冲突（npm ls 检测）
         const conflictItem: ProjectHealthItem = {
             name: "conflicts",
-            label: "依赖冲突",
+            label: "Dep Conflicts",
             icon: "alert",
             status: "checking",
             detail: "",
@@ -199,11 +199,11 @@ export async function runProjectHealthCheck(
         const hasConflicts = /err!|warn|peer|invalid|missing/i.test(lsOutput);
         if (!hasConflicts) {
             conflictItem.status = "ok";
-            conflictItem.detail = "无冲突";
+            conflictItem.detail = "No conflicts";
         } else {
             // 有冲突，尝试自动修复
             conflictItem.status = "fixing";
-            conflictItem.detail = "发现依赖问题，正在自动修复...";
+            conflictItem.detail = "Dependency issues found, auto-fixing...";
             onUpdate([...items]);
 
             // 策略 1: npm dedupe（去重）
@@ -218,11 +218,11 @@ export async function runProjectHealthCheck(
             const stillHasErrors = /err!|invalid|missing/i.test(recheckOutput);
             if (!stillHasErrors) {
                 conflictItem.status = "fixed";
-                conflictItem.detail = "依赖冲突已自动修复";
+                conflictItem.detail = "Conflicts auto-fixed";
                 autoFixed++;
             } else if (fixResult.success) {
                 conflictItem.status = "warning";
-                conflictItem.detail = "部分冲突已修复，剩余可通过 AI 对话进一步处理";
+                conflictItem.detail = "Partially fixed, remaining can be resolved via AI chat";
             } else {
                 conflictItem.status = "error";
                 conflictItem.detail = extractFirstLine(lsResult.stderr || lsResult.stdout);
@@ -233,7 +233,7 @@ export async function runProjectHealthCheck(
         // 检查 4: 过期依赖
         const outdatedItem: ProjectHealthItem = {
             name: "outdated",
-            label: "过期依赖",
+            label: "Outdated Deps",
             icon: "calendar",
             status: "checking",
             detail: "",
@@ -245,16 +245,16 @@ export async function runProjectHealthCheck(
         const outdatedStr = outdatedResult.stdout.trim();
         if (!outdatedStr || outdatedStr === "{}") {
             outdatedItem.status = "ok";
-            outdatedItem.detail = "所有依赖已是最新";
+            outdatedItem.detail = "All dependencies up to date";
         } else {
             try {
                 const outdated = JSON.parse(outdatedStr);
                 const count = Object.keys(outdated).length;
                 outdatedItem.status = "warning";
-                outdatedItem.detail = `${count} 个依赖可更新（不影响运行）`;
+                outdatedItem.detail = `${count} deps can be updated (no impact on runtime)`;
             } catch {
                 outdatedItem.status = "ok";
-                outdatedItem.detail = "检测完成";
+                outdatedItem.detail = "Check complete";
             }
         }
         onUpdate([...items]);
@@ -263,7 +263,7 @@ export async function runProjectHealthCheck(
     } else if (projectType === "rust") {
         const cargoItem: ProjectHealthItem = {
             name: "cargo_check",
-            label: "Cargo 编译检查",
+            label: "Cargo Build Check",
             icon: "crab",
             status: "checking",
             detail: "",
@@ -274,7 +274,7 @@ export async function runProjectHealthCheck(
         const checkResult = await runCmd("cargo check 2>&1 | tail -3", projectPath);
         if (checkResult.success) {
             cargoItem.status = "ok";
-            cargoItem.detail = "编译通过";
+            cargoItem.detail = "Build passed";
         } else {
             cargoItem.status = "error";
             cargoItem.detail = extractFirstLine(checkResult.stderr || checkResult.stdout);
@@ -285,7 +285,7 @@ export async function runProjectHealthCheck(
     } else if (projectType === "python") {
         const pipItem: ProjectHealthItem = {
             name: "pip_check",
-            label: "Python 依赖",
+            label: "Python Deps",
             icon: "snake",
             status: "checking",
             detail: "",
@@ -298,13 +298,13 @@ export async function runProjectHealthCheck(
             const hasVenv = await fileExists(`${projectPath}/venv`) || await fileExists(`${projectPath}/.venv`);
             if (!hasVenv) {
                 pipItem.status = "fixing";
-                pipItem.detail = "创建虚拟环境...";
+                pipItem.detail = "Creating virtual environment...";
                 onUpdate([...items]);
                 await runCmd("python3 -m venv venv", projectPath);
             }
 
             pipItem.status = "fixing";
-            pipItem.detail = "安装依赖...";
+            pipItem.detail = "Installing dependencies...";
             onUpdate([...items]);
 
             const installResult = await runCmd(
@@ -312,11 +312,11 @@ export async function runProjectHealthCheck(
                 projectPath
             );
             pipItem.status = installResult.success ? "fixed" : "error";
-            pipItem.detail = installResult.success ? "依赖已安装" : "安装失败";
+            pipItem.detail = installResult.success ? "Dependencies installed" : "Installation failed";
             if (installResult.success) autoFixed++;
         } else {
             pipItem.status = "ok";
-            pipItem.detail = "pyproject.toml 检测到";
+            pipItem.detail = "pyproject.toml detected";
         }
         onUpdate([...items]);
     }
@@ -341,7 +341,7 @@ async function runCmd(cmd: string, cwd: string): Promise<CommandResult> {
             cwd,
         });
     } catch {
-        return { stdout: "", stderr: "命令执行失败", exit_code: -1, success: false };
+        return { stdout: "", stderr: "Command execution failed", exit_code: -1, success: false };
     }
 }
 
