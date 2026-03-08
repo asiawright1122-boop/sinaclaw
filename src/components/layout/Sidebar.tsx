@@ -167,7 +167,7 @@ export default function Sidebar() {
             initial={{ opacity: 0, x: -20 }}
             animate={{ opacity: 1, x: 0 }}
             transition={{ duration: 0.5, ease: "easeOut" }}
-            className="hidden md:flex flex-col w-[240px] lg:w-[260px] bg-card/80 dark:bg-card/60 backdrop-blur-2xl border border-black/[0.06] dark:border-white/[0.08] rounded-2xl p-3.5 z-20 shrink-0"
+            className="hidden md:flex flex-col w-[250px] bg-card/80 dark:bg-card/60 backdrop-blur-2xl border border-black/[0.06] dark:border-white/[0.08] rounded-2xl p-3.5 z-20 shrink-0"
             style={{ boxShadow: 'var(--panel-shadow)' }}
         >
             {/* Logo + 新建对话 */}
@@ -235,7 +235,7 @@ export default function Sidebar() {
                         )}
                         {pinnedConvs.map((conv) => renderConvItem(conv))}
                         {pinnedConvs.length > 0 && unpinnedConvs.length > 0 && (
-                            <div className="h-px bg-white/8 dark:bg-white/5 mx-3 my-1" />
+                            <div className="h-px bg-border/40 mx-3 my-1" />
                         )}
                         {unpinnedConvs.map((conv) => renderConvItem(conv))}
                     </>
@@ -273,7 +273,7 @@ export default function Sidebar() {
                                         <Settings className="w-3.5 h-3.5" />
                                         重命名
                                     </button>
-                                    <div className="h-px bg-white/10 dark:bg-white/5 my-1 mx-1" />
+                                    <div className="h-px bg-border/40 my-1 mx-1" />
                                     <button
                                         onClick={() => { deleteConversation(contextMenu.id); setContextMenu(null); }}
                                         className="w-full flex items-center gap-2.5 px-3 py-2 text-[12px] text-destructive/80 hover:bg-destructive/10 hover:text-destructive transition-colors"

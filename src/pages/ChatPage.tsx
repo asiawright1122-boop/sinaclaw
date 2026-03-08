@@ -435,7 +435,7 @@ export default function ChatPage() {
                         className="relative mb-8 group"
                     >
                         <div className="absolute inset-0 bg-primary/20 blur-[40px] rounded-full group-hover:bg-primary/30 transition-colors duration-700" />
-                        <div className="relative w-24 h-24 rounded-3xl bg-card dark:bg-card/60 flex items-center justify-center border border-border/60 dark:border-white/[0.08] shadow-lg overflow-hidden">
+                        <div className="relative w-24 h-24 rounded-3xl bg-card dark:bg-card/60 flex items-center justify-center border border-border/60 dark:border-white/[0.08] overflow-hidden" style={{ boxShadow: 'var(--panel-shadow)' }}>
                             <div className="absolute inset-0 bg-gradient-to-tr from-primary/10 to-transparent" />
                             <motion.div
                                 animate={{ rotate: [0, 5, -5, 0] }}
@@ -469,7 +469,7 @@ export default function ChatPage() {
                             initial={{ y: 20, opacity: 0 }}
                             animate={{ y: 0, opacity: 1 }}
                             transition={{ duration: 0.5, delay: 0.45 }}
-                            className="mb-8 px-5 py-3.5 rounded-2xl border border-orange-500/30 bg-orange-500/10 text-orange-400 text-[13px] font-medium max-w-md shadow-sm backdrop-blur-xl"
+                            className="mb-8 px-5 py-3.5 rounded-xl border border-orange-500/30 bg-orange-500/10 text-orange-400 text-[13px] font-medium max-w-md"
                         >
                             {t.chat.apiKeyWarning}
                         </motion.div>
