@@ -9,6 +9,7 @@
  */
 
 import { useState } from "react";
+import { useTranslate } from "@/lib/i18n";
 import { ChevronDown, ChevronUp, Image, Table, AlertCircle, Terminal } from "lucide-react";
 
 interface CodeOutputProps {
@@ -17,6 +18,7 @@ interface CodeOutputProps {
 }
 
 export default function CodeOutput({ content, toolName }: CodeOutputProps) {
+    const t = useTranslate();
     const [expanded, setExpanded] = useState(true);
 
     // ── 检测内容类型 ──────────────────────────────────────
@@ -34,7 +36,7 @@ export default function CodeOutput({ content, toolName }: CodeOutputProps) {
                 <div className="flex items-center justify-between px-4 py-2 bg-black/[0.02] dark:bg-white/[0.02] border-b border-border/30">
                     <div className="flex items-center gap-2 text-xs text-muted-foreground font-medium">
                         <Image className="w-3.5 h-3.5 text-blue-400" />
-                        <span>{toolName || "图表输出"}</span>
+                        <span>{toolName || t.chat.chartOutput}</span>
                     </div>
                 </div>
                 <div className="p-3 flex justify-center bg-white dark:bg-black/20 rounded-b-2xl">
@@ -54,7 +56,7 @@ export default function CodeOutput({ content, toolName }: CodeOutputProps) {
             <div className="my-3 rounded-xl overflow-hidden border border-red-500/20 bg-red-500/5">
                 <div className="flex items-center gap-2 px-4 py-2 bg-red-500/10 border-b border-red-500/10">
                     <AlertCircle className="w-3.5 h-3.5 text-red-400" />
-                    <span className="text-xs font-medium text-red-400">{toolName || "执行错误"}</span>
+                    <span className="text-xs font-medium text-red-400">{toolName || t.chat.execError}</span>
                 </div>
                 <pre className="p-4 text-xs text-red-300 font-mono whitespace-pre-wrap overflow-x-auto">
                     {content}
@@ -65,7 +67,7 @@ export default function CodeOutput({ content, toolName }: CodeOutputProps) {
 
     // Markdown 表格或普通输出
     const Icon = isMarkdownTable ? Table : Terminal;
-    const label = isMarkdownTable ? "数据表格" : (toolName || "执行结果");
+    const label = isMarkdownTable ? t.chat.dataTable : (toolName || t.chat.execResult);
 
     return (
         <div className="my-3 rounded-xl overflow-hidden border border-border/50 dark:border-white/[0.06] bg-black/[0.03] dark:bg-white/[0.03]">
