@@ -17,6 +17,7 @@ import {
     Loader2,
 } from "lucide-react";
 import { useGatewayStore, type GatewayLogEntry } from "@/store/gatewayStore";
+import { useTranslate } from "@/lib/i18n";
 
 function formatUptime(seconds: number): string {
     if (seconds < 60) return `${seconds}s`;
@@ -27,11 +28,12 @@ function formatUptime(seconds: number): string {
 }
 
 function StatusBadge({ running, loading }: { running: boolean; loading: boolean }) {
+    const t = useTranslate();
     if (loading) {
         return (
             <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-medium bg-amber-500/10 text-amber-600 dark:text-amber-400 border border-amber-500/20">
                 <span className="w-2 h-2 rounded-full bg-amber-500 animate-pulse" />
-                处理中...
+                {t.gateway.processing}
             </span>
         );
     }
@@ -39,14 +41,14 @@ function StatusBadge({ running, loading }: { running: boolean; loading: boolean 
         return (
             <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-medium bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border border-emerald-500/20">
                 <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
-                运行中
+                {t.gateway.running}
             </span>
         );
     }
     return (
         <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-medium bg-red-500/10 text-red-600 dark:text-red-400 border border-red-500/20">
             <span className="w-2 h-2 rounded-full bg-red-500" />
-            已停止
+            {t.gateway.stopped}
         </span>
     );
 }
@@ -70,6 +72,7 @@ function InfoCard({ icon: Icon, label, value, sub }: {
 }
 
 function LogViewer({ logs, onClear }: { logs: GatewayLogEntry[]; onClear: () => void }) {
+    const t = useTranslate();
     const scrollRef = useRef<HTMLDivElement>(null);
     const [autoScroll, setAutoScroll] = useState(true);
     const [copied, setCopied] = useState(false);
@@ -98,21 +101,21 @@ function LogViewer({ logs, onClear }: { logs: GatewayLogEntry[]; onClear: () => 
             <div className="flex items-center justify-between px-4 py-2 border-b border-border/40">
                 <div className="flex items-center gap-2 text-xs text-muted-foreground">
                     <Terminal className="w-3.5 h-3.5" />
-                    Gateway 日志
+                    {t.gateway.logs}
                     <span className="bg-muted/50 px-1.5 py-0.5 rounded text-[10px]">{logs.length}</span>
                 </div>
                 <div className="flex items-center gap-1">
                     <button
                         onClick={handleCopy}
                         className="p-1.5 rounded-lg hover:bg-muted/50 text-muted-foreground hover:text-foreground transition-colors"
-                        title="复制日志"
+                        title={t.gateway.copyLogs}
                     >
                         {copied ? <Check className="w-3.5 h-3.5 text-emerald-500" /> : <Copy className="w-3.5 h-3.5" />}
                     </button>
                     <button
                         onClick={onClear}
                         className="p-1.5 rounded-lg hover:bg-muted/50 text-muted-foreground hover:text-foreground transition-colors"
-                        title="清空日志"
+                        title={t.gateway.clearLogs}
                     >
                         <Trash2 className="w-3.5 h-3.5" />
                     </button>
@@ -122,7 +125,7 @@ function LogViewer({ logs, onClear }: { logs: GatewayLogEntry[]; onClear: () => 
                             if (scrollRef.current) scrollRef.current.scrollTop = scrollRef.current.scrollHeight;
                         }}
                         className={`p-1.5 rounded-lg hover:bg-muted/50 transition-colors ${autoScroll ? "text-emerald-500" : "text-muted-foreground hover:text-foreground"}`}
-                        title="自动滚动"
+                        title={t.gateway.autoScroll}
                     >
                         <ChevronDown className="w-3.5 h-3.5" />
                     </button>
@@ -136,7 +139,7 @@ function LogViewer({ logs, onClear }: { logs: GatewayLogEntry[]; onClear: () => 
                 {logs.length === 0 ? (
                     <div className="flex flex-col items-center justify-center h-full text-muted-foreground/40 gap-1.5">
                         <Terminal className="w-5 h-5" />
-                        <span className="text-xs font-medium">暂无日志</span>
+                        <span className="text-xs font-medium">{t.gateway.noLogs}</span>
                     </div>
                 ) : (
                     logs.map((entry, i) => (
@@ -157,6 +160,7 @@ function LogViewer({ logs, onClear }: { logs: GatewayLogEntry[]; onClear: () => 
 }
 
 export default function GatewayPage() {
+    const t = useTranslate();
     const {
         status,
         logs,
@@ -188,10 +192,10 @@ export default function GatewayPage() {
     const [cliRunning, setCliRunning] = useState(false);
 
     const quickCommands = [
-        { label: "诊断", cmd: "doctor" },
-        { label: "渠道列表", cmd: "channels list" },
-        { label: "技能列表", cmd: "plugins list" },
-        { label: "配置查看", cmd: "config list" },
+        { label: t.gateway.cliDiagnose, cmd: "doctor" },
+        { label: t.gateway.cliChannels, cmd: "channels list" },
+        { label: t.gateway.cliPlugins, cmd: "plugins list" },
+        { label: t.gateway.cliConfig, cmd: "config list" },
     ];
 
     const handleRunCli = async () => {
@@ -202,7 +206,7 @@ export default function GatewayPage() {
             const result = await invoke<string>("openclaw_run_cli", { command: cliCommand.trim() });
             setCliOutput(result);
         } catch (err) {
-            setCliOutput(`命令失败: ${err}`);
+            setCliOutput(t.gateway.cliFailed.replace('{error}', String(err)));
         } finally {
             setCliRunning(false);
             setCliCommand("");
@@ -222,8 +226,8 @@ export default function GatewayPage() {
                         <Server className="w-4.5 h-4.5 text-primary" />
                     </div>
                     <div>
-                        <h1 className="text-lg font-semibold text-foreground">Gateway 控制台</h1>
-                        <p className="text-[12px] text-muted-foreground">管理 OpenClaw Gateway 进程</p>
+                        <h1 className="text-lg font-semibold text-foreground">{t.gateway.title}</h1>
+                        <p className="text-[12px] text-muted-foreground">{t.gateway.subtitle}</p>
                     </div>
                 </div>
                 <div className="flex items-center gap-2">
@@ -236,7 +240,7 @@ export default function GatewayPage() {
                                 className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium bg-primary text-primary-foreground hover:bg-primary/90 disabled:opacity-50 transition-colors"
                             >
                                 <Play className="w-3.5 h-3.5" />
-                                启动
+                                {t.gateway.start}
                             </button>
                         ) : (
                             <>
@@ -246,7 +250,7 @@ export default function GatewayPage() {
                                     className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium bg-amber-500/10 hover:bg-amber-500/15 text-amber-600 dark:text-amber-400 border border-amber-500/20 disabled:opacity-50 transition-colors"
                                 >
                                     <RotateCcw className="w-3.5 h-3.5" />
-                                    重启
+                                    {t.gateway.restart}
                                 </button>
                                 <button
                                     onClick={stopGateway}
@@ -254,7 +258,7 @@ export default function GatewayPage() {
                                     className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium bg-destructive/10 hover:bg-destructive/15 text-destructive border border-destructive/20 disabled:opacity-50 transition-colors"
                                 >
                                     <Square className="w-3.5 h-3.5" />
-                                    停止
+                                    {t.gateway.stop}
                                 </button>
                             </>
                         )}
@@ -277,25 +281,25 @@ export default function GatewayPage() {
             <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
                 <InfoCard
                     icon={isRunning ? Wifi : WifiOff}
-                    label="状态"
-                    value={isRunning ? "在线" : "离线"}
-                    sub={status?.hasProcess ? "Sinaclaw 管理" : isRunning ? "外部进程" : undefined}
+                    label={t.gateway.status}
+                    value={isRunning ? t.gateway.online : t.gateway.offline}
+                    sub={status?.hasProcess ? t.gateway.managedBy : isRunning ? t.gateway.externalProcess : undefined}
                 />
                 <InfoCard
                     icon={Activity}
-                    label="版本"
+                    label={t.gateway.version}
                     value={status?.version || "—"}
                     sub={status?.pid ? `PID ${status.pid}` : undefined}
                 />
                 <InfoCard
                     icon={Clock}
-                    label="运行时长"
+                    label={t.gateway.uptime}
                     value={isRunning && status?.uptimeSeconds ? formatUptime(status.uptimeSeconds) : "—"}
-                    sub={status?.startedAt ? `启动于 ${new Date(status.startedAt).toLocaleTimeString("en-GB", { hour12: false })}` : undefined}
+                    sub={status?.startedAt ? t.gateway.startedAt.replace('{time}', new Date(status.startedAt).toLocaleTimeString("en-GB", { hour12: false })) : undefined}
                 />
                 <InfoCard
                     icon={Server}
-                    label="端口"
+                    label={t.gateway.port}
                     value={`${status?.port ?? 18789}`}
                     sub="ws://127.0.0.1"
                 />
@@ -321,7 +325,7 @@ export default function GatewayPage() {
                 >
                     <div className="flex items-center gap-2 text-xs text-muted-foreground mb-3">
                         <Activity className="w-3.5 h-3.5" />
-                        健康检查详情
+                        {t.gateway.healthCheck}
                     </div>
                     <pre className="text-xs font-mono text-foreground/80 overflow-x-auto whitespace-pre-wrap break-all">
                         {JSON.stringify(status.health, null, 2)}
@@ -357,7 +361,7 @@ export default function GatewayPage() {
                     <div className="flex gap-2">
                         <input
                             type="text"
-                            placeholder="openclaw CLI 命令（如 channels add telegram）..."
+                            placeholder={t.gateway.cliPlaceholder}
                             value={cliCommand}
                             onChange={e => setCliCommand(e.target.value)}
                             onKeyDown={e => e.key === 'Enter' && handleRunCli()}
@@ -368,7 +372,7 @@ export default function GatewayPage() {
                             disabled={!cliCommand.trim() || cliRunning}
                             className="px-4 py-2 rounded-lg bg-primary/10 text-primary text-[13px] font-semibold hover:bg-primary/15 disabled:opacity-40 transition-all"
                         >
-                            {cliRunning ? <Loader2 className="w-4 h-4 animate-spin" /> : '执行'}
+                            {cliRunning ? <Loader2 className="w-4 h-4 animate-spin" /> : t.gateway.cliExecute}
                         </button>
                     </div>
 
