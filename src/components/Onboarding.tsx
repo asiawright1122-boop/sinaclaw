@@ -4,6 +4,7 @@ import { Sparkles, Key, Bot, ChevronRight, Check, ArrowRight } from "lucide-reac
 import { useSettingsStore, PROVIDER_INFO, MODEL_OPTIONS, type AIProvider } from "@/store/settingsStore";
 import { useAgentStore } from "@/store/agentStore";
 import AgentAvatar from "@/components/ui/AgentAvatar";
+import { useTranslate } from "@/lib/i18n";
 
 const STEPS = ["welcome", "api", "agent"] as const;
 type Step = typeof STEPS[number];
@@ -15,6 +16,7 @@ const PROVIDERS = (Object.keys(PROVIDER_INFO) as AIProvider[]).map(id => ({
 }));
 
 export default function Onboarding() {
+    const t = useTranslate();
     const {
         apiKey, provider, model,
         setApiKey, setProvider, setModel, setSetupCompleted,
@@ -88,9 +90,9 @@ export default function Onboarding() {
                                     <Sparkles className="w-8 h-8 text-primary" />
                                 </div>
                                 <div>
-                                    <h2 className="text-2xl font-bold tracking-tight mb-1.5">欢迎使用 Sinaclaw</h2>
+                                    <h2 className="text-2xl font-bold tracking-tight mb-1.5">{t.onboarding.welcomeTitle}</h2>
                                     <p className="text-muted-foreground text-[14px] leading-relaxed">
-                                        您的 AI 助手已准备就绪。<br />只需 2 步即可开始使用。
+                                        {t.onboarding.welcomeDesc.split('\n').map((line: string, i: number) => <span key={i}>{line}{i === 0 && <br />}</span>)}
                                     </p>
                                 </div>
                             </motion.div>
@@ -110,8 +112,8 @@ export default function Onboarding() {
                                         <Key className="w-4.5 h-4.5 text-primary" />
                                     </div>
                                     <div>
-                                        <h2 className="text-lg font-semibold">连接 AI 服务</h2>
-                                        <p className="text-[13px] text-muted-foreground">选择服务商并输入 API Key</p>
+                                        <h2 className="text-lg font-semibold">{t.onboarding.connectAI}</h2>
+                                        <p className="text-[13px] text-muted-foreground">{t.onboarding.connectAIDesc}</p>
                                     </div>
                                 </div>
 
@@ -144,7 +146,7 @@ export default function Onboarding() {
                                             type="password"
                                             value={tempKey}
                                             onChange={(e) => setTempKey(e.target.value)}
-                                            placeholder={`输入 ${PROVIDER_INFO[tempProvider].label} API Key...`}
+                                            placeholder={t.onboarding.apiKeyPlaceholder.replace('{provider}', PROVIDER_INFO[tempProvider].label)}
                                             className="w-full bg-black/[0.03] dark:bg-white/[0.04] border border-border/50 dark:border-white/[0.06] rounded-lg px-4 py-2.5 text-sm focus:border-primary/40 focus:ring-1 focus:ring-primary/20 outline-none transition-all placeholder:text-muted-foreground/40"
                                             autoFocus
                                         />
@@ -153,7 +155,7 @@ export default function Onboarding() {
 
                                 {tempProvider === "local" && (
                                     <div className="bg-black/[0.03] dark:bg-white/[0.04] border border-border/50 dark:border-white/[0.06] rounded-lg px-4 py-2.5 text-sm text-muted-foreground">
-                                        将使用本地 Ollama 服务（需提前启动），无需 API Key。
+                                        {t.onboarding.localModeTip}
                                     </div>
                                 )}
                             </motion.div>
@@ -173,8 +175,8 @@ export default function Onboarding() {
                                         <Bot className="w-4.5 h-4.5 text-primary" />
                                     </div>
                                     <div>
-                                        <h2 className="text-lg font-semibold">选择默认 Agent</h2>
-                                        <p className="text-[13px] text-muted-foreground">可随时在聊天界面顶栏切换</p>
+                                        <h2 className="text-lg font-semibold">{t.onboarding.selectAgent}</h2>
+                                        <p className="text-[13px] text-muted-foreground">{t.onboarding.selectAgentDesc}</p>
                                     </div>
                                 </div>
 
@@ -212,9 +214,9 @@ export default function Onboarding() {
                             className="flex items-center gap-2 px-5 py-2.5 rounded-xl bg-primary text-primary-foreground font-semibold text-sm hover:bg-primary/90 disabled:opacity-40 transition-all"
                         >
                             {step === "agent" ? (
-                                <>开始使用 <ArrowRight className="w-4 h-4" /></>
+                                <>{t.onboarding.startUsing} <ArrowRight className="w-4 h-4" /></>
                             ) : (
-                                <>继续 <ChevronRight className="w-4 h-4" /></>
+                                <>{t.onboarding.continueBtn} <ChevronRight className="w-4 h-4" /></>
                             )}
                         </button>
                     </div>
