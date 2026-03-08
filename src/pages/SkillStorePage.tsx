@@ -64,9 +64,9 @@ export default function SkillStorePage() {
             await installSkill(skill);
             setInstalledIds(prev => new Set(prev).add(skill.id));
             await loadSkills();
-            addToast(`技能 [${skill.name}] 安装成功`, "success");
+            addToast(t.skillStore.installSuccess.replace('{name}', skill.name), "success");
         } catch (err) {
-            addToast(`安装失败: ${err instanceof Error ? err.message : String(err)}`, "error");
+            addToast(t.skillStore.installFailed.replace('{error}', err instanceof Error ? err.message : String(err)), "error");
         } finally {
             setInstallingId(null);
         }
@@ -123,7 +123,7 @@ export default function SkillStorePage() {
                             className="flex items-center gap-2 px-5 py-1.5 text-[13px] font-medium bg-primary text-primary-foreground hover:bg-primary/90 rounded-lg transition-all"
                         >
                             <Sparkles className="w-4 h-4 text-yellow-500 dark:text-yellow-600" />
-                            <span>创建技能</span>
+                            <span>{t.skillStore.createSkill}</span>
                         </button>
 
                         <button className="flex items-center gap-2 px-4 py-1.5 text-[13px] font-medium bg-card border border-border/60 dark:border-white/[0.08] text-foreground/80 hover:bg-muted/50 rounded-lg transition-colors hidden sm:flex">
@@ -182,7 +182,7 @@ export default function SkillStorePage() {
                                 {[
                                     { id: "all", label: t.skills.allSkills },
                                     { id: "installed", label: t.skills.installed, count: localSkills.length },
-                                    { id: "marketplace", label: t.skills.official === "官方精选" ? "在线市场" : "Marketplace", count: marketSkills.length, icon: ShoppingBag }
+                                    { id: "marketplace", label: t.skillStore.marketplace, count: marketSkills.length, icon: ShoppingBag }
                                 ].map(tab => (
                                     <button
                                         key={tab.id}
@@ -267,7 +267,7 @@ export default function SkillStorePage() {
                                                                         const { registryEntry } = await exportSkillForPublish(skill.id);
                                                                         setPublishJson(JSON.stringify(registryEntry, null, 2));
                                                                     } catch (err) {
-                                                                        addToast(`导出失败: ${err instanceof Error ? err.message : String(err)}`, "error");
+                                                                        addToast(t.skillStore.exportFailed.replace('{error}', err instanceof Error ? err.message : String(err)), "error");
                                                                     }
                                                                 }}
                                                                 className="mt-3 w-full py-1.5 rounded-lg text-[11px] font-medium bg-black/[0.03] dark:bg-white/[0.04] text-muted-foreground hover:bg-primary hover:text-primary-foreground transition-colors duration-150 opacity-0 group-hover:opacity-100 flex items-center justify-center gap-1.5"
@@ -286,7 +286,7 @@ export default function SkillStorePage() {
                                 {activeTab === "marketplace" && (
                                     <div>
                                         <h3 className="text-[11px] font-semibold text-muted-foreground dark:text-muted-foreground tracking-widest uppercase mb-4 px-1 flex items-center gap-2">
-                                            {t.skills.official === "官方精选" ? "官方交易市场" : "Official Exchange"} <span className="lowercase opacity-70">({marketSkills.length})</span>
+                                            {t.skillStore.officialExchange} <span className="lowercase opacity-70">({marketSkills.length})</span>
                                         </h3>
                                         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
                                             {marketSkills.filter(s =>
