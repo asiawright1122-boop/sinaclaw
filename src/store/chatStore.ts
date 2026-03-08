@@ -5,11 +5,15 @@ import {
     deleteConversation as dbDeleteConversation,
     updateConversationTitle,
     getMessages,
-    saveMessage
+    saveMessage,
+    pinConversation as dbPinConversation,
+    archiveConversation as dbArchiveConversation,
+    searchConversations as dbSearchConversations,
 } from "@/lib/db";
 import { sendMessage, onStreamChunk } from "@/lib/tauri";
 import { useSettingsStore } from "@/store/settingsStore";
 import { PROVIDER_INFO } from "@/store/settingsStore";
+import { useAgentStore } from "@/store/agentStore";
 
 export interface Message {
     id: string;
@@ -17,11 +21,17 @@ export interface Message {
     content: string;
     timestamp: number;
     toolCalls?: import("@/lib/agent").ToolCall[];
+    agentName?: string;   // Multi-Agent: 发送此消息的 Agent 名称
+    agentAvatar?: string; // Multi-Agent: Agent 头像 emoji
+    images?: string[];
 }
 
 export interface Conversation {
     id: string;
     title: string;
+    agentId: string;
+    pinned: boolean;
+    archived: boolean;
     messages: Message[];
     createdAt: number;
     updatedAt: number;
@@ -41,14 +51,17 @@ interface ChatState {
     setIsGenerating: (value: boolean) => void;
 
     // DB Actions
-    createConversation: () => Promise<string>;
+    createConversation: (agentId?: string) => Promise<string>;
     setActiveConversation: (id: string) => Promise<void>;
     deleteConversation: (id: string) => Promise<void>;
 
-    addMessageToDb: (conversationId: string, role: string, content: string) => Promise<void>;
+    addMessageToDb: (conversationId: string, role: string, content: string, images?: string[]) => Promise<void>;
     updateLocalLastAssistantMessage: (conversationId: string, content: string) => void;
 
     renameConversation: (id: string, newTitle: string) => Promise<void>;
+    pinConversation: (id: string, pinned: boolean) => Promise<void>;
+    archiveConversation: (id: string) => Promise<void>;
+    searchConversations: (query: string) => Promise<Conversation[]>;
 }
 
 // ── LLM 自动标题生成 ────────────────────────────────────────
@@ -116,6 +129,9 @@ export const useChatStore = create<ChatState>((set, get) => ({
             const conversations: Conversation[] = dbConvs.map(c => ({
                 id: c.id,
                 title: c.title,
+                agentId: c.agent_id,
+                pinned: c.pinned === 1,
+                archived: c.archived === 1,
                 createdAt: new Date(c.created_at).getTime(),
                 updatedAt: new Date(c.updated_at).getTime(),
                 messages: [],
@@ -147,15 +163,19 @@ export const useChatStore = create<ChatState>((set, get) => ({
     setInputValue: (value) => set({ inputValue: value }),
     setIsGenerating: (value) => set({ isGenerating: value }),
 
-    createConversation: async () => {
-        const dbConv = await dbCreateConversation("新对话");
+    createConversation: async (optionalAgentId?: string) => {
+        const agentId = optionalAgentId || useAgentStore.getState().activeAgentId;
+        const dbConv = await dbCreateConversation("New Chat", agentId);
         const newConversation: Conversation = {
             id: dbConv.id,
             title: dbConv.title,
+            agentId: dbConv.agent_id,
+            pinned: false,
+            archived: false,
             createdAt: new Date(dbConv.created_at).getTime(),
             updatedAt: new Date(dbConv.updated_at).getTime(),
             messages: [],
-            isMessagesLoaded: true, // 新对话肯定是空的，无需再次加载
+            isMessagesLoaded: true,
         };
 
         set((state) => ({
@@ -218,13 +238,14 @@ export const useChatStore = create<ChatState>((set, get) => ({
         }));
     },
 
-    addMessageToDb: async (conversationId, role, content) => {
+    addMessageToDb: async (conversationId, role, content, images?) => {
         const dbMsg = await saveMessage(conversationId, role, content);
         const newMessage: Message = {
             id: dbMsg.id,
             role: dbMsg.role as any,
             content: dbMsg.content,
-            timestamp: new Date(dbMsg.created_at).getTime()
+            timestamp: new Date(dbMsg.created_at).getTime(),
+            images,
         };
 
         set((state) => {
@@ -252,6 +273,42 @@ export const useChatStore = create<ChatState>((set, get) => ({
                 }),
             };
         });
+    },
+
+    pinConversation: async (id, pinned) => {
+        await dbPinConversation(id, pinned);
+        set((state) => ({
+            conversations: state.conversations.map(c =>
+                c.id === id ? { ...c, pinned } : c
+            ),
+        }));
+    },
+
+    archiveConversation: async (id) => {
+        await dbArchiveConversation(id, true);
+        set((state) => {
+            const newConvs = state.conversations.filter(c => c.id !== id);
+            let activeId = state.activeConversationId;
+            if (activeId === id) {
+                activeId = newConvs.length > 0 ? newConvs[0].id : null;
+            }
+            return { conversations: newConvs, activeConversationId: activeId };
+        });
+    },
+
+    searchConversations: async (query) => {
+        const dbConvs = await dbSearchConversations(query);
+        return dbConvs.map(c => ({
+            id: c.id,
+            title: c.title,
+            agentId: c.agent_id,
+            pinned: c.pinned === 1,
+            archived: c.archived === 1,
+            createdAt: new Date(c.created_at).getTime(),
+            updatedAt: new Date(c.updated_at).getTime(),
+            messages: [],
+            isMessagesLoaded: false,
+        }));
     },
 
     updateLocalLastAssistantMessage: (conversationId, content) => {

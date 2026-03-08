@@ -313,7 +313,7 @@ export const useChannelStore = create<ChannelState>((set, get) => ({
             });
             return result;
         } catch (err) {
-            return `测试失败: ${err}`;
+            return `Test failed: ${err}`;
         }
     },
 
