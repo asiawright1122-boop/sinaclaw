@@ -612,7 +612,7 @@ export default function SettingsPage() {
                                         <div className="flex gap-2">
                                             <input
                                                 type="text"
-                                                placeholder="输入模型名拉取，如 llama3.3, qwen2.5..."
+                                                placeholder={t.settings.pullPlaceholder}
                                                 value={pullModelName}
                                                 onChange={(e) => setPullModelName(e.target.value)}
                                                 onKeyDown={(e) => e.key === 'Enter' && handlePullModel()}
