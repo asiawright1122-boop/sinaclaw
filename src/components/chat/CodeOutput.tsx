@@ -37,7 +37,7 @@ export default function CodeOutput({ content, toolName }: CodeOutputProps) {
                         <span>{toolName || "图表输出"}</span>
                     </div>
                 </div>
-                <div className="p-3 flex justify-center bg-white rounded-b-2xl">
+                <div className="p-3 flex justify-center bg-white dark:bg-black/20 rounded-b-2xl">
                     <img
                         src={content}
                         alt="Generated chart"
