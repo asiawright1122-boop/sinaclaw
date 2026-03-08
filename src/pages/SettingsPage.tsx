@@ -33,19 +33,20 @@ const SkillStorePage = lazy(() => import("@/pages/SkillStorePage"));
 const ConnectionsPage = lazy(() => import("@/pages/ConnectionsPage"));
 
 function MemoryManager() {
+    const t = useTranslate();
     const [memories, setMemories] = useState<any[]>([]);
     const [filterCategory, setFilterCategory] = useState<string>("all");
     const [editingId, setEditingId] = useState<string | null>(null);
     const [editContent, setEditContent] = useState("");
 
     const categories = [
-        { id: "all", label: "全部" },
-        { id: "preferences", label: "偏好" },
-        { id: "contacts", label: "联系人" },
-        { id: "projects", label: "项目" },
-        { id: "learnings", label: "学习" },
-        { id: "tools", label: "工具" },
-        { id: "custom", label: "通用" },
+        { id: "all", label: t.settings.memoryCatAll },
+        { id: "preferences", label: t.settings.memoryCatPreferences },
+        { id: "contacts", label: t.settings.memoryCatContacts },
+        { id: "projects", label: t.settings.memoryCatProjects },
+        { id: "learnings", label: t.settings.memoryCatLearnings },
+        { id: "tools", label: t.settings.memoryCatTools },
+        { id: "custom", label: t.settings.memoryCatCustom },
     ];
 
     const loadMemories = async () => {
@@ -85,9 +86,9 @@ function MemoryManager() {
                         <Brain className="w-4.5 h-4.5 text-primary" />
                     </div>
                     <div>
-                        <h2 className="text-[17px] font-bold">长期记忆</h2>
+                        <h2 className="text-[17px] font-bold">{t.settings.memoryTitle}</h2>
                         <p className="text-[13px] text-muted-foreground mt-0.5">
-                            Agent 记住的关于您的重要信息，共 {memories.length} 条记忆
+                            {t.settings.memorySubtitle.replace('{count}', String(memories.length))}
                         </p>
                     </div>
                 </div>
@@ -117,7 +118,7 @@ function MemoryManager() {
                 <div className="space-y-3 max-h-[400px] overflow-y-auto no-scrollbar">
                     {filtered.length === 0 ? (
                         <div className="text-center py-8 text-muted-foreground text-sm">
-                            暂无记忆数据
+                            {t.settings.memoryEmpty}
                         </div>
                     ) : (
                         filtered.map(mem => (
@@ -130,8 +131,8 @@ function MemoryManager() {
                                             className="w-full bg-black/[0.03] dark:bg-white/[0.04] border border-border/50 dark:border-white/[0.06] rounded-lg px-3 py-2 text-[13px] resize-none min-h-[60px] outline-none focus:border-primary/30 focus:ring-1 focus:ring-primary/20 transition-all"
                                         />
                                         <div className="flex gap-2 justify-end">
-                                            <button onClick={() => setEditingId(null)} className="px-3 py-1 text-[12px] rounded-lg bg-muted/50 hover:bg-muted/70 transition-colors">取消</button>
-                                            <button onClick={() => handleSaveEdit(mem.id)} className="px-3 py-1 text-[12px] rounded-lg bg-primary text-primary-foreground hover:opacity-90 transition-opacity">保存</button>
+                                            <button onClick={() => setEditingId(null)} className="px-3 py-1 text-[12px] rounded-lg bg-muted/50 hover:bg-muted/70 transition-colors">{t.common.cancel}</button>
+                                            <button onClick={() => handleSaveEdit(mem.id)} className="px-3 py-1 text-[12px] rounded-lg bg-primary text-primary-foreground hover:opacity-90 transition-opacity">{t.common.save}</button>
                                         </div>
                                     </div>
                                 ) : (
@@ -139,7 +140,7 @@ function MemoryManager() {
                                         <div className="flex-1 min-w-0">
                                             <div className="flex items-center gap-2 mb-1">
                                                 <span className="text-[11px] px-1.5 py-0.5 rounded-md bg-violet-500/15 text-violet-400 font-semibold">
-                                                    {categories.find(c => c.id === (mem.category || 'custom'))?.label || '通用'}
+                                                    {categories.find(c => c.id === (mem.category || 'custom'))?.label || t.settings.memoryCatCustom}
                                                 </span>
                                                 <span className="text-[11px] text-muted-foreground/50">
                                                     {new Date(mem.created_at).toLocaleDateString()}
@@ -246,7 +247,7 @@ export default function SettingsPage() {
     const handlePullModel = async () => {
         if (!pullModelName.trim()) return;
         setIsPullingModel(true);
-        setPullProgress("正在连接 Ollama...");
+        setPullProgress(t.settings.ollamaConnecting);
         try {
             const { listen } = await import("@tauri-apps/api/event");
             const unlisten = await listen<{ status: string; completed?: number; total?: number }>("ollama-pull-progress", (event) => {
@@ -261,11 +262,11 @@ export default function SettingsPage() {
             const { invoke } = await import("@tauri-apps/api/core");
             await invoke("ollama_pull_model", { modelName: pullModelName.trim() });
             unlisten();
-            setPullProgress(`${pullModelName} 拉取完成！`);
+            setPullProgress(t.settings.pullComplete.replace('{model}', pullModelName));
             setPullModelName("");
             refreshLocalModels();
         } catch (err) {
-            setPullProgress(`拉取失败: ${err}`);
+            setPullProgress(t.settings.pullFailed.replace('{error}', String(err)));
         } finally {
             setIsPullingModel(false);
         }
@@ -273,28 +274,28 @@ export default function SettingsPage() {
 
     const NAV_GROUPS = [
         {
-            label: "通用",
+            label: t.settings.navGeneral,
             items: [
                 { id: "api" as const, icon: Settings, label: t.settings.apiTab },
                 { id: "ext" as const, icon: Zap, label: t.settings.extTab },
                 { id: "memory" as const, icon: Brain, label: t.settings.memoryTab },
-                { id: "connections" as const, icon: Radio, label: "连接与通道" },
+                { id: "connections" as const, icon: Radio, label: t.settings.navConnections },
             ],
         },
         {
-            label: "AI 功能",
+            label: t.settings.navAI,
             items: [
-                { id: "agents" as const, icon: Bot, label: "Agent 管理" },
-                { id: "knowledge" as const, icon: Database, label: "知识库" },
-                { id: "skills" as const, icon: Puzzle, label: "技能商店" },
+                { id: "agents" as const, icon: Bot, label: t.settings.navAgents },
+                { id: "knowledge" as const, icon: Database, label: t.settings.navKnowledge },
+                { id: "skills" as const, icon: Puzzle, label: t.settings.navSkills },
             ],
         },
         {
-            label: "数据",
+            label: t.settings.navData,
             items: [
-                { id: "usage" as const, icon: BarChart3, label: "用量统计" },
-                { id: "sync" as const, icon: Cloud, label: "同步与备份" },
-                { id: "security" as const, icon: Shield, label: "安全与隐私" },
+                { id: "usage" as const, icon: BarChart3, label: t.settings.navUsage },
+                { id: "sync" as const, icon: Cloud, label: t.settings.navSync },
+                { id: "security" as const, icon: Shield, label: t.settings.navSecurity },
             ],
         },
     ];
@@ -461,18 +462,18 @@ export default function SettingsPage() {
                                     <div className={`w-2.5 h-2.5 rounded-full ${localModels.length > 0 ? 'bg-emerald-400' : 'bg-amber-400'} animate-pulse`} />
                                     <span className="text-[13px] font-medium text-foreground">
                                         {localModels.length > 0
-                                            ? `Ollama 已连接 · 检测到 ${localModels.length} 个本地模型`
-                                            : 'Ollama 未连接 · 请确保 ollama serve 正在运行'}
+                                            ? t.settings.ollamaConnected.replace('{count}', String(localModels.length))
+                                            : t.settings.ollamaDisconnected}
                                     </span>
                                     <button
                                         onClick={() => refreshLocalModels()}
                                         className="ml-auto text-xs px-2.5 py-1 rounded-md bg-muted/40 hover:bg-muted/60 text-muted-foreground transition-colors"
                                     >
-                                        刷新状态
+                                        {t.settings.ollamaRefresh}
                                     </button>
                                 </div>
                                 <p className="text-[12px] text-muted-foreground/70 mt-2 pl-[22px]">
-                                    本地模式无需 API Key，所有推理在本地完成，数据不离开设备。
+                                    {t.settings.ollamaLocalTip}
                                 </p>
                             </motion.section>
                         )}
@@ -593,7 +594,7 @@ export default function SettingsPage() {
                                                             </div>
                                                         </div>
                                                         {isActive && (
-                                                            <span className="text-[10px] px-2 py-0.5 rounded bg-primary/15 text-primary font-medium shrink-0">活跃</span>
+                                                            <span className="text-[10px] px-2 py-0.5 rounded bg-primary/15 text-primary font-medium shrink-0">{t.extensions.active}</span>
                                                         )}
                                                     </button>
                                                 );
@@ -602,8 +603,7 @@ export default function SettingsPage() {
                                     ) : (
                                         <div className="text-center py-8 text-muted-foreground/50">
                                             <HardDrive className="w-8 h-8 mx-auto mb-2" />
-                                            <p className="text-[13px] font-medium">暂无本地模型</p>
-                                            <p className="text-[11px] mt-0.5">在下方拉取你的第一个模型</p>
+                                            <p className="text-[13px] font-medium">{t.settings.ollamaDisconnected}</p>
                                         </div>
                                     )}
 
@@ -624,7 +624,7 @@ export default function SettingsPage() {
                                                 className="px-3.5 py-2 rounded-lg bg-primary text-primary-foreground text-[12px] font-semibold hover:bg-primary/90 disabled:opacity-40 transition-all flex items-center gap-1.5"
                                             >
                                                 {isPullingModel ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Download className="w-3.5 h-3.5" />}
-                                                {isPullingModel ? '拉取中' : '拉取'}
+                                                {isPullingModel ? t.settings.pulling : t.settings.pullModel}
                                             </button>
                                         </div>
                                         {pullProgress && (
@@ -668,8 +668,8 @@ export default function SettingsPage() {
                                     <Volume2 className="w-4.5 h-4.5 text-primary" />
                                 </div>
                                 <div>
-                                    <h2 className="text-[17px] font-bold">自动语音播报</h2>
-                                    <p className="text-[13px] text-muted-foreground mt-0.5">当 Agent 回复完成时，自动播放语音读出回答。</p>
+                                    <h2 className="text-[17px] font-bold">{t.settings.ttsLabel}</h2>
+                                    <p className="text-[13px] text-muted-foreground mt-0.5">{t.settings.ttsDesc}</p>
                                 </div>
                             </div>
 
