@@ -1,14 +1,25 @@
-import { useEffect, useState } from "react";
+import { useEffect, useState, useRef } from "react";
 import { motion } from "framer-motion";
-import { Database, Trash2, FileText, File, FileCode, Loader2, Book, ShieldCheck, Zap, MessageSquare, ArrowRight } from "lucide-react";
-import { getDocuments, deleteDocument, type DocumentRow } from "@/lib/db";
+import { Database, Trash2, FileText, File, FileCode, Loader2, Book, ShieldCheck, Zap, MessageSquare, ArrowRight, Plus, Network, Cloud } from "lucide-react";
+import { getDocuments, deleteDocument, saveDocument, saveChunks, type DocumentRow } from "@/lib/db";
 import { useToastStore } from "@/store/toastStore";
 import { useSettingsStore } from "@/store/settingsStore";
 import { translations } from "@/lib/i18n";
+import { extractTextFromFile } from "@/lib/parsers";
+import { splitText } from "@/lib/textSplitter";
+import { generateEmbeddings } from "@/lib/embeddings";
+import CloudImportModal from "@/components/knowledge/CloudImportModal";
+import GraphView from "@/components/knowledge/GraphView";
 
 export default function KnowledgePage() {
     const [documents, setDocuments] = useState<DocumentRow[]>([]);
     const [isLoading, setIsLoading] = useState(true);
+    const [isProcessing, setIsProcessing] = useState(false);
+    const [isDragging, setIsDragging] = useState(false);
+    const [isCloudModalOpen, setIsCloudModalOpen] = useState(false);
+    const [activeView, setActiveView] = useState<"documents" | "graph">("documents");
+    const fileInputRef = useRef<HTMLInputElement>(null);
+
     const { addToast } = useToastStore();
     const { language } = useSettingsStore();
     const t = translations[language].knowledge;
@@ -26,8 +37,13 @@ export default function KnowledgePage() {
         }
     };
 
+    const isMounted = useRef(false);
+
     useEffect(() => {
-        loadDocuments();
+        if (!isMounted.current) {
+            loadDocuments();
+            isMounted.current = true;
+        }
     }, []);
 
     const handleDelete = async (id: string, name: string) => {
@@ -40,23 +56,83 @@ export default function KnowledgePage() {
             addToast(t.deleteSuccess.replace("{name}", name), "success");
             loadDocuments();
         } catch (error) {
-            console.error("删除文档失败:", error);
-            addToast("删除文档失败", "error");
+            console.error("Delete document failed:", error);
+            addToast(translations[language].common.error, "error");
+        }
+    };
+
+    const processFile = async (file: File) => {
+        setIsProcessing(true);
+        addToast(`Parsing file: ${file.name}...`, "info");
+        try {
+            const text = await extractTextFromFile(file);
+            if (!text.trim()) throw new Error("No textual content extracted from file");
+
+            addToast(`Chunking and building vector index...`, "info");
+
+            const chunks = splitText(text, { chunkSize: 800, overlap: 100 });
+            const embeddings = await generateEmbeddings(chunks);
+            const doc = await saveDocument(file.name, file.type || "text/plain", file.size);
+
+            const chunkRows = chunks.map((content: string, idx: number) => ({
+                content,
+                embedding: embeddings[idx]
+            }));
+            await saveChunks(doc.id, chunkRows);
+
+            addToast(`✅ Document [${file.name}] added to Knowledge Base (${chunks.length} chunks)`, "success");
+            loadDocuments();
+        } catch (error) {
+            console.error("File processing failed:", error);
+            addToast(`Import failed: ${error instanceof Error ? error.message : String(error)}`, "error");
+        } finally {
+            setIsProcessing(false);
+            if (fileInputRef.current) fileInputRef.current.value = '';
+        }
+    };
+
+    const handleFileUpload = async (event: React.ChangeEvent<HTMLInputElement>) => {
+        const file = event.target.files?.[0];
+        if (file) {
+            await processFile(file);
+        }
+    };
+
+    const handleDragOver = (e: React.DragEvent) => {
+        e.preventDefault();
+        e.stopPropagation();
+        setIsDragging(true);
+    };
+
+    const handleDragLeave = (e: React.DragEvent) => {
+        e.preventDefault();
+        e.stopPropagation();
+        setIsDragging(false);
+    };
+
+    const handleDrop = async (e: React.DragEvent) => {
+        e.preventDefault();
+        e.stopPropagation();
+        setIsDragging(false);
+
+        const file = e.dataTransfer.files?.[0];
+        if (file) {
+            await processFile(file);
         }
     };
 
     const getFileIcon = (type: string, name: string) => {
         const lowerName = name.toLowerCase();
         if (type === "application/pdf" || lowerName.endsWith(".pdf")) {
-            return <FileText className="w-5 h-5 text-red-400" />;
+            return <FileText className="w-5 h-5 text-destructive/80" />;
         }
         if (lowerName.endsWith(".docx") || lowerName.endsWith(".doc")) {
-            return <FileText className="w-5 h-5 text-blue-400" />;
+            return <FileText className="w-5 h-5 text-primary/80" />;
         }
         if (lowerName.endsWith(".json") || lowerName.endsWith(".md") || lowerName.endsWith(".csv")) {
-            return <FileCode className="w-5 h-5 text-yellow-400" />;
+            return <FileCode className="w-5 h-5 text-muted-foreground" />;
         }
-        return <File className="w-5 h-5 text-gray-400" />;
+        return <File className="w-5 h-5 text-muted-foreground" />;
     };
 
     const formatSize = (bytes: number) => {
@@ -66,181 +142,261 @@ export default function KnowledgePage() {
     };
 
     return (
-        <div className="flex-1 overflow-y-auto p-4 sm:p-8 relative z-10 no-scrollbar">
-            <motion.div
-                initial={{ opacity: 0, y: 20 }}
-                animate={{ opacity: 1, y: 0 }}
-                transition={{ duration: 0.5 }}
-                className="max-w-6xl mx-auto space-y-10 pb-12"
-            >
-                {/* Header & Intro */}
-                <div className="flex flex-col gap-6">
-                    <div className="flex flex-col gap-2">
-                        <h1 className="text-3xl sm:text-4xl font-black text-foreground flex items-center gap-3 sm:gap-4 tracking-tight">
-                            <div className="p-2 sm:p-3 rounded-2xl bg-emerald-500/10 border border-emerald-500/20 shadow-inner">
-                                <Database className="w-6 h-6 sm:w-8 h-8 text-emerald-500" />
-                            </div>
-                            Knowledge Base
-                        </h1>
-                        <p className="text-[15px] font-medium text-muted-foreground max-w-2xl">
-                            {t.subtitle}
-                        </p>
+        <div
+            className={`h-full bg-background flex flex-col font-sans text-foreground selection:bg-primary/20 transition-colors overflow-hidden ${isDragging ? "bg-card/80" : ""}`}
+            onDragOver={handleDragOver}
+            onDragLeave={handleDragLeave}
+            onDrop={handleDrop}
+        >
+            {/* Drag Overlay */}
+            {isDragging && (
+                <div className="absolute inset-0 z-50 flex flex-col items-center justify-center bg-background/90 backdrop-blur-md transition-all">
+                    <div className="p-5 bg-foreground text-stone-100 dark:text-stone-900 rounded-2xl mb-4 shadow-xl">
+                        <Plus className="w-8 h-8" />
                     </div>
-
-                    {/* Onboarding Cards */}
-                    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-                        {[
-                            {
-                                icon: <Book className="w-5 h-5 text-blue-500" />,
-                                title: t.card1Title,
-                                desc: t.card1Desc
-                            },
-                            {
-                                icon: <Zap className="w-5 h-5 text-amber-500" />,
-                                title: t.card2Title,
-                                desc: t.card2Desc
-                            },
-                            {
-                                icon: <ShieldCheck className="w-5 h-5 text-emerald-500" />,
-                                title: t.card3Title,
-                                desc: t.card3Desc
-                            }
-                        ].map((card, idx) => (
-                            <motion.div
-                                key={idx}
-                                initial={{ opacity: 0, y: 10 }}
-                                animate={{ opacity: 1, y: 0 }}
-                                transition={{ delay: 0.2 + idx * 0.1 }}
-                                className="bg-card/40 dark:bg-card/20 backdrop-blur-xl p-5 rounded-2xl border border-white/20 dark:border-white/5 flex flex-col gap-3 shadow-sm"
-                            >
-                                <div className="p-2 w-fit rounded-xl bg-white/50 dark:bg-white/5 border border-white/20 dark:border-white/10 shadow-inner">
-                                    {card.icon}
-                                </div>
-                                <h3 className="font-bold text-[15px]">{card.title}</h3>
-                                <p className="text-[12.5px] leading-relaxed text-muted-foreground/80 font-medium">
-                                    {card.desc}
-                                </p>
-                            </motion.div>
-                        ))}
-                    </div>
-
-                    {/* Workflow Indicator */}
-                    <div className="bg-primary/5 border border-primary/10 rounded-2xl p-4 flex flex-col sm:flex-row sm:items-center justify-between gap-6 overflow-hidden">
-                        <div className="flex items-center flex-wrap gap-3 sm:gap-4 text-[13px] font-bold text-primary shrink-0 px-2">
-                            <div className="flex items-center gap-2">
-                                <div className="w-6 h-6 rounded-full bg-primary text-white flex items-center justify-center text-[11px] shrink-0">1</div>
-                                <span>{t.step1}</span>
-                            </div>
-                            <ArrowRight className="w-4 h-4 opacity-50 hidden sm:block" />
-                            <div className="flex items-center gap-2">
-                                <div className="w-6 h-6 rounded-full bg-primary text-white flex items-center justify-center text-[11px] shrink-0">2</div>
-                                <span>{t.step2}</span>
-                            </div>
-                            <ArrowRight className="w-4 h-4 opacity-50 hidden sm:block" />
-                            <div className="flex items-center gap-2">
-                                <div className="w-6 h-6 rounded-full bg-primary text-white flex items-center justify-center text-[11px] shrink-0">3</div>
-                                <span>{t.step3}</span>
-                            </div>
-                        </div>
-                        <div className="text-[12px] text-muted-foreground font-medium hidden lg:block truncate">
-                            {t.tip.split('@filename')[0]}<code className="bg-black/5 dark:bg-white/10 px-1.5 py-0.5 rounded text-primary">@filename</code>{t.tip.split('@filename')[1]}
-                        </div>
-                    </div>
+                    <h2 className="text-2xl font-sans text-foreground tracking-wide">{t.dragToUpload}</h2>
+                    <p className="text-muted-foreground mt-2 font-light">{t.supportFormats}</p>
                 </div>
+            )}
 
-                {/* Document Table Area */}
-                <div className="bg-card/60 dark:bg-card/40 backdrop-blur-3xl rounded-[2.5rem] border border-white/40 dark:border-white/10 overflow-hidden relative min-h-[400px] shadow-2xl">
-                    <div className="px-8 py-6 border-b border-white/20 dark:border-white/5 flex items-center justify-between bg-white/20 dark:bg-black/20">
-                        <h2 className="text-lg font-bold flex items-center gap-2">
-                            {t.tableTitle}
-                            <span className="text-xs px-2 py-0.5 rounded-full bg-primary/10 text-primary">{documents.length}</span>
-                        </h2>
+            {/* Top Navigation Bar: Premium Minimalist */}
+            <div className="flex items-center justify-between px-6 py-3.5 flex-shrink-0 border-b border-border/40 z-10 shrink-0">
+                <div className="flex-1" />
+                <div className="flex items-center gap-4">
+                    <input
+                        type="file"
+                        ref={fileInputRef}
+                        className="hidden"
+                        accept=".pdf,.doc,.docx,.txt,.md,.json,.csv,.xlsx,.xls,.pptx"
+                        onChange={handleFileUpload}
+                    />
+                    <button
+                        onClick={() => setIsCloudModalOpen(true)}
+                        disabled={isProcessing}
+                        className="flex items-center gap-2 px-4 py-1.5 text-[13px] font-medium bg-card border border-border/60 dark:border-white/[0.08] text-foreground/80 hover:bg-muted/50 rounded-lg transition-colors hidden sm:flex disabled:opacity-40"
+                    >
+                        <Cloud className="w-4 h-4" />
+                        <span>{t.cloudImport}</span>
+                    </button>
+                    <button
+                        onClick={() => fileInputRef.current?.click()}
+                        disabled={isProcessing}
+                        className={`flex items-center gap-2 px-5 py-1.5 text-[13px] font-medium rounded-lg transition-all ${isProcessing
+                            ? 'bg-muted text-muted-foreground cursor-not-allowed'
+                            : 'bg-primary text-primary-foreground hover:bg-primary/90'
+                            }`}
+                    >
+                        {isProcessing ? (
+                            <><Loader2 className="w-4 h-4 animate-spin" /> {translations[language].common.loading}</>
+                        ) : (
+                            <><Plus className="w-4 h-4" /> <span>{t.uploadDoc}</span></>
+                        )}
+                    </button>
+                </div>
+            </div>
+
+            <div className="flex-1 overflow-y-auto px-8 pb-12 relative min-h-0">
+                {/* Ambient Glow */}
+
+                <motion.div
+                    initial={{ opacity: 0, y: 15 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    transition={{ duration: 0.4 }}
+                    className="max-w-6xl mx-auto pt-8 relative z-10 space-y-12"
+                >
+                    {/* Header */}
+                    <div className="flex flex-col sm:flex-row sm:items-end justify-between gap-5 border-b border-border/40 pb-6">
+                        <div className="flex flex-col gap-1.5">
+                            <h1 className="text-2xl font-semibold text-foreground flex items-center gap-3">
+                                <div className="p-2 rounded-lg bg-primary/[0.06] border border-border/50 flex shrink-0">
+                                    <Database className="w-5 h-5 text-foreground/70" />
+                                </div>
+                                {t.title}
+                            </h1>
+                            <p className="text-muted-foreground text-[13px] max-w-2xl leading-relaxed">
+                                {t.subtitle}
+                            </p>
+                        </div>
+
+                        {/* View Tabs */}
+                        <div className="flex gap-0.5 bg-black/[0.04] dark:bg-white/[0.04] border border-border/40 p-0.5 rounded-lg shrink-0">
+                            {[
+                                { id: "documents", label: t.docList, icon: Database },
+                                { id: "graph", label: t.knowledgeGraph, icon: Network }
+                            ].map(tab => (
+                                <button
+                                    key={tab.id}
+                                    onClick={() => setActiveView(tab.id as any)}
+                                    className={`flex items-center gap-2 px-3.5 py-1.5 rounded-md text-[13px] font-medium transition-all duration-150 ${activeView === tab.id
+                                        ? "bg-card dark:bg-white/[0.08] text-foreground shadow-sm"
+                                        : "text-muted-foreground hover:text-foreground"
+                                        }`}
+                                >
+                                    <tab.icon className="w-3.5 h-3.5" />
+                                    <span>{tab.label}</span>
+                                </button>
+                            ))}
+                        </div>
                     </div>
 
-                    {isLoading ? (
-                        <div className="absolute inset-0 flex flex-col items-center justify-center text-muted-foreground gap-3">
-                            <Loader2 className="w-8 h-8 animate-spin text-primary" />
-                            <span className="font-medium animate-pulse">{t.syncing}</span>
-                        </div>
-                    ) : documents.length === 0 ? (
-                        <div className="absolute inset-0 flex flex-col items-center justify-center text-muted-foreground p-12 text-center">
-                            <div className="p-6 rounded-3xl bg-black/5 dark:bg-white/5 mb-6 ring-1 ring-white/10">
-                                <MessageSquare className="w-12 h-12 opacity-30 text-primary" />
-                            </div>
-                            <h3 className="font-bold text-xl text-foreground">{t.emptyTitle}</h3>
-                            <p className="text-[14px] opacity-70 mt-2 max-w-sm leading-relaxed">
-                                {t.emptyDesc}
-                            </p>
-                            <button
-                                onClick={() => window.location.href = '#/'}
-                                className="mt-6 px-6 py-2.5 rounded-xl bg-primary text-primary-foreground font-bold text-[14px] hover:scale-105 transition-all shadow-lg active:scale-95 cursor-pointer"
-                            >
-                                {t.goChat}
-                            </button>
+                    {activeView === "graph" ? (
+                        <div className="h-[550px] bg-card/80 dark:bg-card/50 border border-border/50 dark:border-white/[0.06] rounded-xl overflow-hidden" style={{ boxShadow: 'var(--panel-shadow)' }}>
+                            <GraphView />
                         </div>
                     ) : (
-                        <div className="overflow-x-auto">
-                            <table className="w-full text-sm text-left">
-                                <thead className="text-[12px] text-muted-foreground font-bold uppercase tracking-wider bg-white/40 dark:bg-black/30">
-                                    <tr>
-                                        <th className="px-8 py-5">{t.colName}</th>
-                                        <th className="px-8 py-5">{t.colSize}</th>
-                                        <th className="px-8 py-5">{t.colTime}</th>
-                                        <th className="px-8 py-5 text-right">{translations[language].common.manage}</th>
-                                    </tr>
-                                </thead>
-                                <tbody className="divide-y divide-white/10 dark:divide-white/5">
-                                    {documents.map((doc, idx) => (
-                                        <motion.tr
-                                            key={doc.id}
-                                            initial={{ opacity: 0, x: -10 }}
-                                            animate={{ opacity: 1, x: 0 }}
-                                            transition={{ delay: idx * 0.05 }}
-                                            className="hover:bg-white/50 dark:hover:bg-white/5 transition-all group"
+                        <>
+                            {/* Onboarding Cards: Liquid Glass */}
+                            <div className="grid grid-cols-1 sm:grid-cols-3 gap-5">
+                                {[
+                                    { icon: Book, title: t.card1Title, desc: t.card1Desc },
+                                    { icon: Zap, title: t.card2Title, desc: t.card2Desc },
+                                    { icon: ShieldCheck, title: t.card3Title, desc: t.card3Desc }
+                                ].map((card, idx) => (
+                                    <motion.div
+                                        key={idx}
+                                        initial={{ opacity: 0, y: 10 }}
+                                        animate={{ opacity: 1, y: 0 }}
+                                        transition={{ delay: 0.1 + idx * 0.1 }}
+                                        className="bg-card/80 dark:bg-card/50 p-5 rounded-xl border border-border/50 dark:border-white/[0.06] flex flex-col gap-3.5 group hover:border-border/80 dark:hover:border-white/[0.12] transition-colors" style={{ boxShadow: 'var(--panel-shadow)' }}
+                                    >
+                                        <div className="w-9 h-9 rounded-lg bg-primary/[0.06] dark:bg-primary/10 border border-border/40 flex items-center justify-center text-muted-foreground">
+                                            <card.icon className="w-5 h-5" />
+                                        </div>
+                                        <div>
+                                            <h3 className="font-semibold text-foreground mb-1 text-[14px]">{card.title}</h3>
+                                            <p className="text-[12px] text-muted-foreground leading-relaxed">
+                                                {card.desc}
+                                            </p>
+                                        </div>
+                                    </motion.div>
+                                ))}
+                            </div>
+
+                            {/* Workflow Indicator */}
+                            <div className="bg-black/[0.02] dark:bg-white/[0.02] border border-border/40 rounded-xl px-5 py-3.5 flex flex-col sm:flex-row sm:items-center justify-between gap-5">
+                                <div className="flex items-center flex-wrap gap-3.5 text-[12px] font-semibold text-foreground/70 tracking-wide uppercase">
+                                    <div className="flex items-center gap-2">
+                                        <div className="w-5 h-5 rounded-full bg-muted flex items-center justify-center text-[10px] shrink-0">1</div>
+                                        <span>{t.step1}</span>
+                                    </div>
+                                    <ArrowRight className="w-3.5 h-3.5 opacity-40 hidden sm:block" />
+                                    <div className="flex items-center gap-2">
+                                        <div className="w-5 h-5 rounded-full bg-muted flex items-center justify-center text-[10px] shrink-0">2</div>
+                                        <span>{t.step2}</span>
+                                    </div>
+                                    <ArrowRight className="w-3.5 h-3.5 opacity-40 hidden sm:block" />
+                                    <div className="flex items-center gap-2">
+                                        <div className="w-5 h-5 rounded-full bg-primary/10 text-primary flex items-center justify-center text-[10px] shrink-0 font-bold">3</div>
+                                        <span className="text-foreground">{t.step3}</span>
+                                    </div>
+                                </div>
+                                <div className="text-[11px] text-muted-foreground hidden lg:block">
+                                    {t.tip.split('@filename')[0]}<code className="bg-black/[0.04] dark:bg-white/[0.06] border border-border/40 px-1.5 py-0.5 rounded text-foreground font-mono text-[10px] mx-1">@filename</code>{t.tip.split('@filename')[1]}
+                                </div>
+                            </div>
+
+                            {/* Document Table Area */}
+                            <div className="bg-card/80 dark:bg-card/50 border border-border/50 dark:border-white/[0.06] rounded-xl overflow-hidden relative min-h-[400px]" style={{ boxShadow: 'var(--panel-shadow)' }}>
+                                <div className="px-6 py-4 border-b border-border/40 flex items-center justify-between">
+                                    <h2 className="text-[13px] font-semibold text-foreground uppercase tracking-wide flex items-center gap-2.5">
+                                        {t.tableTitle}
+                                        <span className="text-[11px] px-2 py-0.5 rounded-md bg-muted text-muted-foreground tabular-nums font-mono">{documents.length}</span>
+                                    </h2>
+                                </div>
+
+                                {isLoading ? (
+                                    <div className="absolute inset-0 flex flex-col items-center justify-center text-muted-foreground">
+                                        <Loader2 className="w-6 h-6 animate-spin mb-3 text-muted-foreground" />
+                                        <span className="text-[12px] font-medium tracking-wide">{t.syncing}</span>
+                                    </div>
+                                ) : documents.length === 0 ? (
+                                    <div className="absolute inset-0 flex flex-col items-center justify-center p-12 text-center text-muted-foreground">
+                                        <div className="w-16 h-16 rounded-3xl bg-card border border-border shadow-sm mb-6 flex items-center justify-center">
+                                            <MessageSquare className="w-6 h-6 text-muted-foreground" />
+                                        </div>
+                                        <h3 className="font-sans text-[20px] text-foreground mb-2">{t.emptyTitle}</h3>
+                                        <p className="text-[13px] font-light max-w-sm leading-relaxed mx-auto text-muted-foreground">
+                                            {t.emptyDesc}
+                                        </p>
+                                        <button
+                                            onClick={() => window.location.href = '#/'}
+                                            className="mt-6 px-5 py-2 rounded-lg bg-primary text-primary-foreground font-medium text-[13px] hover:bg-primary/90 transition-all"
                                         >
-                                            <td className="px-8 py-5">
-                                                <div className="flex items-center gap-4">
-                                                    <div className="p-3 rounded-2xl bg-white/80 dark:bg-black/40 border border-white/40 dark:border-white/10 shadow-sm group-hover:scale-110 transition-transform">
-                                                        {getFileIcon(doc.type, doc.name)}
-                                                    </div>
-                                                    <div className="flex flex-col gap-0.5 min-w-0">
-                                                        <span className="font-bold text-[15px] text-foreground truncate max-w-[150px] sm:max-w-[320px]" title={doc.name}>
-                                                            {doc.name}
-                                                        </span>
-                                                        <span className="text-[11px] text-muted-foreground font-medium uppercase opacity-60">
-                                                            LOCAL FILE · {doc.type.split('/')[1] || 'DOC'}
-                                                        </span>
-                                                    </div>
-                                                </div>
-                                            </td>
-                                            <td className="px-8 py-5 text-[13px] font-bold text-muted-foreground/80 tabular-nums">
-                                                {formatSize(doc.size)}
-                                            </td>
-                                            <td className="px-8 py-5 text-[13px] font-medium text-muted-foreground/60 tabular-nums">
-                                                {new Intl.DateTimeFormat(language === 'zh' ? 'zh-CN' : 'en-US', {
-                                                    month: 'short',
-                                                    day: 'numeric',
-                                                    hour: '2-digit',
-                                                    minute: '2-digit'
-                                                }).format(new Date(doc.created_at))}
-                                            </td>
-                                            <td className="px-8 py-5 text-right">
-                                                <button
-                                                    onClick={() => handleDelete(doc.id, doc.name)}
-                                                    className="p-3 rounded-xl hover:bg-destructive/10 text-muted-foreground hover:text-destructive transition-all duration-200 opacity-0 group-hover:opacity-100 focus:opacity-100 shadow-sm"
-                                                    title="删除索引"
-                                                >
-                                                    <Trash2 className="w-4.5 h-4.5" />
-                                                </button>
-                                            </td>
-                                        </motion.tr>
-                                    ))}
-                                </tbody>
-                            </table>
-                        </div>
+                                            {t.goChat}
+                                        </button>
+                                    </div>
+                                ) : (
+                                    <div className="overflow-x-auto">
+                                        <table className="w-full text-left">
+                                            <thead className="text-[11px] text-muted-foreground uppercase tracking-widest bg-black/[0.02] dark:bg-white/[0.02] border-b border-border/40 font-medium">
+                                                <tr>
+                                                    <th className="px-6 py-3 font-medium">{t.colName}</th>
+                                                    <th className="px-6 py-3 font-medium">{t.colSize}</th>
+                                                    <th className="px-6 py-3 font-medium">{t.colTime}</th>
+                                                    <th className="px-6 py-3 font-medium text-right">{translations[language].common.manage}</th>
+                                                </tr>
+                                            </thead>
+                                            <tbody className="divide-y divide-border/30 dark:divide-white/[0.04] text-[13px]">
+                                                {documents.map((doc, idx) => (
+                                                    <motion.tr
+                                                        key={doc.id}
+                                                        initial={{ opacity: 0, x: -5 }}
+                                                        animate={{ opacity: 1, x: 0 }}
+                                                        transition={{ delay: idx * 0.05 }}
+                                                        className="hover:bg-black/[0.02] dark:hover:bg-white/[0.02] transition-colors group"
+                                                    >
+                                                        <td className="px-6 py-3.5">
+                                                            <div className="flex items-center gap-3">
+                                                                <div className="p-2 rounded-lg bg-muted/50 border border-border/40">
+                                                                    {getFileIcon(doc.type, doc.name)}
+                                                                </div>
+                                                                <div className="flex flex-col gap-0.5 flex-1 min-w-0">
+                                                                    <span className="font-medium text-foreground truncate max-w-[200px] sm:max-w-[400px]" title={doc.name}>
+                                                                        {doc.name}
+                                                                    </span>
+                                                                    <span className="text-[10px] text-muted-foreground font-medium uppercase tracking-widest">
+                                                                        Local File · {doc.type.split('/')[1] || 'Doc'}
+                                                                    </span>
+                                                                </div>
+                                                            </div>
+                                                        </td>
+                                                        <td className="px-6 py-3.5 text-muted-foreground tabular-nums">
+                                                            {formatSize(doc.size)}
+                                                        </td>
+                                                        <td className="px-6 py-3.5 text-muted-foreground tabular-nums">
+                                                            {new Intl.DateTimeFormat(language === 'zh' ? 'zh-CN' : 'en-US', {
+                                                                month: 'short',
+                                                                day: 'numeric',
+                                                                hour: '2-digit',
+                                                                minute: '2-digit'
+                                                            }).format(new Date(doc.created_at))}
+                                                        </td>
+                                                        <td className="px-6 py-3.5 text-right">
+                                                            <button
+                                                                onClick={() => handleDelete(doc.id, doc.name)}
+                                                                className="p-1.5 rounded-lg text-muted-foreground hover:text-destructive hover:bg-destructive/10 transition-all opacity-0 group-hover:opacity-100 focus:opacity-100"
+                                                                title={translations[language].common.delete}
+                                                            >
+                                                                <Trash2 className="w-4 h-4" />
+                                                            </button>
+                                                        </td>
+                                                    </motion.tr>
+                                                ))}
+                                            </tbody>
+                                        </table>
+                                    </div>
+                                )}
+                            </div>
+                        </>
                     )}
-                </div>
-            </motion.div>
+                </motion.div>
+            </div>
+
+            <CloudImportModal
+                isOpen={isCloudModalOpen}
+                onClose={() => setIsCloudModalOpen(false)}
+                onImport={async (file) => { await processFile(file); }}
+            />
         </div>
     );
 }

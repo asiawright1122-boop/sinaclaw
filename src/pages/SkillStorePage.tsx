@@ -1,44 +1,30 @@
 import { useEffect, useState } from "react";
 import {
     RefreshCw, Search, Plus, Sparkles, Filter,
-    Globe, MonitorPlay, Calculator, Terminal,
-    Check, Loader2, LayoutTemplate
+    Globe, Calculator, Terminal,
+    Check, Loader2, LayoutTemplate, Download, ShoppingBag, ArrowUpRight
 } from "lucide-react";
 import { useToastStore } from "@/store/toastStore";
 import { skillManager, type LoadedSkill } from "@/lib/skills";
+import { fetchRegistry, installSkill, isSkillInstalled, exportSkillForPublish, type RemoteSkill } from "@/lib/skillRegistry";
 import { useTranslate } from "@/lib/i18n";
+import SkillMakerPage from "./SkillMakerPage";
 
 export default function SkillStorePage() {
     const t = useTranslate();
     const [localSkills, setLocalSkills] = useState<LoadedSkill[]>([]);
     const [isLoading, setIsLoading] = useState(true);
     const [searchQuery, setSearchQuery] = useState("");
-    const [activeTab, setActiveTab] = useState<"all" | "builtin" | "installed">("all");
+    const [activeTab, setActiveTab] = useState<"all" | "installed" | "marketplace">("all");
     const addToast = useToastStore(state => state.addToast);
 
-    // 模拟内置核心工具的展示数据 (Localizable)
-    const BUILT_IN_SKILLS = [
-        {
-            id: "core_search_web",
-            name: t.sidebar.knowledge === "知识库" ? "网页搜索" : "Web Search",
-            description: t.skills.official === "官方精选"
-                ? "综合性研究助手，能从多个搜索结果中综合提炼信息。"
-                : "Comprehensive research assistant that synthesizes information from multiple search results.",
-            icon: Globe,
-            color: "bg-blue-500",
-            type: "Built-in"
-        },
-        {
-            id: "core_screenshot",
-            name: t.sidebar.knowledge === "知识库" ? "屏幕分析" : "Screen Analysis",
-            description: t.skills.official === "官方精选"
-                ? "捕获当前屏幕内容，允许 Agent 对视觉交互进行深度上下文分析。"
-                : "Captures the current screen and allows the agent to analyze visual context deeply.",
-            icon: MonitorPlay,
-            color: "bg-emerald-500",
-            type: "Built-in"
-        }
-    ];
+    // 在线市场状态
+    const [marketSkills, setMarketSkills] = useState<RemoteSkill[]>([]);
+    const [installedIds, setInstalledIds] = useState<Set<string>>(new Set());
+    const [installingId, setInstallingId] = useState<string | null>(null);
+    const [publishJson, setPublishJson] = useState<string | null>(null);
+    const [isCreating, setIsCreating] = useState(false);
+
 
     const loadSkills = async () => {
         setIsLoading(true);
@@ -54,7 +40,36 @@ export default function SkillStorePage() {
 
     useEffect(() => {
         loadSkills();
+        loadMarketplace();
     }, []);
+
+    const loadMarketplace = async () => {
+        try {
+            const registry = await fetchRegistry();
+            setMarketSkills(registry.skills);
+            const ids = new Set<string>();
+            for (const s of registry.skills) {
+                if (await isSkillInstalled(s.id)) ids.add(s.id);
+            }
+            setInstalledIds(ids);
+        } catch (err) {
+            console.error("加载在线市场失败:", err);
+        }
+    };
+
+    const handleInstallSkill = async (skill: RemoteSkill) => {
+        setInstallingId(skill.id);
+        try {
+            await installSkill(skill);
+            setInstalledIds(prev => new Set(prev).add(skill.id));
+            await loadSkills();
+            addToast(`✅ 技能 [${skill.name}] 安装成功！`, "success");
+        } catch (err) {
+            addToast(`安装失败: ${err instanceof Error ? err.message : String(err)}`, "error");
+        } finally {
+            setInstallingId(null);
+        }
+    };
 
     const handleToggleLocalSkill = async (skillId: string, currentEnabled: boolean) => {
         try {
@@ -67,231 +82,310 @@ export default function SkillStorePage() {
         }
     };
 
-    // Filter logic
-    const filteredBuiltIn = BUILT_IN_SKILLS.filter(s =>
-        (activeTab === "all" || activeTab === "builtin") &&
-        (s.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-            s.description.toLowerCase().includes(searchQuery.toLowerCase()))
-    );
-
     const filteredLocal = localSkills.filter(s =>
         (activeTab === "all" || activeTab === "installed") &&
         (s.definition.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
             s.definition.description.toLowerCase().includes(searchQuery.toLowerCase()))
     );
 
+    if (isCreating) {
+        return <SkillMakerPage onBack={() => setIsCreating(false)} />;
+    }
+
     return (
-        <div className="h-full bg-white dark:bg-[#121212] flex flex-col overflow-hidden text-slate-800 dark:text-slate-200 font-sans">
-            {/* Top Navigation Bar */}
-            <div className="flex items-center justify-between px-8 py-4 flex-shrink-0 border-b border-transparent">
-                <div className="flex-1" />
-                <div className="flex items-center gap-3">
-                    <button
-                        onClick={loadSkills}
-                        className="p-2 text-slate-500 hover:text-slate-800 dark:text-slate-400 dark:hover:text-white transition-colors hover:bg-slate-100 dark:hover:bg-slate-800 rounded-full"
-                    >
-                        <RefreshCw className={`w-4 h-4 ${isLoading ? "animate-spin text-blue-500" : ""}`} />
-                    </button>
+        <>
+            <div className="h-full bg-background flex flex-col overflow-hidden text-foreground font-sans selection:bg-primary/20">
+                {/* Top Navigation Bar: Premium Minimalist */}
+                <div className="flex items-center justify-between px-6 py-3.5 flex-shrink-0 border-b border-border/40 z-10">
+                    <div className="flex-1" />
+                    <div className="flex items-center gap-4">
+                        <button
+                            onClick={loadSkills}
+                            className="p-2 text-muted-foreground hover:text-foreground transition-colors hover:bg-black/[0.04] dark:hover:bg-white/[0.05] rounded-lg"
+                        >
+                            <RefreshCw className={`w-4 h-4 ${isLoading ? "animate-spin text-foreground" : ""}`} />
+                        </button>
 
-                    <div className="relative w-64">
-                        <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
-                        <input
-                            type="text"
-                            placeholder={t.skills.searchPlaceholder}
-                            value={searchQuery}
-                            onChange={(e) => setSearchQuery(e.target.value)}
-                            className="w-full pl-9 pr-4 py-1.5 text-sm bg-slate-50/50 dark:bg-slate-800/50 border border-slate-200 dark:border-slate-700 rounded-full focus:outline-none focus:ring-2 focus:ring-slate-200 dark:focus:ring-slate-600 transition-all placeholder:text-slate-400"
-                        />
-                    </div>
-
-                    <button className="flex items-center gap-2 px-4 py-1.5 text-sm font-medium bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-200 rounded-full transition-colors">
-                        <Sparkles className="w-4 h-4" />
-                        <span>{t.skills.createWith}</span>
-                    </button>
-
-                    <button className="flex items-center gap-2 px-4 py-1.5 text-sm font-medium bg-slate-900 dark:bg-white text-white dark:text-black hover:bg-slate-800 dark:hover:bg-slate-200 rounded-full transition-colors hidden sm:flex shadow-sm">
-                        <Plus className="w-4 h-4" />
-                        <span>{t.skills.installSkill}</span>
-                    </button>
-                </div>
-            </div>
-
-            <div className="flex-1 overflow-y-auto px-8 pb-12 min-h-0">
-                <div className="max-w-6xl mx-auto pt-6">
-                    {/* Header */}
-                    <div className="mb-6">
-                        <h1 className="text-[32px] font-bold tracking-tight mb-2">{t.skills.title}</h1>
-                        <p className="text-slate-500 dark:text-slate-400 text-[15px]">
-                            {t.skills.subtitle}
-                        </p>
-                    </div>
-
-                    {/* Banner */}
-                    <div className="w-full h-[180px] bg-gradient-to-r from-blue-50 to-cyan-50 dark:from-blue-950/40 dark:to-cyan-950/40 rounded-2xl relative overflow-hidden mb-8 border border-blue-100/50 dark:border-blue-900/30">
-                        <div className="absolute inset-0 bg-[url('https://www.transparenttextures.com/patterns/cubes.png')] opacity-20 mix-blend-overlay"></div>
-                        <div className="relative h-full flex items-center px-10">
-                            <div className="max-w-lg z-10">
-                                <h2 className="text-2xl font-bold text-slate-800 dark:text-slate-100 mb-2">
-                                    {t.skills.bannerTitle}
-                                </h2>
-                                <p className="text-slate-600 dark:text-slate-400">
-                                    {t.skills.bannerDesc}
-                                </p>
-                            </div>
-
-                            {/* Decorative graphics */}
-                            <div className="absolute right-10 top-1/2 -translate-y-1/2 flex gap-4 rotate-[-6deg] opacity-90">
-                                <div className="w-32 h-40 bg-white dark:bg-slate-800 rounded-xl shadow-xl flex flex-col items-center justify-center p-4 transform translate-y-4 -rotate-6 border border-slate-100 dark:border-slate-700">
-                                    <div className="w-12 h-12 rounded-2xl bg-orange-100 dark:bg-orange-500/20 text-orange-500 flex items-center justify-center mb-3">
-                                        <LayoutTemplate className="w-6 h-6" />
-                                    </div>
-                                    <div className="text-xs font-bold text-slate-800 dark:text-slate-200">DocMaker</div>
-                                    <div className="text-[9px] text-slate-400 text-center mt-1">One-click export</div>
-                                </div>
-                                <div className="w-32 h-40 bg-white dark:bg-slate-800 rounded-xl shadow-xl flex flex-col items-center justify-center p-4 transform z-10 border border-slate-100 dark:border-slate-700">
-                                    <div className="w-12 h-12 rounded-2xl bg-blue-100 dark:bg-blue-500/20 text-blue-500 flex items-center justify-center mb-3">
-                                        <Globe className="w-6 h-6" />
-                                    </div>
-                                    <div className="text-xs font-bold text-slate-800 dark:text-slate-200">Web Research</div>
-                                    <div className="text-[9px] text-slate-400 text-center mt-1">Deep search web</div>
-                                </div>
-                            </div>
-                        </div>
-                    </div>
-
-                    {/* Tabs & Filters */}
-                    <div className="flex items-center justify-between border-b border-slate-200 dark:border-slate-800 mb-6">
-                        <div className="flex gap-8">
-                            <button
-                                onClick={() => setActiveTab("all")}
-                                className={`pb-4 text-[15px] font-medium transition-colors relative ${activeTab === "all" ? "text-slate-900 dark:text-white" : "text-slate-500 hover:text-slate-700 dark:text-slate-400 dark:hover:text-slate-200"}`}
-                            >
-                                {t.skills.allSkills}
-                                {activeTab === "all" && <div className="absolute bottom-0 left-0 right-0 h-0.5 bg-black dark:bg-white rounded-t-full"></div>}
-                            </button>
-                            <button
-                                onClick={() => setActiveTab("builtin")}
-                                className={`pb-4 text-[15px] font-medium transition-colors relative ${activeTab === "builtin" ? "text-slate-900 dark:text-white" : "text-slate-500 hover:text-slate-700 dark:text-slate-400 dark:hover:text-slate-200"}`}
-                            >
-                                {t.skills.builtin}
-                                {activeTab === "builtin" && <div className="absolute bottom-0 left-0 right-0 h-0.5 bg-black dark:bg-white rounded-t-full"></div>}
-                            </button>
-                            <button
-                                onClick={() => setActiveTab("installed")}
-                                className={`flex items-center gap-2 pb-4 text-[15px] font-medium transition-colors relative ${activeTab === "installed" ? "text-slate-900 dark:text-white" : "text-slate-500 hover:text-slate-700 dark:text-slate-400 dark:hover:text-slate-200"}`}
-                            >
-                                {t.skills.installed}
-                                <span className={`text-[11px] px-1.5 py-0.5 rounded-md ${activeTab === 'installed' ? 'bg-slate-200 dark:bg-slate-700' : 'bg-slate-100 dark:bg-slate-800'}`}>
-                                    {localSkills.length}
-                                </span>
-                                {activeTab === "installed" && <div className="absolute bottom-0 left-0 right-0 h-0.5 bg-black dark:bg-white rounded-t-full"></div>}
-                            </button>
+                        <div className="relative w-64 group">
+                            <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-muted-foreground/40" />
+                            <input
+                                type="text"
+                                placeholder={t.skills.searchPlaceholder}
+                                value={searchQuery}
+                                onChange={(e) => setSearchQuery(e.target.value)}
+                                className="w-full pl-9 pr-4 py-1.5 text-[13px] bg-black/[0.03] dark:bg-white/[0.04] border border-border/50 dark:border-white/[0.06] rounded-lg focus:outline-none focus:ring-1 focus:ring-primary/30 transition-all placeholder:text-muted-foreground/40"
+                            />
                         </div>
 
-                        <button className="flex items-center gap-2 px-3 py-1.5 mb-2 text-sm text-slate-600 dark:text-slate-300 border border-slate-200 dark:border-slate-700 rounded-lg hover:bg-slate-50 dark:hover:bg-slate-800 transition-colors">
-                            <Filter className="w-3.5 h-3.5" />
-                            <span>{t.common.all || "All"}</span>
+                        <button
+                            onClick={() => setIsCreating(true)}
+                            className="flex items-center gap-2 px-5 py-1.5 text-[13px] font-medium bg-primary text-primary-foreground hover:bg-primary/90 rounded-lg transition-all"
+                        >
+                            <Sparkles className="w-4 h-4 text-yellow-500 dark:text-yellow-600" />
+                            <span>创建技能</span>
+                        </button>
+
+                        <button className="flex items-center gap-2 px-4 py-1.5 text-[13px] font-medium bg-card border border-border/60 dark:border-white/[0.08] text-foreground/80 hover:bg-muted/50 rounded-lg transition-colors hidden sm:flex">
+                            <Plus className="w-4 h-4" />
+                            <span>{t.skills.installSkill}</span>
                         </button>
                     </div>
+                </div>
 
-                    {/* Skill Lists */}
-                    {isLoading ? (
-                        <div className="flex flex-col items-center justify-center py-20 text-slate-400">
-                            <Loader2 className="w-6 h-6 animate-spin mb-3" />
-                            <span className="text-sm">{t.skills.loading}</span>
+                <div className="flex-1 overflow-y-auto px-8 pb-12 min-h-0 relative">
+
+                    <div className="max-w-6xl mx-auto pt-8 relative z-10">
+                        {/* Header */}
+                        <div className="mb-8">
+                            <h1 className="text-2xl font-semibold text-foreground mb-1.5">{t.skills.title}</h1>
+                            <p className="text-muted-foreground text-[13px]">
+                                {t.skills.subtitle}
+                            </p>
                         </div>
-                    ) : (
-                        <div className="space-y-10">
-                            {/* Official / Built-in Selection */}
-                            {(activeTab === "all" || activeTab === "builtin") && filteredBuiltIn.length > 0 && (
-                                <div>
-                                    <h3 className="text-sm font-semibold text-slate-500 dark:text-slate-400 mb-4 px-1">
-                                        {t.skills.official}
-                                    </h3>
-                                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
-                                        {filteredBuiltIn.map(skill => (
-                                            <div key={skill.id} className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl p-4 flex flex-col hover:shadow-md transition-shadow cursor-pointer relative group">
-                                                <div className="absolute top-4 right-4 text-xs text-slate-400 opacity-0 group-hover:opacity-100 transition-opacity">
-                                                    {t.skills.builtin}
-                                                </div>
-                                                <div className="flex items-center gap-3 mb-3 text-slate-800 dark:text-slate-100">
-                                                    <div className={`w-10 h-10 rounded-xl flex items-center justify-center text-white shrink-0 shadow-sm ${skill.color}`}>
-                                                        <skill.icon className="w-5 h-5" />
-                                                    </div>
-                                                    <h4 className="font-semibold text-[15px] truncate">{skill.name}</h4>
-                                                </div>
-                                                <p className="text-[13px] text-slate-500 dark:text-slate-400 line-clamp-2 leading-relaxed flex-1">
-                                                    {skill.description}
-                                                </p>
-                                            </div>
-                                        ))}
+
+                        {/* Banner: Liquid Glass Minimal */}
+                        <div className="w-full h-[160px] bg-card/80 dark:bg-card/50 rounded-xl relative overflow-hidden mb-10 border border-border/50 dark:border-white/[0.06]" style={{ boxShadow: 'var(--panel-shadow)' }}>
+                            <div className="absolute inset-0 bg-gradient-to-br from-primary/[0.03] to-transparent"></div>
+
+                            <div className="relative h-full flex flex-row items-center justify-between px-10">
+                                <div className="max-w-lg z-10">
+                                    <h2 className="text-lg font-semibold text-foreground mb-1.5">
+                                        {t.skills.bannerTitle}
+                                    </h2>
+                                    <p className="text-muted-foreground text-[13px] leading-relaxed">
+                                        {t.skills.bannerDesc}
+                                    </p>
+                                </div>
+
+                                {/* Abstract Geometry Graphics */}
+                                <div className="relative w-64 h-full flex items-center justify-center opacity-80">
+                                    <div className="absolute right-8 w-20 h-28 bg-primary/[0.04] dark:bg-primary/10 rounded-lg border border-border/50 rotate-[12deg] flex flex-col items-center justify-center gap-2 transform transition-transform hover:rotate-6">
+                                        <div className="w-8 h-8 rounded-full bg-primary/10 flex items-center justify-center">
+                                            <LayoutTemplate className="w-4 h-4 text-foreground/60" />
+                                        </div>
+                                        <div className="text-[9px] font-medium text-muted-foreground">DocMaker</div>
+                                    </div>
+                                    <div className="absolute right-20 w-20 h-28 bg-card dark:bg-card/80 rounded-lg border border-border/50 rotate-[-8deg] z-10 flex flex-col items-center justify-center gap-2 transform transition-transform hover:rotate-0">
+                                        <div className="w-8 h-8 rounded-full bg-primary/[0.06] dark:bg-primary/10 flex items-center justify-center">
+                                            <Globe className="w-4 h-4 text-foreground/60" />
+                                        </div>
+                                        <div className="text-[9px] font-medium text-muted-foreground">Web Search</div>
                                     </div>
                                 </div>
-                            )}
+                            </div>
+                        </div>
 
-                            {/* User local skills */}
-                            {(activeTab === "all" || activeTab === "installed") && (
-                                <div>
-                                    <h3 className="text-sm font-semibold text-slate-500 dark:text-slate-400 mb-4 px-1 flex items-center gap-2">
-                                        {t.skills.other} <span className="text-xs opacity-70">· {filteredLocal.length}</span>
-                                    </h3>
-                                    {filteredLocal.length === 0 ? (
-                                        <div className="border border-dashed border-slate-200 dark:border-slate-800 rounded-2xl p-10 flex flex-col items-center justify-center text-center">
-                                            <div className="w-12 h-12 rounded-2xl bg-slate-50 dark:bg-slate-800 flex items-center justify-center mb-3">
-                                                <Terminal className="w-5 h-5 text-slate-400" />
+                        {/* Tabs & Filters */}
+                        <div className="flex items-center justify-between border-b border-border/40 mb-8">
+                            <div className="flex gap-6">
+                                {[
+                                    { id: "all", label: t.skills.allSkills },
+                                    { id: "installed", label: t.skills.installed, count: localSkills.length },
+                                    { id: "marketplace", label: t.skills.official === "官方精选" ? "在线市场" : "Marketplace", count: marketSkills.length, icon: ShoppingBag }
+                                ].map(tab => (
+                                    <button
+                                        key={tab.id}
+                                        onClick={() => setActiveTab(tab.id as any)}
+                                        className={`flex items-center gap-2 pb-3 text-[13px] transition-colors duration-150 relative ${activeTab === tab.id ? "text-foreground font-medium" : "text-muted-foreground hover:text-foreground"}`}
+                                    >
+                                        {tab.icon && <tab.icon className="w-3.5 h-3.5" />}
+                                        {tab.label}
+                                        {tab.count !== undefined && (
+                                            <span className={`text-[10px] px-1.5 py-0.5 rounded-md ${activeTab === tab.id ? 'bg-primary/10 text-primary' : 'bg-muted text-muted-foreground'}`}>
+                                                {tab.count}
+                                            </span>
+                                        )}
+                                        {activeTab === tab.id && <div className="absolute bottom-[-1px] left-0 right-0 h-[1.5px] bg-foreground"></div>}
+                                    </button>
+                                ))}
+                            </div>
+
+                            <button className="flex items-center gap-2 px-3 py-1.5 mb-2 text-[12px] text-muted-foreground border border-border/50 rounded-lg hover:bg-black/[0.04] dark:hover:bg-white/[0.05] transition-colors">
+                                <Filter className="w-3 h-3" />
+                                <span>{t.common.all || "All"}</span>
+                            </button>
+                        </div>
+
+                        {/* Skill Lists */}
+                        {isLoading ? (
+                            <div className="flex flex-col items-center justify-center py-24 text-muted-foreground">
+                                <Loader2 className="w-6 h-6 animate-spin mb-4 text-foreground/70" />
+                                <span className="text-[13px] tracking-widest uppercase font-medium">{t.skills.loading}</span>
+                            </div>
+                        ) : (
+                            <div className="space-y-12">
+
+                                {/* User local skills */}
+                                {(activeTab === "all" || activeTab === "installed") && (
+                                    <div>
+                                        <h3 className="text-[11px] font-semibold text-muted-foreground dark:text-muted-foreground tracking-widest uppercase mb-4 px-1 flex items-center gap-2">
+                                            {t.skills.other} <span className="lowercase opacity-70">({filteredLocal.length})</span>
+                                        </h3>
+                                        {filteredLocal.length === 0 ? (
+                                            <div className="border border-dashed border-border rounded-2xl p-12 flex flex-col items-center justify-center text-center bg-transparent">
+                                                <div className="w-12 h-12 rounded-full border border-border flex items-center justify-center mb-4">
+                                                    <Terminal className="w-5 h-5 text-muted-foreground" />
+                                                </div>
+                                                <h4 className="text-[14px] font-medium text-foreground tracking-wide mb-1">{t.skills.empty}</h4>
+                                                <p className="text-[13px] text-muted-foreground max-w-sm font-light mt-2">
+                                                    {t.skills.emptyDesc}
+                                                </p>
                                             </div>
-                                            <h4 className="text-[15px] font-medium mb-1">{t.skills.empty}</h4>
-                                            <p className="text-sm text-slate-500 max-w-sm">
-                                                {t.skills.emptyDesc}
-                                            </p>
-                                        </div>
-                                    ) : (
-                                        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
-                                            {filteredLocal.map(skill => {
-                                                let IconComponent = Terminal;
-                                                let colorClass = "bg-slate-800 text-white";
-                                                if (skill.definition.name.toLowerCase().includes("calc")) {
-                                                    IconComponent = Calculator;
-                                                    colorClass = "bg-purple-500 text-white";
-                                                }
+                                        ) : (
+                                            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
+                                                {filteredLocal.map(skill => {
+                                                    let IconComponent = Terminal;
+                                                    let colorClass = "text-foreground/80 bg-primary/5 dark:bg-primary/10";
+                                                    if (skill.definition.name.toLowerCase().includes("calc")) {
+                                                        IconComponent = Calculator;
+                                                        colorClass = "text-yellow-600 dark:text-yellow-400 bg-yellow-50 dark:bg-yellow-900/20";
+                                                    }
 
-                                                return (
-                                                    <div key={skill.id} className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl p-4 flex flex-col hover:border-slate-300 dark:hover:border-slate-700 transition-colors group">
-                                                        <div className="flex items-center justify-between mb-3 text-slate-800 dark:text-slate-100">
-                                                            <div className="flex items-center gap-3 overflow-hidden">
-                                                                <div className={`w-10 h-10 rounded-xl flex items-center justify-center shrink-0 shadow-sm ${!skill.enabled ? 'grayscale opacity-60' : ''} ${colorClass}`}>
-                                                                    <IconComponent className="w-5 h-5" />
+                                                    return (
+                                                        <div key={skill.id} className="bg-card/80 dark:bg-card/50 border border-border/50 dark:border-white/[0.06] rounded-xl p-4.5 flex flex-col hover:border-border/80 dark:hover:border-white/[0.12] transition-all duration-150 group" style={{ boxShadow: 'var(--panel-shadow)' }}>
+                                                            <div className="flex items-center justify-between mb-3 text-foreground">
+                                                                <div className="flex items-center gap-3 overflow-hidden">
+                                                                    <div className={`w-9 h-9 rounded-lg flex items-center justify-center shrink-0 border border-border/40 ${!skill.enabled ? 'grayscale opacity-60' : ''} ${colorClass}`}>
+                                                                        <IconComponent className="w-5 h-5" />
+                                                                    </div>
+                                                                    <h4 className={`font-semibold text-[13px] truncate ${!skill.enabled ? 'text-muted-foreground' : ''}`}>
+                                                                        {skill.definition.name}
+                                                                    </h4>
                                                                 </div>
-                                                                <h4 className={`font-semibold text-[15px] truncate ${!skill.enabled ? 'text-slate-400' : ''}`}>
-                                                                    {skill.definition.name}
-                                                                </h4>
+                                                                <button
+                                                                    onClick={(e) => {
+                                                                        e.stopPropagation();
+                                                                        handleToggleLocalSkill(skill.id, skill.enabled);
+                                                                    }}
+                                                                    className={`w-10 h-5 rounded-full shrink-0 relative transition-colors duration-200 ${skill.enabled ? 'bg-primary' : 'bg-muted'}`}
+                                                                >
+                                                                    <div className={`absolute top-0.5 w-4 h-4 bg-card dark:bg-card rounded-full transition-transform duration-300 shadow-sm ${skill.enabled ? 'translate-x-5' : 'translate-x-0.5'}`}>
+                                                                    </div>
+                                                                </button>
                                                             </div>
+                                                            <p className={`text-[12px] line-clamp-2 leading-relaxed flex-1 ${skill.enabled ? 'text-muted-foreground' : 'text-muted-foreground/60'}`}>
+                                                                {skill.definition.description}
+                                                            </p>
                                                             <button
-                                                                onClick={(e) => {
+                                                                onClick={async (e) => {
                                                                     e.stopPropagation();
-                                                                    handleToggleLocalSkill(skill.id, skill.enabled);
+                                                                    try {
+                                                                        const { registryEntry } = await exportSkillForPublish(skill.id);
+                                                                        setPublishJson(JSON.stringify(registryEntry, null, 2));
+                                                                    } catch (err) {
+                                                                        addToast(`导出失败: ${err instanceof Error ? err.message : String(err)}`, "error");
+                                                                    }
                                                                 }}
-                                                                className={`w-12 h-6 rounded-full shrink-0 relative transition-colors duration-200 ${skill.enabled ? 'bg-black dark:bg-white' : 'bg-slate-200 dark:bg-slate-700'}`}
+                                                                className="mt-3 w-full py-1.5 rounded-lg text-[11px] font-medium bg-black/[0.03] dark:bg-white/[0.04] text-muted-foreground hover:bg-primary hover:text-primary-foreground transition-colors duration-150 opacity-0 group-hover:opacity-100 flex items-center justify-center gap-1.5"
                                                             >
-                                                                <div className={`absolute top-1 w-4 h-4 bg-white dark:bg-black rounded-full transition-transform duration-200 ${skill.enabled ? 'translate-x-7' : 'translate-x-1'}`}>
-                                                                    {skill.enabled && <Check className="w-3 h-3 absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 text-black dark:text-white" />}
-                                                                </div>
+                                                                <ArrowUpRight className="w-3.5 h-3.5" /> Share / Export
                                                             </button>
                                                         </div>
-                                                        <p className={`text-[13px] line-clamp-2 leading-relaxed flex-1 ${skill.enabled ? 'text-slate-500 dark:text-slate-400' : 'text-slate-400/70'}`}>
-                                                            {skill.definition.description}
-                                                        </p>
+                                                    );
+                                                })}
+                                            </div>
+                                        )}
+                                    </div>
+                                )}
+
+                                {/* 在线市场 */}
+                                {activeTab === "marketplace" && (
+                                    <div>
+                                        <h3 className="text-[11px] font-semibold text-muted-foreground dark:text-muted-foreground tracking-widest uppercase mb-4 px-1 flex items-center gap-2">
+                                            {t.skills.official === "官方精选" ? "官方交易市场" : "Official Exchange"} <span className="lowercase opacity-70">({marketSkills.length})</span>
+                                        </h3>
+                                        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
+                                            {marketSkills.filter(s =>
+                                                s.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
+                                                s.description.toLowerCase().includes(searchQuery.toLowerCase())
+                                            ).map(skill => (
+                                                <div key={skill.id} className="bg-card/80 dark:bg-card/50 border border-border/50 dark:border-white/[0.06] rounded-xl p-4.5 flex flex-col hover:border-border dark:hover:border-white/10 transition-all duration-150 relative group" style={{ boxShadow: 'var(--panel-shadow)' }}>
+                                                    <div className="flex items-center gap-3 mb-4">
+                                                        <div className="w-9 h-9 rounded-lg bg-primary/[0.06] dark:bg-primary/10 border border-border/40 flex items-center justify-center text-lg shrink-0">
+                                                            {skill.icon || '📦'}
+                                                        </div>
+                                                        <div className="overflow-hidden">
+                                                            <h4 className="font-semibold text-[13px] truncate text-foreground">{skill.name}</h4>
+                                                            <div className="flex items-center gap-2 text-[10px] text-muted-foreground uppercase tracking-widest font-medium mt-0.5">
+                                                                <span>{skill.author}</span>
+                                                                <span>·</span>
+                                                                <span>v{skill.version}</span>
+                                                            </div>
+                                                        </div>
                                                     </div>
-                                                );
-                                            })}
+                                                    <p className="text-[12px] text-muted-foreground line-clamp-2 leading-relaxed flex-1 mb-3">
+                                                        {skill.description}
+                                                    </p>
+                                                    {skill.trigger && (
+                                                        <span className="text-[10px] px-1.5 py-0.5 rounded-md bg-amber-500/10 text-amber-500 font-mono mb-3 self-start">
+                                                            ⚡ {skill.trigger.type}: {skill.trigger.pattern.slice(0, 30)}
+                                                        </span>
+                                                    )}
+
+                                                    <button
+                                                        onClick={() => handleInstallSkill(skill)}
+                                                        disabled={installedIds.has(skill.id) || installingId === skill.id}
+                                                        className={`w-full py-1.5 rounded-lg text-[12px] font-medium transition-all duration-150 ${installedIds.has(skill.id)
+                                                            ? 'bg-muted border border-border/40 text-muted-foreground cursor-default'
+                                                            : installingId === skill.id
+                                                                ? 'bg-muted border border-border/40 text-muted-foreground cursor-wait'
+                                                                : 'bg-primary text-primary-foreground hover:bg-primary/90'
+                                                            }`}
+                                                    >
+                                                        {installedIds.has(skill.id) ? (
+                                                            <span className="flex items-center justify-center gap-1.5"><Check className="w-3.5 h-3.5" /> Installed</span>
+                                                        ) : installingId === skill.id ? (
+                                                            <span className="flex items-center justify-center gap-1.5"><Loader2 className="w-3.5 h-3.5 animate-spin" /> Fetching...</span>
+                                                        ) : (
+                                                            <span className="flex items-center justify-center gap-1.5"><Download className="w-3.5 h-3.5" /> Install</span>
+                                                        )}
+                                                    </button>
+                                                </div>
+                                            ))}
                                         </div>
-                                    )}
-                                </div>
-                            )}
-                        </div>
-                    )}
+                                    </div>
+                                )}
+                            </div>
+                        )}
+                    </div>
                 </div>
             </div>
-        </div>
+
+            {/* Publish Output Modal in Vercel Style */}
+            {
+                publishJson && (
+                    <div className="fixed inset-0 z-50 flex items-center justify-center bg-background/60 backdrop-blur-sm" onClick={() => setPublishJson(null)}>
+                        <div className="bg-card dark:bg-card rounded-2xl p-6 max-w-lg w-full mx-4 border border-border/60 dark:border-white/[0.08]" style={{ boxShadow: 'var(--panel-shadow)' }} onClick={(e) => e.stopPropagation()}>
+                            <h3 className="text-lg font-semibold text-foreground mb-1.5">Export Schema</h3>
+                            <p className="text-[13px] text-muted-foreground mb-5 leading-relaxed">
+                                Submit this JSON payload to your designated repository or sharing channel to initiate deployment across the grid.
+                            </p>
+                            <div className="relative group">
+                                <pre className="bg-black/[0.03] dark:bg-white/[0.03] p-4 rounded-lg text-[11px] font-mono text-foreground/80 overflow-auto max-h-64 mb-5 border border-border/40">
+                                    {publishJson}
+                                </pre>
+                            </div>
+                            <div className="flex gap-3">
+                                <button
+                                    onClick={() => {
+                                        navigator.clipboard.writeText(publishJson!);
+                                        addToast("✅ Code payload secured in clipboard", "success");
+                                    }}
+                                    className="flex-1 py-2 rounded-lg text-[13px] font-medium bg-primary text-primary-foreground hover:bg-primary/90 transition-all"
+                                >
+                                    Copy Payload
+                                </button>
+                                <button
+                                    onClick={() => setPublishJson(null)}
+                                    className="px-5 py-2 rounded-lg text-[13px] text-muted-foreground border border-border/50 hover:bg-black/[0.04] dark:hover:bg-white/[0.05] transition-all"
+                                >
+                                    Dismiss
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                )
+            }
+        </>
     );
 }

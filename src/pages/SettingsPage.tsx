@@ -1028,7 +1028,7 @@ export default function SettingsPage() {
                             initial={{ opacity: 0, scale: 0.95, y: 20 }}
                             animate={{ opacity: 1, scale: 1, y: 0 }}
                             exit={{ opacity: 0, scale: 0.95, y: 20 }}
-                            className="relative w-full max-w-xl bg-card border border-white/20 dark:border-white/10 rounded-[2.5rem] shadow-2xl overflow-hidden"
+                            className="relative w-full max-w-xl bg-card border border-border/60 dark:border-white/[0.08] rounded-2xl overflow-hidden" style={{ boxShadow: 'var(--panel-shadow)' }}
                             onClick={(e) => e.stopPropagation()}
                         >
                             <div className="p-8 space-y-8">
@@ -1089,7 +1089,7 @@ export default function SettingsPage() {
                                             placeholder={t.extensions.serverName}
                                             value={customName}
                                             onChange={(e) => setCustomName(e.target.value)}
-                                            className="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-3 text-sm focus:border-primary/50 outline-none transition-all"
+                                            className="w-full bg-black/[0.03] dark:bg-white/[0.04] border border-border/50 dark:border-white/[0.06] rounded-lg px-4 py-3 text-sm focus:border-primary/50 outline-none transition-all"
                                         />
                                         <div className="flex gap-2">
                                             <input
@@ -1097,7 +1097,7 @@ export default function SettingsPage() {
                                                 placeholder={t.extensions.serverUrl}
                                                 value={customUrl}
                                                 onChange={(e) => setCustomUrl(e.target.value)}
-                                                className="flex-1 bg-white/5 border border-white/10 rounded-xl px-4 py-3 text-sm focus:border-primary/50 outline-none transition-all"
+                                                className="flex-1 bg-black/[0.03] dark:bg-white/[0.04] border border-border/50 dark:border-white/[0.06] rounded-lg px-4 py-3 text-sm focus:border-primary/50 outline-none transition-all"
                                             />
                                             <button
                                                 onClick={handleAddCustom}
