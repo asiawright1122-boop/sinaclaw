@@ -4,6 +4,7 @@ import IconById from "@/components/ui/IconById";
 import { useEffect, useState } from "react";
 import { runEnvironmentScan, type ScanItem } from "@/lib/scanner";
 import { useSettingsStore, PROVIDER_INFO, MODEL_OPTIONS, type AIProvider } from "@/store/settingsStore";
+import { useTranslate } from "@/lib/i18n";
 
 interface SetupWizardProps {
     onComplete: () => void;
@@ -13,6 +14,7 @@ type WizardStep = "scan" | "provider" | "done";
 
 /* ── Step 1: 环境扫描 ────────────────────────────── */
 function ScanStep({ onNext }: { onNext: () => void }) {
+    const t = useTranslate();
     const [items, setItems] = useState<ScanItem[]>([]);
     const [phase, setPhase] = useState<"scanning" | "done" | "error">("scanning");
 
@@ -49,9 +51,9 @@ function ScanStep({ onNext }: { onNext: () => void }) {
 
     const statusText = (item: ScanItem) => {
         switch (item.status) {
-            case "checking": return "初始化中...";
-            case "installed": return `就绪 (${item.version})`;
-            case "failed": return "初始化失败";
+            case "checking": return t.setup.scanInitializing;
+            case "installed": return t.setup.scanReady.replace('{version}', item.version || '');
+            case "failed": return t.setup.scanFailed;
             default: return "";
         }
     };
@@ -71,14 +73,14 @@ function ScanStep({ onNext }: { onNext: () => void }) {
                     )}
                 </motion.div>
                 <h2 className="text-xl font-bold tracking-tight mb-1">
-                    {phase === "scanning" && "初始化引擎..."}
-                    {phase === "done" && "引擎就绪！"}
-                    {phase === "error" && "内部引擎异常"}
+                    {phase === "scanning" && t.setup.scanTitle}
+                    {phase === "done" && t.setup.scanDone}
+                    {phase === "error" && t.setup.scanError}
                 </h2>
                 <p className="text-sm text-muted-foreground">
-                    {phase === "scanning" && "正在加载 Sinaclaw 内置运行环境"}
-                    {phase === "done" && "正在进入下一步..."}
-                    {phase === "error" && "内部引擎加载失败，可能是解压或系统兼容性问题"}
+                    {phase === "scanning" && t.setup.scanDesc}
+                    {phase === "done" && t.setup.scanDoneDesc}
+                    {phase === "error" && t.setup.scanErrorDesc}
                 </p>
             </div>
             <div className="px-6 pb-4">
@@ -102,7 +104,7 @@ function ScanStep({ onNext }: { onNext: () => void }) {
                                 <span className="w-6 flex justify-center"><IconById id={item.icon} size={18} className="text-foreground/60" /></span>
                                 <span className="text-sm font-medium text-foreground/80 w-20">{item.label}</span>
                                 {item.required && (
-                                    <span className="text-[10px] px-1.5 py-0.5 rounded-full bg-primary/20 text-primary-foreground/70 font-bold uppercase tracking-wider">必需</span>
+                                    <span className="text-[10px] px-1.5 py-0.5 rounded-full bg-primary/20 text-primary-foreground/70 font-bold uppercase tracking-wider">{t.setup.required}</span>
                                 )}
                                 <span className="flex-1" />
                                 <span className="text-xs text-muted-foreground font-mono truncate max-w-[200px]">{statusText(item)}</span>
@@ -116,12 +118,12 @@ function ScanStep({ onNext }: { onNext: () => void }) {
                 {phase === "error" && (
                     <motion.button initial={{ opacity: 0 }} animate={{ opacity: 1 }} onClick={onNext}
                         className="w-full py-3 rounded-xl bg-muted/50 border border-border/50 text-foreground/70 font-medium text-sm hover:bg-muted/70 transition-colors cursor-pointer">
-                        跳过，继续配置
+                        {t.setup.skipContinue}
                     </motion.button>
                 )}
                 {phase === "scanning" && (
                     <div className="flex items-center justify-center gap-2 text-muted-foreground text-xs py-2">
-                        <Loader2 className="w-3 h-3 animate-spin" /><span>请稍候...</span>
+                        <Loader2 className="w-3 h-3 animate-spin" /><span>{t.setup.pleaseWait}</span>
                     </div>
                 )}
             </div>
@@ -131,6 +133,7 @@ function ScanStep({ onNext }: { onNext: () => void }) {
 
 /* ── Step 2: 选择 AI 提供商 + 输入 API Key ────────── */
 function ProviderStep({ onNext, onBack }: { onNext: () => void; onBack: () => void }) {
+    const t = useTranslate();
     const { provider, apiKey, setProvider, setApiKey, setModel } = useSettingsStore();
     const [localKey, setLocalKey] = useState(apiKey);
     const [showKey, setShowKey] = useState(false);
@@ -154,8 +157,8 @@ function ProviderStep({ onNext, onBack }: { onNext: () => void; onBack: () => vo
                 <div className="inline-flex items-center justify-center w-16 h-16 rounded-xl bg-gradient-to-br from-violet-500/30 to-blue-500/30 border border-border/50 mb-4">
                     <Bot className="w-8 h-8 text-violet-400" />
                 </div>
-                <h2 className="text-xl font-bold tracking-tight mb-1">选择 AI 提供商</h2>
-                <p className="text-sm text-muted-foreground">选择你的 AI 模型提供商并输入 API Key</p>
+                <h2 className="text-xl font-bold tracking-tight mb-1">{t.setup.providerTitle}</h2>
+                <p className="text-sm text-muted-foreground">{t.setup.providerDesc}</p>
             </div>
 
             <div className="px-6 pb-4 space-y-4">
@@ -192,7 +195,7 @@ function ProviderStep({ onNext, onBack }: { onNext: () => void; onBack: () => vo
                                 type={showKey ? "text" : "password"}
                                 value={localKey}
                                 onChange={(e) => setLocalKey(e.target.value)}
-                                placeholder="输入你的 API Key..."
+                                placeholder={t.setup.apiKeyPlaceholder}
                                 className="w-full bg-black/[0.03] dark:bg-white/[0.04] border border-border/50 dark:border-white/[0.06] rounded-lg px-3 py-2.5 text-sm text-foreground placeholder:text-muted-foreground/40 focus:outline-none focus:ring-1 focus:ring-primary/30 pr-9 transition-all"
                             />
                             <button
@@ -203,14 +206,14 @@ function ProviderStep({ onNext, onBack }: { onNext: () => void; onBack: () => vo
                             </button>
                         </div>
                         <p className="text-[11px] text-muted-foreground/60">
-                            密钥仅存储在本地设备，不会上传到任何服务器
+                            {t.setup.keyLocalOnly}
                         </p>
                     </div>
                 )}
 
                 {!needsKey && (
                     <div className="bg-black/[0.03] dark:bg-white/[0.04] border border-border/50 dark:border-white/[0.06] rounded-lg px-3 py-3 text-xs text-muted-foreground">
-                        本地模式使用 Ollama（http://localhost:11434），请确保 Ollama 已启动
+                        {t.setup.localModeTip}
                     </div>
                 )}
             </div>
@@ -218,14 +221,14 @@ function ProviderStep({ onNext, onBack }: { onNext: () => void; onBack: () => vo
             <div className="px-6 pb-6 flex items-center gap-2">
                 <button onClick={onBack}
                     className="flex items-center gap-1 px-3 py-2.5 rounded-xl text-xs font-medium text-muted-foreground hover:text-foreground hover:bg-muted/50 transition-colors cursor-pointer">
-                    <ArrowLeft className="w-3.5 h-3.5" /> 返回
+                    <ArrowLeft className="w-3.5 h-3.5" /> {t.setup.back}
                 </button>
                 <button
                     onClick={handleConfirm}
                     disabled={!canProceed}
                     className="flex-1 flex items-center justify-center gap-1.5 py-2.5 rounded-xl bg-gradient-to-r from-primary to-accent text-white font-semibold text-sm hover:opacity-90 transition-opacity disabled:opacity-40 cursor-pointer"
                 >
-                    完成设置 <ChevronRight className="w-4 h-4" />
+                    {t.setup.finishSetup} <ChevronRight className="w-4 h-4" />
                 </button>
             </div>
         </>
@@ -234,6 +237,7 @@ function ProviderStep({ onNext, onBack }: { onNext: () => void; onBack: () => vo
 
 /* ── Step 3: 完成 ──────────────────────────────────── */
 function DoneStep({ onFinish }: { onFinish: () => void }) {
+    const t = useTranslate();
     useEffect(() => {
         const timer = setTimeout(onFinish, 2000);
         return () => clearTimeout(timer);
@@ -249,8 +253,8 @@ function DoneStep({ onFinish }: { onFinish: () => void }) {
             >
                 <Sparkles className="w-10 h-10 text-emerald-400" />
             </motion.div>
-            <h2 className="text-xl font-bold tracking-tight mb-1">设置完成！</h2>
-            <p className="text-sm text-muted-foreground mb-6">你的 AI 多通道助手已准备就绪</p>
+            <h2 className="text-xl font-bold tracking-tight mb-1">{t.setup.doneTitle}</h2>
+            <p className="text-sm text-muted-foreground mb-6">{t.setup.doneDesc}</p>
             <motion.button
                 initial={{ opacity: 0 }}
                 animate={{ opacity: 1 }}
@@ -258,7 +262,7 @@ function DoneStep({ onFinish }: { onFinish: () => void }) {
                 onClick={onFinish}
                 className="w-full py-3 rounded-xl bg-gradient-to-r from-primary to-accent text-white font-semibold text-sm hover:opacity-90 transition-opacity cursor-pointer"
             >
-                开始使用 Sinaclaw
+                {t.setup.startUsing}
             </motion.button>
         </div>
     );
