@@ -20,14 +20,8 @@ import {
     type CronJob,
     type Webhook as WebhookType,
 } from "@/store/automationStore";
+import { useTranslate } from "@/lib/i18n";
 
-// ── Cron 模板 ──
-const CRON_TEMPLATES = [
-    { label: "每日摘要", schedule: "0 9 * * *", command: "send '请生成今日新闻摘要'" },
-    { label: "每小时检查", schedule: "0 * * * *", command: "send '检查所有通道状态'" },
-    { label: "工作日提醒", schedule: "0 8 * * 1-5", command: "send '早安！今天有什么安排？'" },
-    { label: "每周报告", schedule: "0 18 * * 5", command: "send '请生成本周工作总结'" },
-];
 
 function formatTime(ts?: number): string {
     if (!ts) return "—";
@@ -46,6 +40,7 @@ function CronJobCard({ job, onDelete, onToggle }: {
     onDelete: () => void;
     onToggle: () => void;
 }) {
+    const t = useTranslate();
     return (
         <div className="bg-card/80 dark:bg-card/50 border border-border/50 dark:border-white/[0.06] rounded-xl p-3.5 group" style={{ boxShadow: 'var(--panel-shadow)' }}>
             <div className="flex items-start justify-between">
@@ -59,10 +54,10 @@ function CronJobCard({ job, onDelete, onToggle }: {
                         <div className="flex items-center gap-2">
                             <span className="text-sm font-medium text-foreground truncate">{job.name}</span>
                             {job.status === "running" && (
-                                <span className="text-[9px] px-1.5 py-0.5 rounded bg-blue-500/10 text-blue-500 font-medium animate-pulse">运行中</span>
+                                <span className="text-[9px] px-1.5 py-0.5 rounded bg-blue-500/10 text-blue-500 font-medium animate-pulse">{t.automation.running}</span>
                             )}
                             {job.status === "error" && (
-                                <span className="text-[9px] px-1.5 py-0.5 rounded bg-red-500/10 text-red-500 font-medium">错误</span>
+                                <span className="text-[9px] px-1.5 py-0.5 rounded bg-red-500/10 text-red-500 font-medium">{t.automation.error}</span>
                             )}
                         </div>
                         <div className="flex items-center gap-2 mt-0.5 text-[11px] text-muted-foreground">
@@ -72,13 +67,13 @@ function CronJobCard({ job, onDelete, onToggle }: {
                         {job.lastRun && (
                             <div className="text-[10px] text-muted-foreground/60 mt-1 flex items-center gap-1">
                                 <Clock className="w-2.5 h-2.5" />
-                                上次: {formatTime(job.lastRun)}
+                                {t.automation.lastRun.replace('{time}', formatTime(job.lastRun))}
                             </div>
                         )}
                     </div>
                 </div>
                 <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
-                    <button onClick={onToggle} className="p-1.5 rounded-lg hover:bg-muted/50 text-muted-foreground hover:text-foreground transition-colors" title={job.enabled ? "暂停" : "启用"}>
+                    <button onClick={onToggle} className="p-1.5 rounded-lg hover:bg-muted/50 text-muted-foreground hover:text-foreground transition-colors" title={job.enabled ? t.automation.pause : t.automation.enable}>
                         {job.enabled ? <Pause className="w-3.5 h-3.5" /> : <Play className="w-3.5 h-3.5" />}
                     </button>
                     <button onClick={onDelete} className="p-1.5 rounded-lg hover:bg-destructive/10 text-muted-foreground hover:text-destructive transition-colors">
@@ -95,6 +90,7 @@ function WebhookCard({ webhook, onDelete }: {
     webhook: WebhookType;
     onDelete: () => void;
 }) {
+    const t = useTranslate();
     const [copied, setCopied] = useState(false);
     const copyUrl = () => {
         navigator.clipboard.writeText(webhook.url);
@@ -115,13 +111,13 @@ function WebhookCard({ webhook, onDelete }: {
                             <code className="text-[10px] text-muted-foreground font-mono bg-muted/30 px-1.5 py-0.5 rounded truncate max-w-[200px]">
                                 {webhook.url}
                             </code>
-                            <button onClick={copyUrl} className="p-0.5 text-muted-foreground hover:text-foreground transition-colors" title="复制 URL">
+                            <button onClick={copyUrl} className="p-0.5 text-muted-foreground hover:text-foreground transition-colors" title={t.automation.copyUrl}>
                                 {copied ? <CheckCircle2 className="w-3 h-3 text-emerald-500" /> : <Copy className="w-3 h-3" />}
                             </button>
                         </div>
                         <div className="flex items-center gap-3 mt-1 text-[10px] text-muted-foreground/60">
-                            <span>{webhook.requestCount} 次请求</span>
-                            {webhook.lastTriggered && <span>最近: {formatTime(webhook.lastTriggered)}</span>}
+                            <span>{t.automation.requestCount.replace('{count}', String(webhook.requestCount))}</span>
+                            {webhook.lastTriggered && <span>{t.automation.recentTrigger.replace('{time}', formatTime(webhook.lastTriggered))}</span>}
                         </div>
                     </div>
                 </div>
@@ -138,6 +134,13 @@ function CreateCronDialog({ onClose, onCreate }: {
     onClose: () => void;
     onCreate: (job: { name: string; schedule: string; command: string; enabled: boolean }) => void;
 }) {
+    const t = useTranslate();
+    const CRON_TEMPLATES = [
+        { label: t.automation.tplDailySummary, schedule: "0 9 * * *", command: "send '请生成今日新闻摘要'" },
+        { label: t.automation.tplHourlyCheck, schedule: "0 * * * *", command: "send '检查所有通道状态'" },
+        { label: t.automation.tplWeekdayReminder, schedule: "0 8 * * 1-5", command: "send '早安！今天有什么安排？'" },
+        { label: t.automation.tplWeeklyReport, schedule: "0 18 * * 5", command: "send '请生成本周工作总结'" },
+    ];
     const [name, setName] = useState("");
     const [schedule, setSchedule] = useState("");
     const [command, setCommand] = useState("");
@@ -152,27 +155,27 @@ function CreateCronDialog({ onClose, onCreate }: {
         >
             <div className="bg-card dark:bg-card border border-border/60 dark:border-white/[0.08] rounded-2xl w-[440px] max-w-[90vw]" style={{ boxShadow: 'var(--panel-shadow)' }} onClick={(e) => e.stopPropagation()}>
                 <div className="flex items-center justify-between p-4 border-b border-border/40">
-                    <h3 className="font-semibold text-foreground">创建定时任务</h3>
+                    <h3 className="font-semibold text-foreground">{t.automation.createCronTitle}</h3>
                     <button onClick={onClose} className="p-1.5 rounded-lg hover:bg-muted/50 text-muted-foreground hover:text-foreground">
                         <X className="w-4 h-4" />
                     </button>
                 </div>
                 <div className="p-4 space-y-3">
                     <div className="space-y-1.5">
-                        <label className="text-xs font-medium text-foreground">名称</label>
-                        <input value={name} onChange={(e) => setName(e.target.value)} placeholder="每日新闻摘要" className="w-full bg-black/[0.03] dark:bg-white/[0.04] border border-border/50 dark:border-white/[0.06] rounded-lg px-3 py-2 text-sm text-foreground placeholder:text-muted-foreground/40 focus:outline-none focus:ring-1 focus:ring-primary/30 transition-all" />
+                        <label className="text-xs font-medium text-foreground">{t.automation.labelName}</label>
+                        <input value={name} onChange={(e) => setName(e.target.value)} placeholder={t.automation.cronNamePlaceholder} className="w-full bg-black/[0.03] dark:bg-white/[0.04] border border-border/50 dark:border-white/[0.06] rounded-lg px-3 py-2 text-sm text-foreground placeholder:text-muted-foreground/40 focus:outline-none focus:ring-1 focus:ring-primary/30 transition-all" />
                     </div>
                     <div className="space-y-1.5">
-                        <label className="text-xs font-medium text-foreground">Cron 表达式</label>
+                        <label className="text-xs font-medium text-foreground">{t.automation.labelCron}</label>
                         <input value={schedule} onChange={(e) => setSchedule(e.target.value)} placeholder="0 9 * * *" className="w-full bg-black/[0.03] dark:bg-white/[0.04] border border-border/50 dark:border-white/[0.06] rounded-lg px-3 py-2 text-sm text-foreground font-mono placeholder:text-muted-foreground/40 focus:outline-none focus:ring-1 focus:ring-primary/30 transition-all" />
                     </div>
                     <div className="space-y-1.5">
-                        <label className="text-xs font-medium text-foreground">执行命令</label>
-                        <input value={command} onChange={(e) => setCommand(e.target.value)} placeholder="send '生成摘要'" className="w-full bg-black/[0.03] dark:bg-white/[0.04] border border-border/50 dark:border-white/[0.06] rounded-lg px-3 py-2 text-sm text-foreground placeholder:text-muted-foreground/40 focus:outline-none focus:ring-1 focus:ring-primary/30 transition-all" />
+                        <label className="text-xs font-medium text-foreground">{t.automation.labelCommand}</label>
+                        <input value={command} onChange={(e) => setCommand(e.target.value)} placeholder={t.automation.cronCommandPlaceholder} className="w-full bg-black/[0.03] dark:bg-white/[0.04] border border-border/50 dark:border-white/[0.06] rounded-lg px-3 py-2 text-sm text-foreground placeholder:text-muted-foreground/40 focus:outline-none focus:ring-1 focus:ring-primary/30 transition-all" />
                     </div>
                     {/* 快捷模板 */}
                     <div className="space-y-1.5">
-                        <label className="text-xs font-medium text-muted-foreground">快捷模板</label>
+                        <label className="text-xs font-medium text-muted-foreground">{t.automation.quickTemplates}</label>
                         <div className="flex flex-wrap gap-1.5">
                             {CRON_TEMPLATES.map((tpl) => (
                                 <button
@@ -187,14 +190,14 @@ function CreateCronDialog({ onClose, onCreate }: {
                     </div>
                     <div className="flex justify-end gap-2 pt-2">
                         <button onClick={onClose} className="px-4 py-2 rounded-lg text-xs font-medium text-muted-foreground hover:bg-muted/50 transition-colors">
-                            取消
+                            {t.common.cancel}
                         </button>
                         <button
                             onClick={() => { if (name && schedule && command) onCreate({ name, schedule, command, enabled: true }); }}
                             disabled={!name || !schedule || !command}
                             className="px-4 py-2 rounded-lg text-xs font-medium bg-primary text-primary-foreground hover:bg-primary/90 disabled:opacity-40 transition-colors"
                         >
-                            创建
+                            {t.automation.createCron}
                         </button>
                     </div>
                 </div>
@@ -205,6 +208,7 @@ function CreateCronDialog({ onClose, onCreate }: {
 
 // ── 主页面 ──
 export default function AutomationPage() {
+    const t = useTranslate();
     const {
         cronJobs,
         webhooks,
@@ -241,9 +245,9 @@ export default function AutomationPage() {
                         <Timer className="w-4.5 h-4.5 text-primary" />
                     </div>
                     <div>
-                        <h1 className="text-lg font-semibold text-foreground">自动化</h1>
+                        <h1 className="text-lg font-semibold text-foreground">{t.automation.title}</h1>
                         <p className="text-xs text-muted-foreground">
-                            定时任务、Webhook 和触发器管理
+                            {t.automation.subtitle}
                         </p>
                     </div>
                 </div>
@@ -252,19 +256,19 @@ export default function AutomationPage() {
             {/* 标签页 */}
             <div className="flex items-center gap-0.5 bg-black/[0.04] dark:bg-white/[0.04] border border-border/40 rounded-lg p-0.5 w-fit">
                 {([
-                    { id: "cron" as const, label: `定时任务 (${cronJobs.length})`, icon: Timer },
-                    { id: "webhook" as const, label: `Webhook (${webhooks.length})`, icon: Webhook },
-                    { id: "logs" as const, label: `执行日志 (${logs.length})`, icon: ScrollText },
-                ]).map((t) => (
+                    { id: "cron" as const, label: `${t.automation.tabCron} (${cronJobs.length})`, icon: Timer },
+                    { id: "webhook" as const, label: `${t.automation.tabWebhook} (${webhooks.length})`, icon: Webhook },
+                    { id: "logs" as const, label: `${t.automation.tabLogs} (${logs.length})`, icon: ScrollText },
+                ]).map((item) => (
                     <button
-                        key={t.id}
-                        onClick={() => setTab(t.id)}
+                        key={item.id}
+                        onClick={() => setTab(item.id)}
                         className={`flex items-center gap-1.5 px-3 py-1.5 rounded-md text-xs font-medium transition-all duration-150 ${
-                            tab === t.id ? "bg-card dark:bg-white/[0.08] text-foreground shadow-sm" : "text-muted-foreground hover:text-foreground"
+                            tab === item.id ? "bg-card dark:bg-white/[0.08] text-foreground shadow-sm" : "text-muted-foreground hover:text-foreground"
                         }`}
                     >
-                        <t.icon className="w-3.5 h-3.5" />
-                        {t.label}
+                        <item.icon className="w-3.5 h-3.5" />
+                        {item.label}
                     </button>
                 ))}
             </div>
@@ -278,14 +282,14 @@ export default function AutomationPage() {
                             className="flex items-center gap-1.5 px-4 py-1.5 rounded-lg text-xs font-medium bg-primary text-primary-foreground hover:bg-primary/90 transition-colors"
                         >
                             <Plus className="w-3.5 h-3.5" />
-                            新建任务
+                            {t.automation.createCron}
                         </button>
                     </div>
                     {cronJobs.length === 0 ? (
                         <div className="flex flex-col items-center justify-center py-16 text-muted-foreground/50">
                             <Timer className="w-10 h-10 mb-3" />
-                            <p className="text-sm font-medium">暂无定时任务</p>
-                            <p className="text-xs mt-1">创建定时任务来自动执行 Agent 命令</p>
+                            <p className="text-sm font-medium">{t.automation.emptyCron}</p>
+                            <p className="text-xs mt-1">{t.automation.emptyCronDesc}</p>
                         </div>
                     ) : (
                         <div className="space-y-2">
@@ -307,18 +311,18 @@ export default function AutomationPage() {
                 <div className="space-y-3">
                     <div className="flex justify-end">
                         <button
-                            onClick={() => createWebhook("新 Webhook")}
+                            onClick={() => createWebhook("New Webhook")}
                             className="flex items-center gap-1.5 px-4 py-1.5 rounded-lg text-xs font-medium bg-primary text-primary-foreground hover:bg-primary/90 transition-colors"
                         >
                             <Plus className="w-3.5 h-3.5" />
-                            新建 Webhook
+                            {t.automation.createWebhook}
                         </button>
                     </div>
                     {webhooks.length === 0 ? (
                         <div className="flex flex-col items-center justify-center py-16 text-muted-foreground/50">
                             <Link className="w-10 h-10 mb-3" />
-                            <p className="text-sm font-medium">暂无 Webhook</p>
-                            <p className="text-xs mt-1">创建 Webhook 来接收外部事件触发</p>
+                            <p className="text-sm font-medium">{t.automation.emptyWebhook}</p>
+                            <p className="text-xs mt-1">{t.automation.emptyWebhookDesc}</p>
                         </div>
                     ) : (
                         <div className="space-y-2">
@@ -336,8 +340,8 @@ export default function AutomationPage() {
                     {logs.length === 0 ? (
                         <div className="flex flex-col items-center justify-center py-16 text-muted-foreground/50">
                             <ScrollText className="w-10 h-10 mb-3" />
-                            <p className="text-sm font-medium">暂无执行日志</p>
-                            <p className="text-xs mt-1">任务执行后日志将在此显示</p>
+                            <p className="text-sm font-medium">{t.automation.emptyLogs}</p>
+                            <p className="text-xs mt-1">{t.automation.emptyLogsDesc}</p>
                         </div>
                     ) : (
                         logs.map((log) => (
