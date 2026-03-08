@@ -76,7 +76,7 @@ function ChannelCard({
                             <span className="font-semibold text-sm text-foreground">{def.name}</span>
                             <StatusDot status={status} />
                         </div>
-                        <p className="text-xs text-muted-foreground mt-0.5 line-clamp-1">{def.description}</p>
+                        <p className="text-xs text-muted-foreground mt-0.5 line-clamp-1">{(t.channelDesc as any)[def.id] || def.description}</p>
                     </div>
                 </div>
                 <ChevronRight className="w-4 h-4 text-muted-foreground/50 group-hover:text-primary transition-colors shrink-0 mt-1" />
@@ -108,6 +108,14 @@ function ChannelConfigPanel({
     const [testResult, setTestResult] = useState<string | null>(null);
     const [testing, setTesting] = useState(false);
 
+    const FIELD_LABEL_MAP: Record<string, string> = {
+        Phone: (t.channelDesc as any).labelPhone,
+        Password: (t.channelDesc as any).labelPassword,
+        Server: (t.channelDesc as any).labelServer,
+        Nickname: (t.channelDesc as any).labelNickname,
+        Username: (t.channelDesc as any).labelUsername,
+        Channel: (t.channelDesc as any).labelChannel,
+    };
     const allFields = [...def.requiredFields, ...(def.optionalFields ?? [])];
 
     const handleSave = async () => {
@@ -145,8 +153,8 @@ function ChannelConfigPanel({
                         <IconById id={def.icon} size={20} className="text-foreground/70" />
                     </div>
                     <div>
-                        <h3 className="font-semibold text-foreground">{def.name}</h3>
-                        <p className="text-xs text-muted-foreground">{def.description}</p>
+                        <h3 className="font-semibold text-foreground">{def.id === 'feishu' ? (t.channelDesc as any).feishuName : def.name}</h3>
+                        <p className="text-xs text-muted-foreground">{(t.channelDesc as any)[def.id] || def.description}</p>
                     </div>
                 </div>
                 <div className="flex items-center gap-1">
@@ -178,7 +186,7 @@ function ChannelConfigPanel({
                     allFields.map((field) => (
                         <div key={field.key} className="space-y-1.5">
                             <label className="text-xs font-medium text-foreground flex items-center gap-1.5">
-                                {field.label}
+                                {FIELD_LABEL_MAP[field.label] || field.label}
                                 {field.envVar && (
                                     <span className="text-[10px] text-muted-foreground/60 font-mono">
                                         {field.envVar}
