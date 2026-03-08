@@ -64,6 +64,13 @@ interface ChatState {
     searchConversations: (query: string) => Promise<Conversation[]>;
 }
 
+function toMessageRole(role: string): Message["role"] {
+    if (role === "user" || role === "assistant" || role === "system") {
+        return role;
+    }
+    return "assistant";
+}
+
 // ── LLM 自动标题生成 ────────────────────────────────────────
 async function generateSmartTitle(conversationId: string, userMessage: string) {
     try {
@@ -146,7 +153,7 @@ export const useChatStore = create<ChatState>((set, get) => ({
                 const dbMsgs = await getMessages(activeId);
                 conversations[0].messages = dbMsgs.map(m => ({
                     id: m.id,
-                    role: m.role as any,
+                    role: toMessageRole(m.role),
                     content: m.content,
                     timestamp: new Date(m.created_at).getTime()
                 }));
@@ -197,7 +204,7 @@ export const useChatStore = create<ChatState>((set, get) => ({
             const dbMsgs = await getMessages(id);
             const messages: Message[] = dbMsgs.map(m => ({
                 id: m.id,
-                role: m.role as any,
+                role: toMessageRole(m.role),
                 content: m.content,
                 timestamp: new Date(m.created_at).getTime()
             }));
@@ -242,7 +249,7 @@ export const useChatStore = create<ChatState>((set, get) => ({
         const dbMsg = await saveMessage(conversationId, role, content);
         const newMessage: Message = {
             id: dbMsg.id,
-            role: dbMsg.role as any,
+            role: toMessageRole(dbMsg.role),
             content: dbMsg.content,
             timestamp: new Date(dbMsg.created_at).getTime(),
             images,

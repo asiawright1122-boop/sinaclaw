@@ -1,18 +1,13 @@
 import { useEffect, useState } from "react";
-import { motion, AnimatePresence } from "framer-motion";
+import { motion } from "framer-motion";
 import {
     Shield,
     Key,
     FileDown,
     Trash2,
     Plus,
-    Copy,
-    Eye,
-    EyeOff,
     AlertTriangle,
-    CheckCircle2,
     ScrollText,
-    X,
 } from "lucide-react";
 import {
     type GatewayToken,
@@ -26,6 +21,8 @@ import {
     deleteAllData,
 } from "@/lib/security";
 import { useTranslate } from "@/lib/i18n";
+import TokenCard from "@/components/security/TokenCard";
+import CreateTokenModal from "@/components/security/CreateTokenModal";
 
 function formatTime(ts: number): string {
     if (!ts) return "—";
@@ -34,63 +31,6 @@ function formatTime(ts: number): string {
         d.toLocaleTimeString("en-GB", { hour: "2-digit", minute: "2-digit", hour12: false });
 }
 
-// ── Token 卡片 ──
-function TokenCard({ token, onRevoke }: { token: GatewayToken; onRevoke: () => void }) {
-    const t = useTranslate();
-    const [showToken, setShowToken] = useState(false);
-    const [copied, setCopied] = useState(false);
-    const expired = token.expiresAt ? token.expiresAt < Date.now() : false;
-
-    const handleCopy = () => {
-        navigator.clipboard.writeText(token.token);
-        setCopied(true);
-        setTimeout(() => setCopied(false), 2000);
-    };
-
-    return (
-        <div className={`flex items-center justify-between p-3 rounded-lg border transition-all duration-150 group ${
-            expired ? "border-destructive/20 bg-destructive/5" : "border-border/50 dark:border-white/[0.06] bg-black/[0.02] dark:bg-white/[0.03]"
-        }`}>
-            <div className="flex items-center gap-3 min-w-0">
-                <Key className={`w-4 h-4 shrink-0 ${expired ? "text-red-400" : "text-primary"}`} />
-                <div className="min-w-0">
-                    <div className="flex items-center gap-2">
-                        <span className="text-xs font-medium text-foreground">{token.name}</span>
-                        {expired && <span className="text-[9px] px-1.5 py-0.5 rounded bg-red-500/10 text-red-400 font-medium">{t.security.expired}</span>}
-                        <div className="flex gap-1">
-                            {token.permissions.map((p) => (
-                                <span key={p} className="text-[9px] px-1 py-0.5 rounded bg-muted/30 text-muted-foreground">{p}</span>
-                            ))}
-                        </div>
-                    </div>
-                    <div className="flex items-center gap-1.5 mt-0.5">
-                        <code className="text-[10px] text-muted-foreground font-mono">
-                            {showToken ? token.token : token.token.slice(0, 8) + "••••••••"}
-                        </code>
-                        <button onClick={() => setShowToken(!showToken)} className="text-muted-foreground/50 hover:text-foreground">
-                            {showToken ? <EyeOff className="w-3 h-3" /> : <Eye className="w-3 h-3" />}
-                        </button>
-                        <button onClick={handleCopy} className="text-muted-foreground/50 hover:text-foreground">
-                            {copied ? <CheckCircle2 className="w-3 h-3 text-emerald-500" /> : <Copy className="w-3 h-3" />}
-                        </button>
-                    </div>
-                    <div className="text-[10px] text-muted-foreground/50 mt-0.5">
-                        {t.security.createdAt.replace('{time}', formatTime(token.createdAt))}
-                        {token.lastUsed && ` · ${t.security.lastUsed.replace('{time}', formatTime(token.lastUsed))}`}
-                    </div>
-                </div>
-            </div>
-            <button
-                onClick={onRevoke}
-                className="px-2 py-1 rounded-lg text-[10px] font-medium text-red-400 hover:bg-red-500/10 transition-colors opacity-0 group-hover:opacity-100"
-            >
-                {t.security.revoke}
-            </button>
-        </div>
-    );
-}
-
-// ── 主页面 ──
 export default function SecurityPage() {
     const t = useTranslate();
     const AUDIT_LABELS: Record<string, string> = {
@@ -114,8 +54,6 @@ export default function SecurityPage() {
     const [tokens, setTokens] = useState<GatewayToken[]>([]);
     const [auditEntries, setAuditEntries] = useState<AuditEntry[]>([]);
     const [showCreateToken, setShowCreateToken] = useState(false);
-    const [newTokenName, setNewTokenName] = useState("");
-    const [newTokenPerms, setNewTokenPerms] = useState<string[]>(["read"]);
     const [exporting, setExporting] = useState(false);
     const [confirmDelete, setConfirmDelete] = useState(false);
 
@@ -134,14 +72,12 @@ export default function SecurityPage() {
         setAuditEntries(entries);
     };
 
-    const handleCreateToken = async () => {
-        if (!newTokenName.trim()) return;
+    const handleCreateToken = async (name: string, perms: string[]) => {
         try {
-            await createGatewayToken(newTokenName.trim(), newTokenPerms, 90);
-            await logAudit("token_created", newTokenName.trim());
+            await createGatewayToken(name, perms, 90);
+            await logAudit("token_created", name);
             await loadTokens();
             setShowCreateToken(false);
-            setNewTokenName("");
         } catch (err) {
             console.error("[Security] Token 创建失败:", err);
         }
@@ -289,15 +225,12 @@ export default function SecurityPage() {
             {/* GDPR 数据管理 */}
             {tab === "gdpr" && (
                 <div className="space-y-4">
-                    {/* 数据导出 */}
                     <div className="bg-card/80 dark:bg-card/50 border border-border/50 dark:border-white/[0.06] rounded-xl p-5" style={{ boxShadow: 'var(--panel-shadow)' }}>
                         <div className="flex items-start gap-3">
                             <FileDown className="w-5 h-5 text-primary shrink-0 mt-0.5" />
                             <div className="flex-1">
                                 <h3 className="text-sm font-semibold text-foreground">{t.security.exportTitle}</h3>
-                                <p className="text-xs text-muted-foreground mt-1">
-                                    {t.security.exportDesc}
-                                </p>
+                                <p className="text-xs text-muted-foreground mt-1">{t.security.exportDesc}</p>
                                 <button
                                     onClick={handleExport}
                                     disabled={exporting}
@@ -310,15 +243,12 @@ export default function SecurityPage() {
                         </div>
                     </div>
 
-                    {/* 数据删除 */}
                     <div className="bg-card/80 dark:bg-card/50 border border-destructive/20 rounded-xl p-5" style={{ boxShadow: 'var(--panel-shadow)' }}>
                         <div className="flex items-start gap-3">
                             <AlertTriangle className="w-5 h-5 text-red-500 shrink-0 mt-0.5" />
                             <div className="flex-1">
                                 <h3 className="text-sm font-semibold text-foreground">{t.security.deleteTitle}</h3>
-                                <p className="text-xs text-muted-foreground mt-1">
-                                    {t.security.deleteDesc}
-                                </p>
+                                <p className="text-xs text-muted-foreground mt-1">{t.security.deleteDesc}</p>
                                 {!confirmDelete ? (
                                     <button
                                         onClick={() => setConfirmDelete(true)}
@@ -349,78 +279,11 @@ export default function SecurityPage() {
                 </div>
             )}
 
-            {/* 创建 Token 对话框 */}
-            <AnimatePresence>
-                {showCreateToken && (
-                    <motion.div
-                        initial={{ opacity: 0 }}
-                        animate={{ opacity: 1 }}
-                        exit={{ opacity: 0 }}
-                        className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-sm"
-                        onClick={() => setShowCreateToken(false)}
-                    >
-                        <motion.div
-                            initial={{ scale: 0.95 }}
-                            animate={{ scale: 1 }}
-                            exit={{ scale: 0.95 }}
-                            className="bg-card dark:bg-card border border-border/60 dark:border-white/[0.08] rounded-xl w-[400px] max-w-[90vw]" style={{ boxShadow: 'var(--panel-shadow)' }}
-                            onClick={(e) => e.stopPropagation()}
-                        >
-                            <div className="flex items-center justify-between p-4 border-b border-border/40">
-                                <h3 className="font-semibold text-foreground">{t.security.createTokenTitle}</h3>
-                                <button onClick={() => setShowCreateToken(false)} className="p-1.5 rounded-lg hover:bg-muted/50 text-muted-foreground hover:text-foreground">
-                                    <X className="w-4 h-4" />
-                                </button>
-                            </div>
-                            <div className="p-4 space-y-3">
-                                <div className="space-y-1.5">
-                                    <label className="text-xs font-medium text-foreground">{t.security.labelName}</label>
-                                    <input
-                                        value={newTokenName}
-                                        onChange={(e) => setNewTokenName(e.target.value)}
-                                        placeholder={t.security.tokenPlaceholder}
-                                        className="w-full bg-black/[0.03] dark:bg-white/[0.04] border border-border/50 dark:border-white/[0.06] rounded-lg px-3 py-2 text-sm text-foreground placeholder:text-muted-foreground/40 focus:outline-none focus:ring-1 focus:ring-primary/30 transition-all"
-                                    />
-                                </div>
-                                <div className="space-y-1.5">
-                                    <label className="text-xs font-medium text-foreground">{t.security.labelPerms}</label>
-                                    <div className="flex gap-2">
-                                        {["read", "write", "admin"].map((perm) => (
-                                            <button
-                                                key={perm}
-                                                onClick={() =>
-                                                    setNewTokenPerms((prev) =>
-                                                        prev.includes(perm) ? prev.filter((p) => p !== perm) : [...prev, perm]
-                                                    )
-                                                }
-                                                className={`px-3 py-1.5 rounded-lg text-xs font-medium transition-colors ${
-                                                    newTokenPerms.includes(perm)
-                                                        ? "bg-primary/10 text-primary border border-primary/25"
-                                                        : "bg-black/[0.03] dark:bg-white/[0.04] text-muted-foreground border border-border/50 dark:border-white/[0.06] hover:bg-black/[0.05] dark:hover:bg-white/[0.06]"
-                                                }`}
-                                            >
-                                                {perm}
-                                            </button>
-                                        ))}
-                                    </div>
-                                </div>
-                                <div className="flex justify-end gap-2 pt-2">
-                                    <button onClick={() => setShowCreateToken(false)} className="px-4 py-2 rounded-lg text-xs font-medium text-muted-foreground hover:bg-muted/50 transition-colors">
-                                        {t.common.cancel}
-                                    </button>
-                                    <button
-                                        onClick={handleCreateToken}
-                                        disabled={!newTokenName.trim()}
-                                        className="px-4 py-2 rounded-lg text-xs font-medium bg-primary text-primary-foreground hover:bg-primary/90 disabled:opacity-40 transition-colors"
-                                    >
-                                        {t.security.create}
-                                    </button>
-                                </div>
-                            </div>
-                        </motion.div>
-                    </motion.div>
-                )}
-            </AnimatePresence>
+            <CreateTokenModal
+                open={showCreateToken}
+                onClose={() => setShowCreateToken(false)}
+                onCreate={handleCreateToken}
+            />
         </motion.div>
     );
 }

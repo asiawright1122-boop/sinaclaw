@@ -6,7 +6,7 @@
  * 2. LLM 返回 tool_calls → 自动执行工具 → 将结果追加到消息历史
  * 3. 再次发送给 LLM → 直到 LLM 返回纯文本回复（不再调用工具）
  */
-import { sendMessage, onStreamChunk } from "@/lib/tauri";
+import { sendMessage, onStreamChunk, type ChatMessage as TauriChatMessage } from "@/lib/tauri";
 import { OPENCLAW_TOOLS, executeTool } from "@/lib/tools";
 import { skillManager } from "@/lib/skills";
 import { useMCPStore } from "@/store/mcpStore";
@@ -229,6 +229,11 @@ function isRetryableError(errorMsg: string): boolean {
     return (
         lower.includes("network") ||
         lower.includes("timeout") ||
+        lower.includes("unavailable") ||
+        lower.includes("bad gateway") ||
+        lower.includes("protocol error") ||
+        lower.includes("unexpected eof") ||
+        lower.includes(" eof") ||
         lower.includes("econnreset") ||
         lower.includes("econnrefused") ||
         lower.includes("fetch") ||
@@ -268,10 +273,12 @@ export async function callLLMWithRetry(
                 model: settings.fallbackModel,
             });
         } catch (fallbackErr) {
+            params.onError(`主备均失败。主: ${lastError} | 备: ${fallbackErr instanceof Error ? fallbackErr.message : String(fallbackErr)}`);
             throw new Error(`主备均失败。主: ${lastError} | 备: ${fallbackErr instanceof Error ? fallbackErr.message : String(fallbackErr)}`);
         }
     }
 
+    params.onError(lastError);
     throw new Error(lastError);
 }
 
@@ -288,7 +295,7 @@ export async function callLLMWithTools(params: {
     onTextChunk: (text: string) => void;
     onError: (error: string) => void;
 }): Promise<{ content: string; toolCalls: ToolCall[] }> {
-    const { messages, apiKey, provider, model, temperature, maxTokens, onTextChunk, onError } = params;
+    const { messages, apiKey, provider, model, temperature, maxTokens, onTextChunk } = params;
 
     const { getActiveToolsAsSchema } = useMCPStore.getState();
     const activeMCPTools = getActiveToolsAsSchema();
@@ -306,13 +313,13 @@ export async function callLLMWithTools(params: {
         // Actually, if enabledTools is strictly empty, we might not pass 'tools' key at all.
     }
 
-    return new Promise(async (resolve) => {
+    return new Promise(async (resolve, reject) => {
         let fullContent = "";
         const toolCallAccumulators: Map<number, StreamToolCallAccumulator> = new Map();
 
         // 将 AgentMessage 转换为 Rust 后端需要的格式
-        const apiMessages = messages.map((m) => {
-            const msg: Record<string, unknown> = { role: m.role };
+        const apiMessages: TauriChatMessage[] = messages.map((m) => {
+            const msg: TauriChatMessage = { role: m.role };
 
             if (m.content !== null && m.content !== undefined) {
                 msg.content = m.content;
@@ -395,20 +402,19 @@ export async function callLLMWithTools(params: {
             await skillManager.init();
 
             await sendMessage({
-                messages: apiMessages as any,
+                messages: apiMessages,
                 api_key: apiKey,
                 provider,
                 model,
                 temperature,
                 max_tokens: maxTokens,
-                tools: allTools as any, // Use the filtered allTools
+                tools: allTools,
                 tool_choice: "auto",
             });
         } catch (error) {
             unlisten();
             const errorMsg = error instanceof Error ? error.message : String(error);
-            onError(errorMsg);
-            resolve({ content: `[ERROR] ${errorMsg}`, toolCalls: [] });
+            reject(new Error(errorMsg));
         }
     });
 }

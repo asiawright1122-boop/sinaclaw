@@ -1,36 +1,38 @@
 import { useEffect, useState } from "react";
 import {
     RefreshCw, Search, Plus, Sparkles, Filter,
-    Globe, Terminal,
-    Check, Loader2, LayoutTemplate, Download, ShoppingBag, ArrowUpRight
+    Globe, Loader2, LayoutTemplate, ShoppingBag,
 } from "lucide-react";
 import { useToastStore } from "@/store/toastStore";
 import { skillManager, type LoadedSkill } from "@/lib/skills";
-import { fetchRegistry, installSkill, isSkillInstalled, exportSkillForPublish, type RemoteSkill } from "@/lib/skillRegistry";
+import { fetchRegistry, installSkill, isSkillInstalled, type RemoteSkill } from "@/lib/skillRegistry";
 import { useTranslate } from "@/lib/i18n";
-import IconById from "@/components/ui/IconById";
 import SkillMakerPage from "./SkillMakerPage";
+import LocalSkillGrid from "@/components/skillstore/LocalSkillGrid";
+import MarketSkillGrid from "@/components/skillstore/MarketSkillGrid";
+import PublishJsonModal from "@/components/skillstore/PublishJsonModal";
 
 export default function SkillStorePage() {
     const t = useTranslate();
+    type SkillTab = "all" | "installed" | "marketplace";
     const SKILL_NAMES: Record<string, string> = {
-        "git-commit-helper": (t.skillStore as any).skGitCommitHelper,
-        "web-search": (t.skillStore as any).skWebSearch,
-        "image-compressor": (t.skillStore as any).skImageCompressor,
-        "markdown-to-pdf": (t.skillStore as any).skMarkdownToPdf,
-        "code-reviewer": (t.skillStore as any).skCodeReviewer,
+        "git-commit-helper": t.skillStore.skGitCommitHelper,
+        "web-search": t.skillStore.skWebSearch,
+        "image-compressor": t.skillStore.skImageCompressor,
+        "markdown-to-pdf": t.skillStore.skMarkdownToPdf,
+        "code-reviewer": t.skillStore.skCodeReviewer,
     };
     const SKILL_DESCS: Record<string, string> = {
-        "git-commit-helper": (t.skillStore as any).skGitCommitHelperDesc,
-        "web-search": (t.skillStore as any).skWebSearchDesc,
-        "image-compressor": (t.skillStore as any).skImageCompressorDesc,
-        "markdown-to-pdf": (t.skillStore as any).skMarkdownToPdfDesc,
-        "code-reviewer": (t.skillStore as any).skCodeReviewerDesc,
+        "git-commit-helper": t.skillStore.skGitCommitHelperDesc,
+        "web-search": t.skillStore.skWebSearchDesc,
+        "image-compressor": t.skillStore.skImageCompressorDesc,
+        "markdown-to-pdf": t.skillStore.skMarkdownToPdfDesc,
+        "code-reviewer": t.skillStore.skCodeReviewerDesc,
     };
     const [localSkills, setLocalSkills] = useState<LoadedSkill[]>([]);
     const [isLoading, setIsLoading] = useState(true);
     const [searchQuery, setSearchQuery] = useState("");
-    const [activeTab, setActiveTab] = useState<"all" | "installed" | "marketplace">("all");
+    const [activeTab, setActiveTab] = useState<SkillTab>("all");
     const addToast = useToastStore(state => state.addToast);
 
     // 在线市场状态
@@ -193,14 +195,14 @@ export default function SkillStorePage() {
                         {/* Tabs & Filters */}
                         <div className="flex items-center justify-between border-b border-border/40 mb-8">
                             <div className="flex gap-6">
-                                {[
+                                {([
                                     { id: "all", label: t.skills.allSkills },
                                     { id: "installed", label: t.skills.installed, count: localSkills.length },
                                     { id: "marketplace", label: t.skillStore.marketplace, count: marketSkills.length, icon: ShoppingBag }
-                                ].map(tab => (
+                                ] as Array<{ id: SkillTab; label: string; count?: number; icon?: typeof ShoppingBag }>).map(tab => (
                                     <button
                                         key={tab.id}
-                                        onClick={() => setActiveTab(tab.id as any)}
+                                        onClick={() => setActiveTab(tab.id)}
                                         className={`flex items-center gap-2 pb-3 text-[13px] transition-colors duration-150 relative ${activeTab === tab.id ? "text-foreground font-medium" : "text-muted-foreground hover:text-foreground"}`}
                                     >
                                         {tab.icon && <tab.icon className="w-3.5 h-3.5" />}
@@ -229,129 +231,27 @@ export default function SkillStorePage() {
                             </div>
                         ) : (
                             <div className="space-y-12">
-
-                                {/* User local skills */}
                                 {(activeTab === "all" || activeTab === "installed") && (
-                                    <div>
-                                        <h3 className="text-[11px] font-semibold text-muted-foreground dark:text-muted-foreground tracking-widest uppercase mb-4 px-1 flex items-center gap-2">
-                                            {t.skills.other} <span className="lowercase opacity-70">({filteredLocal.length})</span>
-                                        </h3>
-                                        {filteredLocal.length === 0 ? (
-                                            <div className="border border-dashed border-border rounded-2xl p-12 flex flex-col items-center justify-center text-center bg-transparent">
-                                                <div className="w-12 h-12 rounded-full border border-border flex items-center justify-center mb-4">
-                                                    <Terminal className="w-5 h-5 text-muted-foreground" />
-                                                </div>
-                                                <h4 className="text-[14px] font-medium text-foreground tracking-wide mb-1">{t.skills.empty}</h4>
-                                                <p className="text-[13px] text-muted-foreground max-w-sm font-light mt-2">
-                                                    {t.skills.emptyDesc}
-                                                </p>
-                                            </div>
-                                        ) : (
-                                            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
-                                                {filteredLocal.map(skill => {
-                                                    return (
-                                                        <div key={skill.id} className="bg-card/80 dark:bg-card/50 border border-border/50 dark:border-white/[0.06] rounded-xl p-4.5 flex flex-col hover:border-border/80 dark:hover:border-white/[0.12] transition-all duration-150 group" style={{ boxShadow: 'var(--panel-shadow)' }}>
-                                                            <div className="flex items-center justify-between mb-3 text-foreground">
-                                                                <div className="flex items-center gap-3 overflow-hidden">
-                                                                    <div className={`w-9 h-9 rounded-lg bg-primary/[0.06] dark:bg-primary/10 flex items-center justify-center shrink-0 border border-border/40 ${!skill.enabled ? 'grayscale opacity-60' : ''}`}>
-                                                                        <IconById id={skill.definition.icon || 'wrench'} size={20} />
-                                                                    </div>
-                                                                    <h4 className={`font-semibold text-[13px] truncate ${!skill.enabled ? 'text-muted-foreground' : ''}`}>
-                                                                        {skill.definition.name}
-                                                                    </h4>
-                                                                </div>
-                                                                <button
-                                                                    onClick={(e) => {
-                                                                        e.stopPropagation();
-                                                                        handleToggleLocalSkill(skill.id, skill.enabled);
-                                                                    }}
-                                                                    className={`w-10 h-5 rounded-full shrink-0 relative transition-colors duration-200 ${skill.enabled ? 'bg-primary' : 'bg-muted'}`}
-                                                                >
-                                                                    <div className={`absolute top-0.5 w-4 h-4 bg-card dark:bg-card rounded-full transition-transform duration-300 shadow-sm ${skill.enabled ? 'translate-x-5' : 'translate-x-0.5'}`}>
-                                                                    </div>
-                                                                </button>
-                                                            </div>
-                                                            <p className={`text-[12px] line-clamp-2 leading-relaxed flex-1 ${skill.enabled ? 'text-muted-foreground' : 'text-muted-foreground/60'}`}>
-                                                                {skill.definition.description}
-                                                            </p>
-                                                            <button
-                                                                onClick={async (e) => {
-                                                                    e.stopPropagation();
-                                                                    try {
-                                                                        const { registryEntry } = await exportSkillForPublish(skill.id);
-                                                                        setPublishJson(JSON.stringify(registryEntry, null, 2));
-                                                                    } catch (err) {
-                                                                        addToast(t.skillStore.exportFailed.replace('{error}', err instanceof Error ? err.message : String(err)), "error");
-                                                                    }
-                                                                }}
-                                                                className="mt-3 w-full py-1.5 rounded-lg text-[11px] font-medium bg-black/[0.03] dark:bg-white/[0.04] text-muted-foreground hover:bg-primary hover:text-primary-foreground transition-colors duration-150 opacity-0 group-hover:opacity-100 flex items-center justify-center gap-1.5"
-                                                            >
-                                                                <ArrowUpRight className="w-3.5 h-3.5" /> Share / Export
-                                                            </button>
-                                                        </div>
-                                                    );
-                                                })}
-                                            </div>
-                                        )}
-                                    </div>
+                                    <LocalSkillGrid
+                                        skills={filteredLocal}
+                                        onToggle={handleToggleLocalSkill}
+                                        onExport={(json) => setPublishJson(json)}
+                                        onExportError={(msg) => addToast(msg, "error")}
+                                        t={t.skills}
+                                        exportFailedTemplate={t.skillStore.exportFailed}
+                                    />
                                 )}
-
-                                {/* 在线市场 */}
                                 {activeTab === "marketplace" && (
-                                    <div>
-                                        <h3 className="text-[11px] font-semibold text-muted-foreground dark:text-muted-foreground tracking-widest uppercase mb-4 px-1 flex items-center gap-2">
-                                            {t.skillStore.officialExchange} <span className="lowercase opacity-70">({marketSkills.length})</span>
-                                        </h3>
-                                        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
-                                            {marketSkills.filter(s =>
-                                                s.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-                                                s.description.toLowerCase().includes(searchQuery.toLowerCase())
-                                            ).map(skill => (
-                                                <div key={skill.id} className="bg-card/80 dark:bg-card/50 border border-border/50 dark:border-white/[0.06] rounded-xl p-4.5 flex flex-col hover:border-border/80 dark:hover:border-white/[0.12] transition-all duration-150 relative group" style={{ boxShadow: 'var(--panel-shadow)' }}>
-                                                    <div className="flex items-center gap-3 mb-4">
-                                                        <div className="w-9 h-9 rounded-lg bg-primary/[0.06] dark:bg-primary/10 border border-border/40 flex items-center justify-center text-lg shrink-0">
-                                                            <IconById id={skill.icon || 'pkg'} size={20} />
-                                                        </div>
-                                                        <div className="overflow-hidden">
-                                                            <h4 className="font-semibold text-[13px] truncate text-foreground">{SKILL_NAMES[skill.id] || skill.name}</h4>
-                                                            <div className="flex items-center gap-2 text-[10px] text-muted-foreground uppercase tracking-widest font-medium mt-0.5">
-                                                                <span>{skill.author}</span>
-                                                                <span>·</span>
-                                                                <span>v{skill.version}</span>
-                                                            </div>
-                                                        </div>
-                                                    </div>
-                                                    <p className="text-[12px] text-muted-foreground line-clamp-2 leading-relaxed flex-1 mb-3">
-                                                        {SKILL_DESCS[skill.id] || skill.description}
-                                                    </p>
-                                                    {skill.trigger && (
-                                                        <span className="text-[10px] px-1.5 py-0.5 rounded-md bg-amber-500/10 text-amber-500 font-mono mb-3 self-start">
-                                                            {skill.trigger.type}: {skill.trigger.pattern.slice(0, 30)}
-                                                        </span>
-                                                    )}
-
-                                                    <button
-                                                        onClick={() => handleInstallSkill(skill)}
-                                                        disabled={installedIds.has(skill.id) || installingId === skill.id}
-                                                        className={`w-full py-1.5 rounded-lg text-[12px] font-medium transition-all duration-150 ${installedIds.has(skill.id)
-                                                            ? 'bg-muted border border-border/40 text-muted-foreground cursor-default'
-                                                            : installingId === skill.id
-                                                                ? 'bg-muted border border-border/40 text-muted-foreground cursor-wait'
-                                                                : 'bg-primary text-primary-foreground hover:bg-primary/90'
-                                                            }`}
-                                                    >
-                                                        {installedIds.has(skill.id) ? (
-                                                            <span className="flex items-center justify-center gap-1.5"><Check className="w-3.5 h-3.5" /> Installed</span>
-                                                        ) : installingId === skill.id ? (
-                                                            <span className="flex items-center justify-center gap-1.5"><Loader2 className="w-3.5 h-3.5 animate-spin" /> Fetching...</span>
-                                                        ) : (
-                                                            <span className="flex items-center justify-center gap-1.5"><Download className="w-3.5 h-3.5" /> Install</span>
-                                                        )}
-                                                    </button>
-                                                </div>
-                                            ))}
-                                        </div>
-                                    </div>
+                                    <MarketSkillGrid
+                                        skills={marketSkills}
+                                        searchQuery={searchQuery}
+                                        installedIds={installedIds}
+                                        installingId={installingId}
+                                        onInstall={handleInstallSkill}
+                                        nameMap={SKILL_NAMES}
+                                        descMap={SKILL_DESCS}
+                                        officialExchangeLabel={t.skillStore.officialExchange}
+                                    />
                                 )}
                             </div>
                         )}
@@ -359,41 +259,16 @@ export default function SkillStorePage() {
                 </div>
             </div>
 
-            {/* Publish Output Modal in Vercel Style */}
-            {
-                publishJson && (
-                    <div className="fixed inset-0 z-50 flex items-center justify-center bg-background/60 backdrop-blur-sm" onClick={() => setPublishJson(null)}>
-                        <div className="bg-card dark:bg-card rounded-2xl p-6 max-w-lg w-full mx-4 border border-border/60 dark:border-white/[0.08]" style={{ boxShadow: 'var(--panel-shadow)' }} onClick={(e) => e.stopPropagation()}>
-                            <h3 className="text-lg font-semibold text-foreground mb-1.5">Export Schema</h3>
-                            <p className="text-[13px] text-muted-foreground mb-5 leading-relaxed">
-                                Submit this JSON payload to your designated repository or sharing channel to initiate deployment across the grid.
-                            </p>
-                            <div className="relative group">
-                                <pre className="bg-black/[0.03] dark:bg-white/[0.03] p-4 rounded-lg text-[11px] font-mono text-foreground/80 overflow-auto max-h-64 mb-5 border border-border/40">
-                                    {publishJson}
-                                </pre>
-                            </div>
-                            <div className="flex gap-3">
-                                <button
-                                    onClick={() => {
-                                        navigator.clipboard.writeText(publishJson!);
-                                        addToast("Code payload secured in clipboard", "success");
-                                    }}
-                                    className="flex-1 py-2 rounded-lg text-[13px] font-medium bg-primary text-primary-foreground hover:bg-primary/90 transition-all"
-                                >
-                                    Copy Payload
-                                </button>
-                                <button
-                                    onClick={() => setPublishJson(null)}
-                                    className="px-5 py-2 rounded-lg text-[13px] text-muted-foreground border border-border/50 hover:bg-black/[0.04] dark:hover:bg-white/[0.05] transition-all"
-                                >
-                                    Dismiss
-                                </button>
-                            </div>
-                        </div>
-                    </div>
-                )
-            }
+            {publishJson && (
+                <PublishJsonModal
+                    json={publishJson}
+                    onCopy={() => {
+                        navigator.clipboard.writeText(publishJson);
+                        addToast("Code payload secured in clipboard", "success");
+                    }}
+                    onClose={() => setPublishJson(null)}
+                />
+            )}
         </>
     );
 }

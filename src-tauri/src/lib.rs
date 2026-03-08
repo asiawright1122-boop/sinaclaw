@@ -10,6 +10,7 @@ mod tools;
 mod cloud;
 mod tools_extended;
 mod mcp;
+mod gateway;
 
 // ── 数据结构 ──────────────────────────────────────────────
 
@@ -17,7 +18,7 @@ mod mcp;
 pub struct ChatMessage {
     pub role: String,
     #[serde(default)]
-    pub content: Option<String>,
+    pub content: Option<serde_json::Value>, // String 或 [{type:"text",text:"..."},{type:"image_url",...}]
     // Function Calling 支持
     #[serde(skip_serializing_if = "Option::is_none")]
     pub tool_calls: Option<Vec<serde_json::Value>>,
@@ -86,7 +87,7 @@ async fn stream_openai_compatible(
                 "role": m.role,
             });
             if let Some(ref content) = m.content {
-                msg["content"] = serde_json::Value::String(content.clone());
+                msg["content"] = content.clone(); // 直接传递：String 或 Array (OpenAI 原生支持)
             }
             if let Some(ref tool_calls) = m.tool_calls {
                 msg["tool_calls"] = serde_json::Value::Array(tool_calls.clone());
@@ -117,10 +118,15 @@ async fn stream_openai_compatible(
         body["tool_choice"] = tool_choice.clone();
     }
 
-    let response = client
+    let mut request_builder = client
         .post(url)
-        .header("Authorization", format!("Bearer {}", req.api_key))
-        .header("Content-Type", "application/json")
+        .header("Content-Type", "application/json");
+
+    if !req.api_key.is_empty() {
+        request_builder = request_builder.header("Authorization", format!("Bearer {}", req.api_key));
+    }
+
+    let response = request_builder
         .json(&body)
         .send()
         .await
@@ -218,9 +224,38 @@ async fn stream_anthropic(
         .iter()
         .filter(|m| m.role != "system")
         .map(|m| {
+            // Anthropic 多模态: 将 OpenAI 格式转为 Anthropic 格式
+            let content_val = match &m.content {
+                Some(serde_json::Value::Array(parts)) => {
+                    let converted: Vec<serde_json::Value> = parts.iter().map(|part| {
+                        if part["type"] == "image_url" {
+                            // 将 OpenAI image_url 格式转为 Anthropic image source 格式
+                            let url = part["image_url"]["url"].as_str().unwrap_or("");
+                            if let Some(base64_data) = url.strip_prefix("data:image/") {
+                                let (media_type_suffix, data) = base64_data.split_once(";base64,").unwrap_or(("", ""));
+                                let media_type = format!("image/{}", media_type_suffix);
+                                serde_json::json!({
+                                    "type": "image",
+                                    "source": { "type": "base64", "media_type": media_type, "data": data }
+                                })
+                            } else {
+                                serde_json::json!({ "type": "image", "source": { "type": "url", "url": url } })
+                            }
+                        } else {
+                            part.clone()
+                        }
+                    }).collect();
+                    serde_json::Value::Array(converted)
+                }
+                Some(serde_json::Value::String(s)) => {
+                    serde_json::json!(s)
+                }
+                Some(other) => other.clone(),
+                None => serde_json::json!(""),
+            };
             serde_json::json!({
                 "role": m.role,
-                "content": m.content.clone().unwrap_or_default(),
+                "content": content_val,
             })
         })
         .collect();
@@ -229,8 +264,10 @@ async fn stream_anthropic(
         .messages
         .iter()
         .find(|m| m.role == "system")
-        .and_then(|m| m.content.clone())
-        .unwrap_or_default();
+        .and_then(|m| m.content.as_ref())
+        .and_then(|c| c.as_str())
+        .unwrap_or("")
+        .to_string();
 
     let mut body = serde_json::json!({
         "model": req.model,
@@ -262,6 +299,11 @@ async fn stream_anthropic(
     let mut stream = response.bytes_stream();
     let mut buffer = String::new();
 
+    // Anthropic Tool Use 累积器
+    let mut current_tool_id = String::new();
+    let mut current_tool_name = String::new();
+    let mut current_tool_args = String::new();
+
     while let Some(chunk) = stream.next().await {
         let chunk = chunk.map_err(|e| format!("流式读取错误: {}", e))?;
         let text = String::from_utf8_lossy(&chunk);
@@ -280,13 +322,44 @@ async fn stream_anthropic(
                     let event_type = json["type"].as_str().unwrap_or("");
 
                     match event_type {
+                        "content_block_start" => {
+                            let block = &json["content_block"];
+                            if block["type"].as_str() == Some("tool_use") {
+                                current_tool_id = block["id"].as_str().unwrap_or("").to_string();
+                                current_tool_name = block["name"].as_str().unwrap_or("").to_string();
+                                current_tool_args.clear();
+                            }
+                        }
                         "content_block_delta" => {
-                            if let Some(text) = json["delta"]["text"].as_str() {
+                            let delta_type = json["delta"]["type"].as_str().unwrap_or("");
+                            if delta_type == "text_delta" {
+                                if let Some(text) = json["delta"]["text"].as_str() {
+                                    let _ = window.emit("chat-stream", StreamChunk {
+                                        content: text.to_string(),
+                                        done: false,
+                                        tool_calls: None,
+                                    });
+                                }
+                            } else if delta_type == "input_json_delta" {
+                                if let Some(partial) = json["delta"]["partial_json"].as_str() {
+                                    current_tool_args.push_str(partial);
+                                }
+                            }
+                        }
+                        "content_block_stop" => {
+                            if !current_tool_id.is_empty() && !current_tool_name.is_empty() {
                                 let _ = window.emit("chat-stream", StreamChunk {
-                                    content: text.to_string(),
+                                    content: String::new(),
                                     done: false,
-                                    tool_calls: None,
+                                    tool_calls: Some(vec![ToolCallChunk {
+                                        id: current_tool_id.clone(),
+                                        function_name: current_tool_name.clone(),
+                                        arguments: current_tool_args.clone(),
+                                    }]),
                                 });
+                                current_tool_id.clear();
+                                current_tool_name.clear();
+                                current_tool_args.clear();
                             }
                         }
                         "message_stop" => {
@@ -321,28 +394,70 @@ async fn stream_google(
 ) -> Result<(), String> {
     let client = Client::new();
 
+    // Gemini 不支持 role: "system"，需提取到 systemInstruction
+    let system_text = req
+        .messages
+        .iter()
+        .find(|m| m.role == "system")
+        .and_then(|m| m.content.as_ref())
+        .and_then(|c| c.as_str())
+        .unwrap_or("")
+        .to_string();
+
     let contents: Vec<serde_json::Value> = req
         .messages
         .iter()
+        .filter(|m| m.role != "system")
         .map(|m| {
             let role = match m.role.as_str() {
                 "assistant" => "model",
-                _ => &m.role,
+                _ => "user",
+            };
+            // Google 多模态: 将 OpenAI 格式转为 Gemini parts 格式
+            let parts = match &m.content {
+                Some(serde_json::Value::Array(content_parts)) => {
+                    content_parts.iter().map(|part| {
+                        if part["type"] == "image_url" {
+                            let url = part["image_url"]["url"].as_str().unwrap_or("");
+                            if let Some(base64_data) = url.strip_prefix("data:image/") {
+                                let (mime_suffix, data) = base64_data.split_once(";base64,").unwrap_or(("", ""));
+                                serde_json::json!({
+                                    "inline_data": {
+                                        "mime_type": format!("image/{}", mime_suffix),
+                                        "data": data
+                                    }
+                                })
+                            } else {
+                                serde_json::json!({ "text": url })
+                            }
+                        } else {
+                            serde_json::json!({ "text": part["text"].as_str().unwrap_or("") })
+                        }
+                    }).collect::<Vec<_>>()
+                }
+                Some(serde_json::Value::String(s)) => vec![serde_json::json!({ "text": s })],
+                _ => vec![serde_json::json!({ "text": "" })],
             };
             serde_json::json!({
                 "role": role,
-                "parts": [{ "text": m.content.clone().unwrap_or_default() }]
+                "parts": parts
             })
         })
         .collect();
 
-    let body = serde_json::json!({
+    let mut body = serde_json::json!({
         "contents": contents,
         "generationConfig": {
             "temperature": req.temperature,
             "maxOutputTokens": req.max_tokens,
         }
     });
+
+    if !system_text.is_empty() {
+        body["systemInstruction"] = serde_json::json!({
+            "parts": [{ "text": system_text }]
+        });
+    }
 
     let url = format!(
         "https://generativelanguage.googleapis.com/v1beta/models/{}:streamGenerateContent?alt=sse&key={}",
@@ -422,6 +537,72 @@ fn greet(name: &str) -> String {
     format!("Hello, {}! You've been greeted from Rust!", name)
 }
 
+#[tauri::command]
+async fn ollama_list_models() -> Result<Vec<serde_json::Value>, String> {
+    let client = reqwest::Client::new();
+    let response = client
+        .get("http://127.0.0.1:11434/api/tags")
+        .send()
+        .await
+        .map_err(|e| format!("无法连接到 Ollama: {}", e))?;
+
+    if !response.status().is_success() {
+        return Err("Ollama 服务未运行或返回错误".to_string());
+    }
+
+    let data: serde_json::Value = response
+        .json()
+        .await
+        .map_err(|e| format!("解析响应失败: {}", e))?;
+
+    let models = data["models"]
+        .as_array()
+        .cloned()
+        .unwrap_or_default();
+
+    Ok(models)
+}
+
+#[tauri::command]
+async fn ollama_pull_model(model_name: String, window: tauri::WebviewWindow) -> Result<String, String> {
+    let client = reqwest::Client::new();
+    let response = client
+        .post("http://127.0.0.1:11434/api/pull")
+        .json(&serde_json::json!({ "name": model_name, "stream": true }))
+        .send()
+        .await
+        .map_err(|e| format!("拉取模型失败: {}", e))?;
+
+    if !response.status().is_success() {
+        return Err(format!("Ollama 拉取失败: HTTP {}", response.status()));
+    }
+
+    use futures::StreamExt;
+    let mut stream = response.bytes_stream();
+    let mut last_status = String::new();
+
+    while let Some(chunk) = stream.next().await {
+        let chunk = chunk.map_err(|e| format!("流读取错误: {}", e))?;
+        let text = String::from_utf8_lossy(&chunk);
+        for line in text.lines() {
+            if let Ok(json) = serde_json::from_str::<serde_json::Value>(line) {
+                let status = json["status"].as_str().unwrap_or("").to_string();
+                if !status.is_empty() {
+                    last_status = status.clone();
+                    let _ = window.emit("ollama-pull-progress", serde_json::json!({
+                        "status": status,
+                        "completed": json["completed"],
+                        "total": json["total"],
+                    }));
+                }
+            }
+        }
+    }
+
+    let _ = last_status;
+    Ok(format!("模型 {} 拉取完成", model_name))
+}
+
 // ── 入口 ─────────────────────────────────────────────────
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
@@ -438,6 +619,18 @@ pub fn run() {
             description: "create_cloud_tokens_table",
             sql: include_str!("../migrations/02_cloud_tokens.sql"),
             kind: MigrationKind::Up,
+        },
+        Migration {
+            version: 3,
+            description: "conversation_organize",
+            sql: include_str!("../migrations/03_conversation_organize.sql"),
+            kind: MigrationKind::Up,
+        },
+        Migration {
+            version: 4,
+            description: "inbox_messages_and_sessions",
+            sql: include_str!("../migrations/04_inbox.sql"),
+            kind: MigrationKind::Up,
         }
     ];
 
@@ -448,6 +641,12 @@ pub fn run() {
             #[cfg(target_os = "macos")]
             apply_vibrancy(&window, NSVisualEffectMaterial::Menu, None, None)
                 .expect("Unsupported platform! 'apply_vibrancy' is only supported on macOS");
+
+            #[cfg(target_os = "windows")]
+            {
+                use window_vibrancy::apply_mica;
+                let _ = apply_mica(&window, Some(true));
+            }
 
             Ok(())
         })
@@ -460,6 +659,8 @@ pub fn run() {
         .invoke_handler(tauri::generate_handler![
             greet,
             send_message,
+            ollama_list_models,
+            ollama_pull_model,
             tools::tool_run_command,
             tools::tool_read_file,
             tools::tool_write_file,
@@ -475,14 +676,25 @@ pub fn run() {
             cloud::cloud_delete,
             cloud::cloud_get_status,
             cloud::cloud_disconnect,
+            cloud::cloud_save_credentials,
+            cloud::cloud_get_credentials,
+            tools::tool_file_exists,
             tools::set_workspace,
             tools::get_workspace,
             tools::pick_folder,
             tools_extended::tool_search_web,
+            tools_extended::tool_fetch_url,
             tools_extended::tool_screenshot,
+            tools_extended::tool_browser_screenshot,
+            tools_extended::tool_browser_run_js,
             mcp::mcp_connect,
             mcp::mcp_call_tool,
             mcp::mcp_get_active_tools,
+            gateway::openclaw_start_gateway,
+            gateway::openclaw_stop_gateway,
+            gateway::openclaw_gateway_status,
+            gateway::openclaw_restart_gateway,
+            gateway::openclaw_run_cli,
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");

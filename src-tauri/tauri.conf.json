@@ -27,6 +27,10 @@
   "bundle": {
     "active": true,
     "targets": "all",
+    "resources": {
+      "openclaw-bundle/openclaw/**/*": "openclaw/",
+      "openclaw-bundle/node_modules/**/*": "node_modules/"
+    },
     "externalBin": [
       "bin/node"
     ],

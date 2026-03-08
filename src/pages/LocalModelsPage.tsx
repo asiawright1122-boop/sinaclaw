@@ -1,94 +1,16 @@
 import { useEffect, useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import {
-    Cpu,
-    Download,
-    Trash2,
-    RefreshCw,
-    CheckCircle2,
-    AlertCircle,
-    HardDrive,
-    X,
-    Zap,
+    Cpu, Download, RefreshCw, CheckCircle2, AlertCircle, HardDrive,
 } from "lucide-react";
 import {
-    isOllamaRunning,
-    getOllamaVersion,
-    listModels,
-    pullModel,
-    deleteModel,
-    formatModelSize,
-    type OllamaModel,
-    type PullProgress,
+    isOllamaRunning, getOllamaVersion, listModels, pullModel, deleteModel, formatModelSize,
+    type OllamaModel, type PullProgress,
 } from "@/lib/localModelManager";
 import { useSettingsStore } from "@/store/settingsStore";
 import { useTranslate } from "@/lib/i18n";
-
-// 推荐模型列表
-const RECOMMENDED_MODELS = [
-    { name: "llama3.3", descKey: "llama33", desc: "Meta Llama 3.3 — Flagship", size: "~4.7 GB" },
-    { name: "qwen2.5:7b", descKey: "qwen25", desc: "Qwen 2.5 7B — Bilingual", size: "~4.4 GB" },
-    { name: "deepseek-r1:14b", descKey: "deepseekR1", desc: "DeepSeek R1 14B — Reasoning", size: "~9.0 GB" },
-    { name: "mistral", descKey: "mistral", desc: "Mistral 7B — Fast inference", size: "~4.1 GB" },
-    { name: "codellama:7b", descKey: "codellama", desc: "Code Llama 7B — Code", size: "~3.8 GB" },
-    { name: "gemma2:9b", descKey: "gemma2", desc: "Google Gemma 2 9B", size: "~5.4 GB" },
-    { name: "phi3:mini", descKey: "phi3", desc: "Microsoft Phi-3 Mini", size: "~2.3 GB" },
-    { name: "llava:7b", descKey: "llava", desc: "LLaVA 7B — Multimodal vision", size: "~4.5 GB" },
-];
-
-function ModelCard({
-    model,
-    onDelete,
-    onActivate,
-    isActive,
-}: {
-    model: OllamaModel;
-    onDelete: () => void;
-    onActivate: () => void;
-    isActive: boolean;
-}) {
-    const t = useTranslate();
-    return (
-        <div className={`bg-card/80 dark:bg-card/50 border rounded-xl p-3.5 group transition-all duration-150 ${
-            isActive ? "border-primary/30 ring-1 ring-primary/15" : "border-border/50 dark:border-white/[0.06] hover:border-primary/20"
-        }`} style={{ boxShadow: 'var(--panel-shadow)' }}>
-            <div className="flex items-start justify-between">
-                <div className="flex items-center gap-3 min-w-0">
-                    <div className="w-9 h-9 rounded-lg bg-muted/20 border border-border/50 dark:border-white/[0.06] flex items-center justify-center shrink-0">
-                        <Cpu className="w-4 h-4 text-primary" />
-                    </div>
-                    <div className="min-w-0">
-                        <div className="flex items-center gap-2">
-                            <span className="text-sm font-semibold text-foreground truncate font-mono">{model.name}</span>
-                            <span className="text-[9px] px-1.5 py-0.5 rounded bg-muted text-muted-foreground font-mono">{model.tag}</span>
-                            {isActive && <span className="text-[9px] px-1.5 py-0.5 rounded bg-primary/10 text-primary font-medium">{t.localModels.active}</span>}
-                        </div>
-                        <div className="flex items-center gap-2 mt-0.5 text-[10px] text-muted-foreground">
-                            <span>{formatModelSize(model.size)}</span>
-                            {model.parameterSize && <span>· {model.parameterSize}</span>}
-                            {model.quantization && <span>· {model.quantization}</span>}
-                            {model.family && <span>· {model.family}</span>}
-                        </div>
-                    </div>
-                </div>
-                <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity shrink-0">
-                    <button
-                        onClick={onActivate}
-                        className="px-2 py-1 rounded-lg text-[10px] font-medium bg-primary/10 text-primary hover:bg-primary/20 transition-colors"
-                    >
-                        <Zap className="w-3 h-3" />
-                    </button>
-                    <button
-                        onClick={onDelete}
-                        className="p-1 rounded-lg hover:bg-destructive/10 text-muted-foreground hover:text-destructive transition-colors"
-                    >
-                        <Trash2 className="w-3.5 h-3.5" />
-                    </button>
-                </div>
-            </div>
-        </div>
-    );
-}
+import LocalModelCard from "@/components/localmodels/LocalModelCard";
+import PullModelDialog from "@/components/localmodels/PullModelDialog";
 
 export default function LocalModelsPage() {
     const t = useTranslate();
@@ -99,7 +21,6 @@ export default function LocalModelsPage() {
     const [loading, setLoading] = useState(false);
     const [pulling, setPulling] = useState<string | null>(null);
     const [pullProgress, setPullProgress] = useState<PullProgress | null>(null);
-    const [customModel, setCustomModel] = useState("");
     const [showPullDialog, setShowPullDialog] = useState(false);
 
     const checkOllama = async () => {
@@ -251,7 +172,7 @@ export default function LocalModelsPage() {
                     ) : (
                         <div className="space-y-2">
                             {models.map((m) => (
-                                <ModelCard
+                                <LocalModelCard
                                     key={`${m.name}:${m.tag}`}
                                     model={m}
                                     isActive={provider === "local" && (activeModel === m.name || activeModel === `${m.name}:${m.tag}`)}
@@ -281,80 +202,12 @@ export default function LocalModelsPage() {
             {/* 拉取对话框 */}
             <AnimatePresence>
                 {showPullDialog && (
-                    <motion.div
-                        initial={{ opacity: 0 }}
-                        animate={{ opacity: 1 }}
-                        exit={{ opacity: 0 }}
-                        className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-sm"
-                        onClick={() => setShowPullDialog(false)}
-                    >
-                        <motion.div
-                            initial={{ scale: 0.95 }}
-                            animate={{ scale: 1 }}
-                            exit={{ scale: 0.95 }}
-                            className="bg-card dark:bg-card border border-border/60 dark:border-white/[0.08] rounded-xl w-[480px] max-w-[90vw] max-h-[80vh] overflow-hidden" style={{ boxShadow: 'var(--panel-shadow)' }}
-                            onClick={(e) => e.stopPropagation()}
-                        >
-                            <div className="flex items-center justify-between p-4 border-b border-border/40">
-                                <h3 className="font-semibold text-foreground">{t.localModels.pullDialogTitle}</h3>
-                                <button onClick={() => setShowPullDialog(false)} className="p-1.5 rounded-lg hover:bg-muted/50 text-muted-foreground hover:text-foreground">
-                                    <X className="w-4 h-4" />
-                                </button>
-                            </div>
-
-                            <div className="p-4 space-y-4 overflow-y-auto max-h-[60vh]">
-                                {/* 自定义输入 */}
-                                <div className="space-y-1.5">
-                                    <label className="text-xs font-medium text-foreground">{t.localModels.modelName}</label>
-                                    <div className="flex gap-2">
-                                        <input
-                                            value={customModel}
-                                            onChange={(e) => setCustomModel(e.target.value)}
-                                            placeholder={t.localModels.modelNamePlaceholder}
-                                            className="flex-1 bg-black/[0.03] dark:bg-white/[0.04] border border-border/50 dark:border-white/[0.06] rounded-lg px-3 py-2 text-sm text-foreground font-mono placeholder:text-muted-foreground/40 focus:outline-none focus:ring-1 focus:ring-primary/30 transition-all"
-                                        />
-                                        <button
-                                            onClick={() => { if (customModel.trim()) { handlePull(customModel.trim()); setShowPullDialog(false); } }}
-                                            disabled={!customModel.trim() || !!pulling}
-                                            className="px-4 py-2 rounded-lg text-xs font-medium bg-primary text-primary-foreground hover:bg-primary/90 disabled:opacity-40 transition-colors"
-                                        >
-                                            {t.localModels.pull}
-                                        </button>
-                                    </div>
-                                </div>
-
-                                {/* 推荐模型 */}
-                                <div className="space-y-1.5">
-                                    <label className="text-xs font-medium text-muted-foreground">{t.localModels.recommendedModels}</label>
-                                    <div className="space-y-1.5">
-                                        {RECOMMENDED_MODELS.map((rm) => {
-                                            const installed = models.some((m) => rm.name.startsWith(m.name));
-                                            return (
-                                                <div key={rm.name} className="flex items-center justify-between p-2.5 rounded-lg bg-black/[0.02] dark:bg-white/[0.03] border border-border/40 dark:border-white/[0.06] hover:border-primary/20 transition-colors">
-                                                    <div>
-                                                        <span className="text-xs font-medium text-foreground font-mono">{rm.name}</span>
-                                                        <p className="text-[10px] text-muted-foreground">{(t.localModels as any)[`rec_${rm.descKey}`] || rm.desc} · {rm.size}</p>
-                                                    </div>
-                                                    {installed ? (
-                                                        <span className="text-[10px] px-2 py-1 rounded-lg text-emerald-500 bg-emerald-500/10 font-medium">{t.localModels.installed}</span>
-                                                    ) : (
-                                                        <button
-                                                            onClick={() => { handlePull(rm.name); setShowPullDialog(false); }}
-                                                            disabled={!!pulling}
-                                                            className="flex items-center gap-1 px-2.5 py-1 rounded-lg text-[10px] font-medium bg-primary/10 text-primary hover:bg-primary/20 transition-colors disabled:opacity-40"
-                                                        >
-                                                            <Download className="w-3 h-3" />
-                                                            {t.localModels.pull}
-                                                        </button>
-                                                    )}
-                                                </div>
-                                            );
-                                        })}
-                                    </div>
-                                </div>
-                            </div>
-                        </motion.div>
-                    </motion.div>
+                    <PullModelDialog
+                        models={models}
+                        pulling={pulling}
+                        onPull={handlePull}
+                        onClose={() => setShowPullDialog(false)}
+                    />
                 )}
             </AnimatePresence>
         </motion.div>

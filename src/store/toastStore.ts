@@ -19,6 +19,12 @@ export const useToastStore = create<ToastState>((set) => ({
     toasts: [],
 
     addToast: (message, type = "info") => {
+        const { toasts } = useToastStore.getState();
+        // 如果已经有相同内容的 Toast 正在显示，则不再重复添加
+        if (toasts.some(t => t.message === message)) {
+            return;
+        }
+
         const id = crypto.randomUUID();
         const toast: Toast = { id, message, type, createdAt: Date.now() };
 

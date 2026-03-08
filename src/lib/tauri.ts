@@ -5,7 +5,7 @@ import { listen, type UnlistenFn } from "@tauri-apps/api/event";
 
 export interface ChatMessage {
     role: "user" | "assistant" | "system" | "tool";
-    content?: string | null;
+    content?: string | null | Array<Record<string, unknown>>;
     tool_calls?: unknown[];
     tool_call_id?: string;
     name?: string;

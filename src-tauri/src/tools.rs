@@ -8,31 +8,36 @@ use once_cell::sync::Lazy;
 static WORKSPACE_PATH: Lazy<Mutex<Option<PathBuf>>> = Lazy::new(|| Mutex::new(None));
 
 /// 检查路径是否在已授权的工作目录内
+/// 如果用户未设置工作目录，默认以 $HOME 作为安全边界
 fn is_path_allowed(target: &Path) -> Result<(), String> {
     let ws = WORKSPACE_PATH.lock().map_err(|e| format!("锁异常: {}", e))?;
-    match ws.as_ref() {
-        Some(workspace) => {
-            let canonical_target = target.canonicalize()
-                .or_else(|_| {
-                    // 文件可能尚不存在（写入场景），检查父目录
-                    target.parent()
-                        .and_then(|p| p.canonicalize().ok())
-                        .map(|p| p.join(target.file_name().unwrap_or_default()))
-                        .ok_or_else(|| format!("无法解析路径: {}", target.display()))
-                })?;
-            let canonical_ws = workspace.canonicalize()
-                .map_err(|e| format!("无法解析工作目录: {}", e))?;
-            if canonical_target.starts_with(&canonical_ws) {
-                Ok(())
-            } else {
-                Err(format!("⛔ 安全限制：路径 {} 不在已授权的工作目录 {} 内",
-                    target.display(), workspace.display()))
-            }
-        }
+    let boundary = match ws.as_ref() {
+        Some(workspace) => workspace.clone(),
         None => {
-            // 未设置工作目录时放行（兼容旧逻辑）
-            Ok(())
+            // 未设置工作目录时，默认以用户 Home 目录为边界
+            let home = std::env::var("HOME")
+                .or_else(|_| std::env::var("USERPROFILE"))
+                .map(PathBuf::from)
+                .unwrap_or_else(|_| PathBuf::from("/"));
+            home
         }
+    };
+
+    let canonical_target = target.canonicalize()
+        .or_else(|_| {
+            // 文件可能尚不存在（写入场景），检查父目录
+            target.parent()
+                .and_then(|p| p.canonicalize().ok())
+                .map(|p| p.join(target.file_name().unwrap_or_default()))
+                .ok_or_else(|| format!("无法解析路径: {}", target.display()))
+        })?;
+    let canonical_ws = boundary.canonicalize()
+        .map_err(|e| format!("无法解析工作目录: {}", e))?;
+    if canonical_target.starts_with(&canonical_ws) {
+        Ok(())
+    } else {
+        Err(format!("⛔ 安全限制：路径 {} 不在已授权的工作范围 {} 内",
+            target.display(), boundary.display()))
     }
 }
 
@@ -112,34 +117,51 @@ pub struct DirEntry {
 
 fn get_full_path() -> String {
     let sys_path = std::env::var("PATH").unwrap_or_default();
-    let home = std::env::var("HOME").unwrap_or_else(|_| "/Users".to_string());
+    let separator = if cfg!(target_os = "windows") { ";" } else { ":" };
 
-    // 补充 macOS 常见工具路径
-    let extra_paths = vec![
-        format!("{home}/.cargo/bin"),
-        format!("{home}/.local/bin"),
-        format!("{home}/.nvm/versions/node/*/bin"), // nvm
-        "/opt/homebrew/bin".to_string(),
-        "/opt/homebrew/sbin".to_string(),
-        "/usr/local/bin".to_string(),
-        "/usr/local/sbin".to_string(),
-        "/usr/bin".to_string(),
-        "/usr/sbin".to_string(),
-        "/bin".to_string(),
-        "/sbin".to_string(),
-        format!("{home}/.volta/bin"),       // volta
-        format!("{home}/.fnm/aliases/default/bin"), // fnm
-        format!("{home}/.pyenv/shims"),     // pyenv
-        format!("{home}/.rbenv/shims"),     // rbenv
-    ];
+    let home = std::env::var("HOME")
+        .or_else(|_| std::env::var("USERPROFILE"))
+        .unwrap_or_else(|_| if cfg!(target_os = "windows") { "C:\\Users".to_string() } else { "/Users".to_string() });
+
+    let extra_paths: Vec<String> = if cfg!(target_os = "windows") {
+        vec![
+            format!("{}\\AppData\\Roaming\\npm", home),
+            format!("{}\\.cargo\\bin", home),
+            format!("{}\\AppData\\Local\\Programs\\Python", home),
+            format!("{}\\scoop\\shims", home),
+            format!("{}\\.volta\\bin", home),
+            "C:\\Program Files\\nodejs".to_string(),
+            "C:\\Program Files\\Git\\cmd".to_string(),
+            "C:\\Program Files\\Git\\bin".to_string(),
+        ]
+    } else {
+        // macOS 常见工具路径
+        vec![
+            format!("{home}/.cargo/bin"),
+            format!("{home}/.local/bin"),
+            format!("{home}/.nvm/versions/node/*/bin"),
+            "/opt/homebrew/bin".to_string(),
+            "/opt/homebrew/sbin".to_string(),
+            "/usr/local/bin".to_string(),
+            "/usr/local/sbin".to_string(),
+            "/usr/bin".to_string(),
+            "/usr/sbin".to_string(),
+            "/bin".to_string(),
+            "/sbin".to_string(),
+            format!("{home}/.volta/bin"),
+            format!("{home}/.fnm/aliases/default/bin"),
+            format!("{home}/.pyenv/shims"),
+            format!("{home}/.rbenv/shims"),
+        ]
+    };
 
     let mut all_paths: Vec<String> = extra_paths;
-    for p in sys_path.split(':') {
-        if !all_paths.contains(&p.to_string()) {
+    for p in sys_path.split(separator) {
+        if !p.is_empty() && !all_paths.contains(&p.to_string()) {
             all_paths.push(p.to_string());
         }
     }
-    all_paths.join(":")
+    all_paths.join(separator)
 }
 
 // ── 工具 1: 执行命令 ─────────────────────────────────────
@@ -191,8 +213,35 @@ pub async fn tool_run_command(app: tauri::AppHandle, command: String, cwd: Optio
         let shell = if cfg!(target_os = "windows") { "cmd" } else { "sh" };
         let flag = if cfg!(target_os = "windows") { "/C" } else { "-c" };
 
+        let sandbox_enabled = std::env::var("SINACLAW_SANDBOX").unwrap_or_default() == "1";
+
+        // 危险命令过滤（跨平台）
+        if sandbox_enabled {
+            let blocked = if cfg!(target_os = "windows") {
+                vec!["format c:", "del /s /q c:\\", "rd /s /q c:\\", "shutdown", "reg delete"]
+            } else {
+                vec!["rm -rf /", "shutdown", "reboot", "mkfs", "dd if=/dev/zero"]
+            };
+            for b in &blocked {
+                if command.contains(b) {
+                    return Err(format!("⛔ 沙箱阻止了危险命令: {}", command));
+                }
+            }
+        }
+
         let wrapped_command = if cfg!(target_os = "windows") {
-            command.clone()
+            if sandbox_enabled {
+                // Windows 无 timeout 命令，用 cmd 直接执行
+                format!("set \"PATH={}\" && {}", get_full_path(), command)
+            } else {
+                format!("set \"PATH={}\" && {}", get_full_path(), command)
+            }
+        } else if sandbox_enabled {
+            format!(
+                "export PATH=\"{}\"; timeout 30 {}",
+                get_full_path(),
+                command
+            )
         } else {
             format!(
                 "export PATH=\"{}\"; {}",
@@ -327,7 +376,15 @@ pub async fn tool_list_dir(path: String) -> Result<Vec<DirEntry>, String> {
     Ok(entries)
 }
 
-// ── 工具 5: 检测环境 ─────────────────────────────────────
+// ── 工具 5: 跨平台文件/目录存在性检测 ──────────────────────
+
+#[tauri::command]
+pub async fn tool_file_exists(path: String) -> Result<bool, String> {
+    let p = Path::new(&path);
+    Ok(p.exists())
+}
+
+// ── 工具 6: 检测环境 ─────────────────────────────────────
 
 #[tauri::command]
 pub async fn tool_detect_env() -> Result<EnvInfo, String> {
@@ -429,7 +486,12 @@ fn truncate_output(s: &str, max_len: usize) -> String {
     if s.len() <= max_len {
         s.to_string()
     } else {
-        let truncated = &s[..max_len];
+        // 在 UTF-8 字符边界安全截断，避免多字节字符被切断导致 panic
+        let mut end = max_len;
+        while end > 0 && !s.is_char_boundary(end) {
+            end -= 1;
+        }
+        let truncated = &s[..end];
         format!("{}...\n\n[输出已截断，共 {} 字符]", truncated, s.len())
     }
 }

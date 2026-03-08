@@ -12,13 +12,13 @@ export default function AnimatedBackground() {
             />
 
             {/* Animated Blobs / Orbs */}
-            <div className="absolute top-0 -left-1/4 w-1/2 h-1/2 bg-primary/20 blur-[120px] rounded-full mix-blend-screen animate-blob" />
+            <div className="absolute top-0 -left-1/4 w-1/2 h-1/2 bg-primary/10 dark:bg-primary/15 blur-[150px] rounded-full animate-blob" />
             <div
-                className="absolute bottom-0 -right-1/4 w-1/2 h-1/2 bg-indigo-500/20 blur-[120px] rounded-full mix-blend-screen animate-blob"
+                className="absolute bottom-0 -right-1/4 w-1/2 h-1/2 bg-blue-400/8 dark:bg-indigo-500/12 blur-[150px] rounded-full animate-blob"
                 style={{ animationDelay: '2s' }}
             />
             <div
-                className="absolute top-1/4 left-1/4 w-1/2 h-1/2 bg-violet-600/15 blur-[120px] rounded-full mix-blend-screen animate-blob"
+                className="absolute top-1/4 left-1/4 w-1/3 h-1/3 bg-violet-400/6 dark:bg-violet-500/10 blur-[120px] rounded-full animate-blob"
                 style={{ animationDelay: '4s' }}
             />
 

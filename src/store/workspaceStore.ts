@@ -1,6 +1,7 @@
 import { create } from "zustand";
 import { invoke } from "@tauri-apps/api/core";
 import { load } from "@tauri-apps/plugin-store";
+import { homeDir } from "@tauri-apps/api/path";
 
 interface WorkspaceState {
     /** 当前已授权的工作目录绝对路径 */
@@ -18,6 +19,19 @@ interface WorkspaceState {
     closeWorkspace: () => void;
     /** 从持久化存储中恢复上次工作目录 */
     hydrate: () => Promise<void>;
+}
+
+/** 回落到用户 Home 目录作为默认工作上下文 */
+async function fallbackToHome(set: (state: Partial<WorkspaceState>) => void) {
+    try {
+        const home = await homeDir();
+        if (home) {
+            await invoke("set_workspace", { path: home });
+            set({ currentPath: home });
+        }
+    } catch (e) {
+        console.warn("设置默认 Home 目录失败:", e);
+    }
 }
 
 export const useWorkspaceStore = create<WorkspaceState>((set, get) => ({
@@ -95,12 +109,28 @@ export const useWorkspaceStore = create<WorkspaceState>((set, get) => ({
                     await invoke("set_workspace", { path: current });
                     set({ currentPath: current });
                 } catch {
-                    // 目录不存在了，忽略
+                    // 目录不存在了，回落到 Home
                     console.warn("上次工作目录不可用:", current);
+                    await fallbackToHome(set);
                 }
+            } else {
+                // 首次启动：默认以 Home 目录作为工作上下文
+                await fallbackToHome(set);
             }
         } catch (e) {
             console.error("恢复工作目录失败:", e);
+            // 即使恢复失败也尝试设置 Home
+            await fallbackToHome(set);
         }
     },
 }));
+
+declare global {
+    interface Window {
+        useWorkspaceStore?: typeof useWorkspaceStore;
+    }
+}
+
+if (import.meta.env.DEV) {
+    window.useWorkspaceStore = useWorkspaceStore;
+}

@@ -1,224 +1,12 @@
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useState } from "react";
 import { motion } from "framer-motion";
-import {
-    Inbox,
-    Send,
-    Search,
-    CheckCheck,
-    User,
-    Bot,
-    ChevronLeft,
-} from "lucide-react";
-import { useInboxStore, type InboxSession, type InboxMessage } from "@/store/inboxStore";
+import { Inbox, Search } from "lucide-react";
+import { useInboxStore } from "@/store/inboxStore";
 import IconById from "@/components/ui/IconById";
 import { useTranslate } from "@/lib/i18n";
+import InboxSessionItem from "@/components/inbox/InboxSessionItem";
+import InboxChatView from "@/components/inbox/InboxChatView";
 
-function channelColor(channel: string): string {
-    const map: Record<string, string> = {
-        whatsapp: "bg-green-500/15 text-green-600 dark:text-green-400",
-        telegram: "bg-blue-500/15 text-blue-600 dark:text-blue-400",
-        discord: "bg-indigo-500/15 text-indigo-600 dark:text-indigo-400",
-        slack: "bg-purple-500/15 text-purple-600 dark:text-purple-400",
-        imessage: "bg-cyan-500/15 text-cyan-600 dark:text-cyan-400",
-        bluebubbles: "bg-cyan-500/15 text-cyan-600 dark:text-cyan-400",
-        feishu: "bg-blue-500/15 text-blue-600 dark:text-blue-400",
-        line: "bg-emerald-500/15 text-emerald-600 dark:text-emerald-400",
-        webchat: "bg-gray-500/15 text-gray-600 dark:text-gray-400",
-    };
-    return map[channel] || "bg-gray-500/15 text-gray-600 dark:text-gray-400";
-}
-
-function formatTime(ts: number, t: ReturnType<typeof useTranslate>): string {
-    const d = new Date(ts);
-    const now = new Date();
-    const diffMs = now.getTime() - d.getTime();
-    if (diffMs < 60_000) return t.inbox.justNow;
-    if (diffMs < 3600_000) return t.inbox.minutesAgo.replace('{n}', String(Math.floor(diffMs / 60_000)));
-    if (d.toDateString() === now.toDateString()) {
-        return d.toLocaleTimeString("en-GB", { hour: "2-digit", minute: "2-digit", hour12: false });
-    }
-    const yesterday = new Date(now);
-    yesterday.setDate(yesterday.getDate() - 1);
-    if (d.toDateString() === yesterday.toDateString()) return t.inbox.yesterday;
-    return d.toLocaleDateString("zh-CN", { month: "short", day: "numeric" });
-}
-
-/* ── 会话列表项 ── */
-function SessionItem({
-    session,
-    active,
-    onClick,
-}: {
-    session: InboxSession;
-    active: boolean;
-    onClick: () => void;
-}) {
-    const t = useTranslate();
-    return (
-        <button
-            onClick={onClick}
-            className={`w-full text-left px-3 py-3 rounded-xl transition-all ${
-                active
-                    ? "bg-primary/10 border border-primary/20"
-                    : "hover:bg-muted/30 border border-transparent"
-            }`}
-        >
-            <div className="flex items-start gap-3">
-                <div className={`w-9 h-9 rounded-xl flex items-center justify-center shrink-0 ${channelColor(session.channel)}`}>
-                    <IconById id={session.channel} size={18} />
-                </div>
-                <div className="flex-1 min-w-0">
-                    <div className="flex items-center justify-between">
-                        <span className="text-sm font-medium text-foreground truncate">
-                            {session.channelUserName || session.channelUserId || session.channel}
-                        </span>
-                        <span className="text-[10px] text-muted-foreground shrink-0 ml-2">
-                            {formatTime(session.lastMessageAt, t)}
-                        </span>
-                    </div>
-                    <div className="flex items-center justify-between mt-0.5">
-                        <span className="text-xs text-muted-foreground truncate">{session.lastMessage}</span>
-                        {session.unreadCount > 0 && (
-                            <span className="ml-2 shrink-0 min-w-[18px] h-[18px] flex items-center justify-center rounded-full bg-primary text-[10px] font-bold text-white px-1">
-                                {session.unreadCount > 99 ? "99+" : session.unreadCount}
-                            </span>
-                        )}
-                    </div>
-                </div>
-            </div>
-        </button>
-    );
-}
-
-/* ── 消息气泡 ── */
-function MessageBubble({ msg }: { msg: InboxMessage }) {
-    const isOut = msg.direction === "outgoing";
-    return (
-        <div className={`flex ${isOut ? "justify-end" : "justify-start"} mb-2`}>
-            <div className={`flex items-end gap-2 max-w-[75%] ${isOut ? "flex-row-reverse" : ""}`}>
-                {!isOut && (
-                    <div className={`w-7 h-7 rounded-lg flex items-center justify-center shrink-0 ${channelColor(msg.channel)}`}>
-                        <IconById id={msg.channel} size={14} />
-                    </div>
-                )}
-                <div
-                    className={`px-3.5 py-2 rounded-2xl text-sm leading-relaxed ${
-                        isOut
-                            ? "bg-primary text-white rounded-br-md"
-                            : "bg-card/80 dark:bg-card/60 border border-border/40 dark:border-white/[0.06] text-foreground rounded-bl-md"
-                    }`}
-                >
-                    {!isOut && msg.channelUserName && (
-                        <div className="text-[10px] font-medium text-muted-foreground mb-0.5">
-                            {msg.channelUserName}
-                        </div>
-                    )}
-                    <p className="whitespace-pre-wrap break-words">{msg.content}</p>
-                    <div className={`flex items-center gap-1 mt-1 ${isOut ? "justify-end" : ""}`}>
-                        <span className={`text-[10px] ${isOut ? "text-white/60" : "text-muted-foreground/60"}`}>
-                            {new Date(msg.createdAt).toLocaleTimeString("en-GB", { hour: "2-digit", minute: "2-digit", hour12: false })}
-                        </span>
-                        {isOut && <CheckCheck className="w-3 h-3 text-white/60" />}
-                    </div>
-                </div>
-            </div>
-        </div>
-    );
-}
-
-/* ── 聊天视图 ── */
-function ChatView({
-    session,
-    messages,
-    onSend,
-    onBack,
-}: {
-    session: InboxSession;
-    messages: InboxMessage[];
-    onSend: (content: string) => void;
-    onBack: () => void;
-}) {
-    const t = useTranslate();
-    const [input, setInput] = useState("");
-    const scrollRef = useRef<HTMLDivElement>(null);
-
-    useEffect(() => {
-        if (scrollRef.current) {
-            scrollRef.current.scrollTop = scrollRef.current.scrollHeight;
-        }
-    }, [messages]);
-
-    const handleSend = () => {
-        if (!input.trim()) return;
-        onSend(input.trim());
-        setInput("");
-    };
-
-    return (
-        <div className="flex flex-col h-full">
-            {/* 头部 */}
-            <div className="flex items-center gap-3 px-4 py-3 border-b border-border/40">
-                <button onClick={onBack} className="md:hidden p-1 rounded-lg hover:bg-muted/50 text-muted-foreground">
-                    <ChevronLeft className="w-5 h-5" />
-                </button>
-                <div className={`w-9 h-9 rounded-xl flex items-center justify-center ${channelColor(session.channel)}`}>
-                    <IconById id={session.channel} size={18} />
-                </div>
-                <div className="flex-1 min-w-0">
-                    <div className="text-sm font-semibold text-foreground truncate">
-                        {session.channelUserName || session.channelUserId}
-                    </div>
-                    <div className="flex items-center gap-1.5 text-[11px] text-muted-foreground">
-                        <span className="capitalize">{session.channel}</span>
-                        <span>·</span>
-                        <span className={`flex items-center gap-0.5 ${
-                            session.status === "active" ? "text-emerald-500" :
-                            session.status === "agent" ? "text-blue-500" : "text-muted-foreground"
-                        }`}>
-                            {session.status === "agent" ? <Bot className="w-3 h-3" /> : <User className="w-3 h-3" />}
-                            {session.status === "active" ? t.inbox.active : session.status === "agent" ? t.inbox.agentHandling : t.inbox.closed}
-                        </span>
-                    </div>
-                </div>
-            </div>
-
-            {/* 消息区 */}
-            <div ref={scrollRef} className="flex-1 overflow-y-auto px-4 py-3">
-                {messages.length === 0 ? (
-                    <div className="flex flex-col items-center justify-center h-full text-muted-foreground/40 gap-1.5">
-                        <Send className="w-5 h-5" />
-                        <span className="text-xs font-medium">{t.inbox.noMessagesYet}</span>
-                    </div>
-                ) : (
-                    messages.map((msg) => <MessageBubble key={msg.id} msg={msg} />)
-                )}
-            </div>
-
-            {/* 输入框 */}
-            <div className="px-4 py-3 border-t border-border/40">
-                <div className="flex items-center gap-2">
-                    <input
-                        type="text"
-                        value={input}
-                        onChange={(e) => setInput(e.target.value)}
-                        onKeyDown={(e) => { if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); handleSend(); } }}
-                        placeholder={t.inbox.replyPlaceholder}
-                        className="flex-1 bg-black/[0.03] dark:bg-white/[0.04] border border-border/50 dark:border-white/[0.06] rounded-lg px-3.5 py-2.5 text-sm text-foreground placeholder:text-muted-foreground/40 focus:outline-none focus:ring-1 focus:ring-primary/30 transition-all"
-                    />
-                    <button
-                        onClick={handleSend}
-                        disabled={!input.trim()}
-                        className="p-2.5 rounded-lg bg-primary text-white hover:bg-primary/90 disabled:opacity-40 transition-colors"
-                    >
-                        <Send className="w-4 h-4" />
-                    </button>
-                </div>
-            </div>
-        </div>
-    );
-}
-
-/* ── 主页面 ── */
 export default function InboxPage() {
     const t = useTranslate();
     const {
@@ -335,7 +123,7 @@ export default function InboxPage() {
                         </div>
                     ) : (
                         filtered.map((s) => (
-                            <SessionItem
+                            <InboxSessionItem
                                 key={s.id}
                                 session={s}
                                 active={s.id === activeSessionId}
@@ -349,7 +137,7 @@ export default function InboxPage() {
             {/* 右侧：聊天视图 */}
             <div className={`${activeSession ? "flex" : "hidden md:flex"} flex-1 flex-col min-w-0`}>
                 {activeSession ? (
-                    <ChatView
+                    <InboxChatView
                         session={activeSession}
                         messages={activeMessages}
                         onSend={(content) => sendReply(activeSessionId!, content)}

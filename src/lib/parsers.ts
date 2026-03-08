@@ -1,5 +1,6 @@
 import * as pdfjsLib from "pdfjs-dist";
 import mammoth from "mammoth";
+import * as XLSX from "xlsx";
 
 // 配置 pdf.js worker
 pdfjsLib.GlobalWorkerOptions.workerSrc = `//cdnjs.cloudflare.com/ajax/libs/pdf.js/${pdfjsLib.version}/pdf.worker.min.mjs`;
@@ -19,6 +20,17 @@ export async function extractTextFromFile(file: File): Promise<string> {
             name.endsWith(".docx")
         ) {
             return await parseDocx(file);
+        } else if (
+            name.endsWith(".xlsx") || name.endsWith(".xls") ||
+            type === "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" ||
+            type === "application/vnd.ms-excel"
+        ) {
+            return await parseExcel(file);
+        } else if (
+            name.endsWith(".pptx") ||
+            type === "application/vnd.openxmlformats-officedocument.presentationml.presentation"
+        ) {
+            return await parsePptx(file);
         } else if (
             type.startsWith("text/") ||
             name.endsWith(".txt") ||
@@ -69,4 +81,34 @@ async function parseDocx(file: File): Promise<string> {
     const arrayBuffer = await file.arrayBuffer();
     const result = await mammoth.extractRawText({ arrayBuffer });
     return result.value.trim();
+}
+
+async function parseExcel(file: File): Promise<string> {
+    const arrayBuffer = await file.arrayBuffer();
+    const workbook = XLSX.read(arrayBuffer, { type: "array" });
+    const parts: string[] = [];
+    for (const sheetName of workbook.SheetNames) {
+        const sheet = workbook.Sheets[sheetName];
+        const csv = XLSX.utils.sheet_to_csv(sheet);
+        if (csv.trim()) {
+            parts.push(`## Sheet: ${sheetName}\n${csv}`);
+        }
+    }
+    return parts.join("\n\n").trim();
+}
+
+async function parsePptx(file: File): Promise<string> {
+    // PPTX 是 ZIP 包含 XML slides，使用简单的文本提取
+    const arrayBuffer = await file.arrayBuffer();
+    const uint8 = new Uint8Array(arrayBuffer);
+    // 简单方式：搜索 XML 文本节点中的内容
+    const decoder = new TextDecoder("utf-8", { fatal: false });
+    const rawText = decoder.decode(uint8);
+    // 提取 <a:t>...</a:t> 标签中的文本（PowerPoint XML 格式）
+    const matches = rawText.match(/<a:t>([^<]*)<\/a:t>/g);
+    if (!matches || matches.length === 0) {
+        throw new Error("无法从 PPTX 文件中提取文本内容");
+    }
+    const texts = matches.map((m) => m.replace(/<\/?a:t>/g, "")).filter(Boolean);
+    return texts.join(" ").replace(/\s{3,}/g, "  ").trim();
 }

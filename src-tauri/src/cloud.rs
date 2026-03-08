@@ -87,10 +87,26 @@ fn delete_token_from_keychain(provider: &str) -> Result<(), String> {
     Ok(())
 }
 
-// ── 编译时注入的 OAuth 凭据 ─────────────────────────────
-// 通过 .cargo/config.toml 的 [env] 注入，CI/CD 通过环境变量注入
+// ── OAuth 凭据管理 ──────────────────────────────────────
+// 优先从 Keychain 读取用户运行时配置的凭据，回退到编译时环境变量
+
+const CREDENTIALS_KEYCHAIN_SERVICE: &str = "com.sinaclaw.oauth.credentials";
 
 fn get_oauth_credentials(provider: &str) -> Result<(String, String), String> {
+    // 1. 优先从 Keychain 读取用户配置的凭据
+    if let Ok(entry) = keyring::Entry::new(CREDENTIALS_KEYCHAIN_SERVICE, provider) {
+        if let Ok(json) = entry.get_password() {
+            if let Ok(creds) = serde_json::from_str::<serde_json::Value>(&json) {
+                let client_id = creds["client_id"].as_str().unwrap_or("").to_string();
+                let client_secret = creds["client_secret"].as_str().unwrap_or("").to_string();
+                if !client_id.is_empty() && !client_secret.is_empty() {
+                    return Ok((client_id, client_secret));
+                }
+            }
+        }
+    }
+
+    // 2. 回退到编译时环境变量
     match provider {
         "google_drive" => Ok((
             option_env!("SINACLAW_GOOGLE_CLIENT_ID").unwrap_or("").to_string(),
@@ -106,6 +122,37 @@ fn get_oauth_credentials(provider: &str) -> Result<(String, String), String> {
         )),
         _ => Err(format!("不支持的提供商: {}", provider)),
     }
+}
+
+/// 保存用户配置的 OAuth 凭据到 Keychain
+#[tauri::command]
+pub async fn cloud_save_credentials(
+    provider: String,
+    client_id: String,
+    client_secret: String,
+) -> Result<String, String> {
+    let entry = keyring::Entry::new(CREDENTIALS_KEYCHAIN_SERVICE, &provider)
+        .map_err(|e| format!("Keychain 错误: {}", e))?;
+    let json = serde_json::json!({
+        "client_id": client_id,
+        "client_secret": client_secret
+    }).to_string();
+    entry.set_password(&json)
+        .map_err(|e| format!("保存凭据失败: {}", e))?;
+    Ok(format!("✅ {} OAuth 凭据已保存", provider))
+}
+
+/// 获取已保存的 OAuth 凭据（不包含 secret 明文，仅返回是否已配置）
+#[tauri::command]
+pub async fn cloud_get_credentials(
+    provider: String,
+) -> Result<serde_json::Value, String> {
+    let (client_id, client_secret) = get_oauth_credentials(&provider)?;
+    Ok(serde_json::json!({
+        "configured": !client_id.is_empty() && !client_secret.is_empty(),
+        "client_id": client_id,
+        "has_secret": !client_secret.is_empty(),
+    }))
 }
 
 // ── OAuth2 配置 ──────────────────────────────────────────

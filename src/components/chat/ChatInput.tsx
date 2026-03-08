@@ -1,16 +1,12 @@
-import { Plus, Image as ImageIcon, Mic, Send, StopCircle, Loader2, FileSpreadsheet, AtSign, Sparkles } from "lucide-react";
+import { Plus, Image as ImageIcon, Mic, Send, StopCircle, Loader2, FileSpreadsheet, Sparkles } from "lucide-react";
 import { useChatStore } from "@/store/chatStore";
-import { useRef, useState } from "react";
-import { extractTextFromFile } from "@/lib/parsers";
-import { splitText } from "@/lib/textSplitter";
-import { generateEmbeddings } from "@/lib/embeddings";
-import { saveDocument, saveChunks } from "@/lib/db";
+import { useState } from "react";
 import { useToastStore } from "@/store/toastStore";
 import { useTranslate } from "@/lib/i18n";
-import { useSettingsStore } from "@/store/settingsStore";
-import { useAgentStore } from "@/store/agentStore";
 import Tooltip from "@/components/ui/Tooltip";
-import AgentAvatar from "@/components/ui/AgentAvatar";
+import { useChatFileProcessor } from "@/hooks/useChatFileProcessor";
+import { useChatVoiceInput } from "@/hooks/useChatVoiceInput";
+import ChatMentionDropdown from "@/components/chat/ChatMentionDropdown";
 
 // 数据文件扩展名
 const DATA_FILE_EXTENSIONS = [".csv", ".xlsx", ".xls", ".tsv"];
@@ -22,38 +18,35 @@ interface ChatInputProps {
 export default function ChatInput({ onSend }: ChatInputProps) {
     const t = useTranslate();
     const { inputValue, setInputValue, isGenerating } = useChatStore();
-    const fileInputRef = useRef<HTMLInputElement>(null);
-    const imageInputRef = useRef<HTMLInputElement>(null);
     const { addToast } = useToastStore();
 
-    // 文件处理状态
-    const [isProcessingFile, setIsProcessingFile] = useState(false);
-    const [processStatus, setProcessStatus] = useState("");
+    const {
+        fileInputRef,
+        imageInputRef,
+        isProcessingFile,
+        processStatus,
+        pendingImages,
+        processFile,
+        handleFileSelect,
+        handleImageSelect,
+        handlePaste,
+        removePendingImage,
+        clearPendingImages,
+    } = useChatFileProcessor();
+
+    const { isRecording, isTranscribing, transcribeStatus, startRecording, stopRecording } = useChatVoiceInput();
+
     const [isDragging, setIsDragging] = useState(false);
-
-    // 录音状态
-    const [isRecording, setIsRecording] = useState(false);
-    const [mediaRecorder, setMediaRecorder] = useState<MediaRecorder | null>(null);
-    const audioChunksRef = useRef<Blob[]>([]);
-    const { apiKey } = useSettingsStore();
-    // 图片附件状态
-    const [pendingImages, setPendingImages] = useState<string[]>([]);
-
-    // @Agent 提及状态
     const [showMentions, setShowMentions] = useState(false);
     const [mentionFilter, setMentionFilter] = useState("");
-    const agents = useAgentStore(state => state.agents);
-
-    // Deep Research 快捷切换状态
     const [isDeepResearchMode, setIsDeepResearchMode] = useState(false);
 
-    // 数据文件拖入状态
-
+    const isBusy = isProcessingFile || isTranscribing;
+    const statusText = processStatus || transcribeStatus;
 
     const handleSend = () => {
-        if ((!inputValue.trim() && pendingImages.length === 0) || isGenerating || isProcessingFile) return;
+        if ((!inputValue.trim() && pendingImages.length === 0) || isGenerating || isBusy) return;
 
-        // 如果开启了深研模式且内容未以/research打头，则自动前缀
         let finalMessage = inputValue.trim();
         if (isDeepResearchMode && !finalMessage.startsWith("/research ") && !finalMessage.startsWith("/deep ")) {
             finalMessage = `/research ${finalMessage}`;
@@ -61,13 +54,11 @@ export default function ChatInput({ onSend }: ChatInputProps) {
 
         onSend(finalMessage, pendingImages.length > 0 ? pendingImages : undefined);
         setInputValue("");
-        setPendingImages([]);
+        clearPendingImages();
     };
 
     const handleKeyDown = (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
-        // @Agent 提及触发
         if (e.key === "@" || (e.key === "@" && !e.shiftKey)) {
-            // 下一个 tick 检测 @ 符号
             setTimeout(() => {
                 const val = (e.target as HTMLTextAreaElement).value;
                 const lastAt = val.lastIndexOf("@");
@@ -87,176 +78,12 @@ export default function ChatInput({ onSend }: ChatInputProps) {
         }
     };
 
-    const handleFileSelect = async (e: React.ChangeEvent<HTMLInputElement>) => {
-        const file = e.target.files?.[0];
-        if (file) await processFile(file);
-        if (fileInputRef.current) fileInputRef.current.value = "";
-    };
-
-    const processFile = async (file: File) => {
-        setIsProcessingFile(true);
-        try {
-            const parsingText = t.chat.parsingFile.replace('{name}', file.name);
-            setProcessStatus(parsingText);
-            const text = await extractTextFromFile(file);
-
-            const chunkingText = t.chat.chunking;
-            setProcessStatus(chunkingText);
-            const chunks = splitText(text, { chunkSize: 800, overlap: 150 });
-
-            const embeddingText = t.chat.generatingEmbeddings.replace('{count}', String(chunks.length));
-            setProcessStatus(embeddingText);
-            const embeddings = await generateEmbeddings(chunks);
-
-            const savingText = t.chat.savingKnowledge;
-            setProcessStatus(savingText);
-            const doc = await saveDocument(file.name, file.type || "text/plain", file.size);
-
-            const chunksToSave = chunks.map((content, i) => ({
-                content,
-                embedding: embeddings[i]
-            }));
-
-            await saveChunks(doc.id, chunksToSave);
-
-            const successText = t.chat.fileAddedToKnowledge.replace('{name}', file.name);
-            addToast(successText, "success");
-
-        } catch (error) {
-            console.error("处理文件失败:", error);
-            const failText = t.common.error + ": " + (error instanceof Error ? error.message : String(error));
-            addToast(failText, "error");
-        } finally {
-            setIsProcessingFile(false);
-            setProcessStatus("");
-        }
-    };
-
-    // 图片选择处理
-    const handleImageSelect = async (e: React.ChangeEvent<HTMLInputElement>) => {
-        const files = e.target.files;
-        if (!files) return;
-        for (const file of Array.from(files)) {
-            if (!file.type.startsWith("image/")) continue;
-            const dataUrl = await fileToDataUrl(file);
-            setPendingImages(prev => [...prev, dataUrl]);
-        }
-        if (imageInputRef.current) imageInputRef.current.value = "";
-    };
-
-    // 将文件转为 base64 data URL
-    const fileToDataUrl = (file: File): Promise<string> => {
-        return new Promise((resolve, reject) => {
-            const reader = new FileReader();
-            reader.onload = () => resolve(reader.result as string);
-            reader.onerror = reject;
-            reader.readAsDataURL(file);
-        });
-    };
-
-    // 监听粘贴图片
-    const handlePaste = async (e: React.ClipboardEvent) => {
-        const items = e.clipboardData?.items;
-        if (!items) return;
-        for (const item of Array.from(items)) {
-            if (item.type.startsWith("image/")) {
-                e.preventDefault();
-                const file = item.getAsFile();
-                if (file) {
-                    const dataUrl = await fileToDataUrl(file);
-                    setPendingImages(prev => [...prev, dataUrl]);
-                }
-            }
-        }
-    };
-
-    // 录音逻辑实现
-    const startRecording = async () => {
-        try {
-            const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
-            const recorder = new MediaRecorder(stream);
-
-            audioChunksRef.current = [];
-            recorder.ondataavailable = (e) => {
-                if (e.data.size > 0) audioChunksRef.current.push(e.data);
-            };
-
-            recorder.onstop = async () => {
-                const audioBlob = new Blob(audioChunksRef.current, { type: 'audio/webm' });
-                await transcribeAudio(audioBlob);
-                // 停止所有轨道以清除麦克风图标
-                stream.getTracks().forEach(track => track.stop());
-            };
-
-            recorder.start();
-            setMediaRecorder(recorder);
-            setIsRecording(true);
-        } catch (err) {
-            console.error("无法开启录音:", err);
-            addToast(t.chat.cannotAccessMic, "error");
-        }
-    };
-
-    const stopRecording = () => {
-        if (mediaRecorder && isRecording) {
-            mediaRecorder.stop();
-            setIsRecording(false);
-            setMediaRecorder(null);
-        }
-    };
-
-    const transcribeAudio = async (blob: Blob) => {
-        if (!apiKey) {
-            addToast(t.chat.configureApiKeyFirst, "error");
-            return;
-        }
-
-        setIsProcessingFile(true);
-        setProcessStatus(t.chat.transcribing);
-
-        try {
-            const formData = new FormData();
-            formData.append("file", blob, "recording.webm");
-            formData.append("model", "whisper-1");
-
-            // 这里默认使用 OpenAI 的 Whisper 接口格式，大部分兼容 Provider 也支持
-            const response = await fetch("https://api.openai.com/v1/audio/transcriptions", {
-                method: "POST",
-                headers: {
-                    "Authorization": `Bearer ${apiKey}`,
-                },
-                body: formData
-            });
-
-            if (!response.ok) {
-                const errData = await response.json();
-                throw new Error(errData.error?.message || t.chat.transcriptionFailed);
-            }
-
-            const data = await response.json();
-            if (data.text) {
-                setInputValue(inputValue ? inputValue + " " + data.text : data.text);
-            }
-        } catch (error) {
-            console.error("STT Error:", error);
-            addToast(t.chat.sttFailed.replace('{error}', error instanceof Error ? error.message : String(error)), "error");
-        } finally {
-            setIsProcessingFile(false);
-            setProcessStatus("");
-        }
-    };
-
     return (
         <div
             className="p-4 w-full max-w-4xl mx-auto mb-2"
             onDragOver={(e) => {
                 e.preventDefault();
                 setIsDragging(true);
-                // 检测是否为数据文件
-                const items = e.dataTransfer?.items;
-                if (items && items.length > 0) {
-                    // 预留检测逻辑
-                }
             }}
             onDragLeave={() => { setIsDragging(false); }}
             onDrop={(e) => {
@@ -266,7 +93,6 @@ export default function ChatInput({ onSend }: ChatInputProps) {
                 if (file) {
                     const ext = "." + file.name.split(".").pop()?.toLowerCase();
                     if (DATA_FILE_EXTENSIONS.includes(ext)) {
-                        // 数据文件 → 自动提示分析
                         const prompt = t.chat.analyzeFilePrompt.replace('{name}', file.name);
                         setInputValue(prompt);
                         processFile(file);
@@ -312,11 +138,11 @@ export default function ChatInput({ onSend }: ChatInputProps) {
                     onChange={handleImageSelect}
                 />
 
-                {isProcessingFile && (
+                {isBusy && (
                     <div className="absolute top-0 left-0 right-0 -translate-y-full pb-3">
                         <div className="bg-card/90 border border-border/60 dark:border-white/[0.08] rounded-xl px-5 py-3 flex items-center gap-3 text-sm text-primary mx-auto w-max max-w-[90%]" style={{ boxShadow: 'var(--panel-shadow)' }}>
                             <Loader2 className="w-4 h-4 animate-spin shrink-0" />
-                            <span className="truncate font-medium">{processStatus}</span>
+                            <span className="truncate font-medium">{statusText}</span>
                         </div>
                     </div>
                 )}
@@ -327,7 +153,7 @@ export default function ChatInput({ onSend }: ChatInputProps) {
                             <div key={i} className="relative group">
                                 <img src={img} alt="" className="w-16 h-16 object-cover rounded-xl border border-border/60 dark:border-white/[0.12]" />
                                 <button
-                                    onClick={() => setPendingImages(prev => prev.filter((_, idx) => idx !== i))}
+                                    onClick={() => removePendingImage(i)}
                                     className="absolute -top-1.5 -right-1.5 w-5 h-5 bg-destructive text-destructive-foreground rounded-full text-xs flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity"
                                 >×</button>
                             </div>
@@ -339,7 +165,6 @@ export default function ChatInput({ onSend }: ChatInputProps) {
                     value={inputValue}
                     onChange={(e) => {
                         setInputValue(e.target.value);
-                        // @Agent 提及过滤
                         const val = e.target.value;
                         const lastAt = val.lastIndexOf("@");
                         if (lastAt >= 0 && showMentions) {
@@ -358,38 +183,7 @@ export default function ChatInput({ onSend }: ChatInputProps) {
 
                 {/* @Agent 提及下拉面板 */}
                 {showMentions && (
-                    <div className="absolute bottom-full mb-2 left-4 right-4 bg-card dark:bg-card border border-border/60 dark:border-white/[0.08] rounded-xl overflow-hidden z-50 animate-in slide-in-from-bottom-2 duration-200" style={{ boxShadow: 'var(--panel-shadow)' }}>
-                        <div className="px-3 py-2 border-b border-border/40 flex items-center gap-2">
-                            <AtSign className="w-3.5 h-3.5 text-primary" />
-                            <span className="text-xs font-semibold text-muted-foreground">{t.chat.selectAgent}</span>
-                        </div>
-                        <div className="max-h-48 overflow-y-auto">
-                            {agents
-                                .filter(a => a.role === "primary")
-                                .filter(a => a.name.toLowerCase().includes(mentionFilter.toLowerCase()))
-                                .map(agent => (
-                                    <button
-                                        key={agent.id}
-                                        className="w-full flex items-center gap-3 px-4 py-2.5 hover:bg-muted/40 transition-colors cursor-pointer text-left"
-                                        onClick={() => {
-                                            const lastAt = inputValue.lastIndexOf("@");
-                                            const newVal = inputValue.slice(0, lastAt) + `@${agent.name} `;
-                                            setInputValue(newVal);
-                                            setShowMentions(false);
-                                        }}
-                                    >
-                                        <AgentAvatar avatar={agent.avatar} size={18} className="text-foreground/70" />
-                                        <div>
-                                            <div className="text-sm font-semibold text-foreground">{agent.name}</div>
-                                            <div className="text-xs text-muted-foreground truncate max-w-[200px]">{agent.description}</div>
-                                        </div>
-                                    </button>
-                                ))}
-                            {agents.filter(a => a.role === "primary" && a.name.toLowerCase().includes(mentionFilter.toLowerCase())).length === 0 && (
-                                <div className="px-4 py-3 text-xs text-muted-foreground text-center">{t.chat.noMatchingAgent}</div>
-                            )}
-                        </div>
-                    </div>
+                    <ChatMentionDropdown mentionFilter={mentionFilter} onClose={() => setShowMentions(false)} />
                 )}
 
                 <div className="flex items-center justify-between px-2 pb-1 mt-2">
@@ -398,7 +192,7 @@ export default function ChatInput({ onSend }: ChatInputProps) {
                             <button
                                 onClick={() => fileInputRef.current?.click()}
                                 className="p-2 rounded-lg bg-black/[0.03] dark:bg-white/[0.04] border border-border/50 dark:border-white/[0.06] hover:bg-black/[0.06] dark:hover:bg-white/[0.08] text-muted-foreground hover:text-foreground transition-all duration-150 active:scale-[0.90]"
-                                disabled={isProcessingFile}
+                                disabled={isBusy}
                             >
                                 <Plus className="w-4 h-4" />
                             </button>
@@ -417,7 +211,6 @@ export default function ChatInput({ onSend }: ChatInputProps) {
                                 onClick={() => {
                                     fileInputRef.current?.setAttribute("accept", ".csv,.xlsx,.xls,.tsv");
                                     fileInputRef.current?.click();
-                                    // 恢复全格式 accept
                                     setTimeout(() => fileInputRef.current?.setAttribute("accept", ".pdf,.docx,.txt,.md,.json,.csv,.xlsx,.xls,.tsv"), 1000);
                                 }}
                             >
@@ -447,7 +240,7 @@ export default function ChatInput({ onSend }: ChatInputProps) {
                     ) : (
                         <button
                             onClick={handleSend}
-                            disabled={(!inputValue.trim() && pendingImages.length === 0) || isProcessingFile}
+                            disabled={(!inputValue.trim() && pendingImages.length === 0) || isBusy}
                             className="bg-primary hover:bg-primary/90 text-primary-foreground px-4 py-2 rounded-xl font-semibold text-sm flex items-center space-x-2 transition-all duration-150 shadow-sm disabled:opacity-40 active:scale-[0.95]"
                         >
                             <span>{t.chat.send}</span>

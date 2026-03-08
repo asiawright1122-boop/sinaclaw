@@ -1,6 +1,6 @@
 import { motion, AnimatePresence } from "framer-motion";
 import { Bot, User, Copy, Check, RefreshCw } from "lucide-react";
-import { useState, useMemo } from "react";
+import { useState, useMemo, type ReactNode, isValidElement } from "react";
 import AgentAvatar from "@/components/ui/AgentAvatar";
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
@@ -9,12 +9,19 @@ import "highlight.js/styles/github-dark-dimmed.css";
 import type { Message } from "@/store/chatStore";
 import { useTranslate } from "@/lib/i18n";
 
-function CodeBlock({ children, ...props }: any) {
+function extractCodeText(node: ReactNode): string {
+    if (typeof node === "string") return node;
+    if (Array.isArray(node)) return node.map(extractCodeText).join("");
+    if (isValidElement<{ children?: ReactNode }>(node)) return extractCodeText(node.props.children);
+    return "";
+}
+
+function CodeBlock({ children, ...props }: { children?: ReactNode } & Record<string, unknown>) {
     const t = useTranslate();
     const [codeCopied, setCodeCopied] = useState(false);
     const handleCodeCopy = () => {
-        const text = (children as any)?.props?.children || "";
-        navigator.clipboard.writeText(typeof text === "string" ? text : "");
+        const text = extractCodeText(children);
+        navigator.clipboard.writeText(text);
         setCodeCopied(true);
         setTimeout(() => setCodeCopied(false), 2000);
     };

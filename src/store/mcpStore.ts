@@ -49,6 +49,21 @@ export const MCP_PRESETS: Array<Omit<MCPServerConfig, "id" | "status" | "toolCou
         name: "Browser Fetch",
         url: "http://localhost:3006",
         type: "sse"
+    },
+    {
+        name: "Local SQLite (Stdio)",
+        url: "stdio://npx -y @modelcontextprotocol/server-sqlite --db test.db",
+        type: "stdio"
+    },
+    {
+        name: "OpenClaw Interpreter",
+        url: "stdio://python3 skills/openclaw-interpreter/server.py",
+        type: "stdio"
+    },
+    {
+        name: "OpenClaw RAG Engine",
+        url: "stdio://python3 skills/openclaw-rag-engine/server.py",
+        type: "stdio"
     }
 ];
 

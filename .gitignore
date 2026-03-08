@@ -26,6 +26,8 @@ dist-ssr
 # Tauri
 src-tauri/target/
 src-tauri/.cargo/config.toml
+src-tauri/openclaw-bundle/
+src-tauri/bin/node-*
 
 # Local cache
 .local-npm-cache/
