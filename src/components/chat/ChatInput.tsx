@@ -285,14 +285,14 @@ export default function ChatInput({ onSend }: ChatInputProps) {
                         onClick={() => setIsDeepResearchMode(false)}
                         className={`text-[11px] font-semibold px-3 py-1 rounded-full transition-all duration-200 ${!isDeepResearchMode ? "bg-black/[0.05] dark:bg-white/[0.08] text-foreground" : "text-muted-foreground hover:text-foreground/80"}`}
                     >
-                        {t.chat.modes?.standard || "标准模式"}
+                        {t.chat.modes?.standard || "Standard"}
                     </button>
                     <button
                         onClick={() => setIsDeepResearchMode(true)}
                         className={`text-[11px] font-semibold px-3 py-1 rounded-full transition-all duration-200 flex items-center gap-1.5 ${isDeepResearchMode ? "bg-primary text-primary-foreground" : "text-muted-foreground hover:text-foreground/80"}`}
                     >
                         <Sparkles className="w-3 h-3" />
-                        {t.chat.modes?.deepResearch || "深研模式"}
+                        {t.chat.modes?.deepResearch || "Deep Research"}
                     </button>
                 </div>
 
@@ -350,7 +350,7 @@ export default function ChatInput({ onSend }: ChatInputProps) {
                     }}
                     onKeyDown={handleKeyDown}
                     onPaste={handlePaste}
-                    placeholder={isDeepResearchMode ? (t.chat.modes?.deepResearchPlaceholder || "输入研究主题，Agent 将自动分步计划并多管齐下... (Shift+Enter 换行)") : t.chat.inputPlaceholder}
+                    placeholder={isDeepResearchMode ? (t.chat.modes?.deepResearchPlaceholder || "Enter research topic... (Shift+Enter for new line)") : t.chat.inputPlaceholder}
                     className="w-full bg-transparent border-none outline-none text-foreground placeholder:text-muted-foreground/50 resize-none px-4 pt-4 pb-2 min-h-[80px] text-[15px] font-medium focus:ring-0 leading-relaxed no-scrollbar"
                     rows={2}
                     disabled={isGenerating}

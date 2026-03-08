@@ -54,7 +54,7 @@ export default function ToolCallBlock({ toolCall }: ToolCallBlockProps) {
     const statusIcon = STATUS_ICONS[toolCall.status];
 
     // 生成参数摘要
-    const argSummary = getArgSummary(toolCall);
+    const argSummary = getArgSummary(toolCall, t.chat.toolScanEnv);
 
     return (
         <motion.div
@@ -141,7 +141,7 @@ function isScreenshotResult(toolCall: ToolCall): boolean {
     return /\.(png|jpg|jpeg)/.test(toolCall.result);
 }
 
-function getArgSummary(toolCall: ToolCall): string {
+function getArgSummary(toolCall: ToolCall, scanEnvText: string): string {
     const args = toolCall.arguments;
     switch (toolCall.functionName) {
         case "run_command":
@@ -154,7 +154,7 @@ function getArgSummary(toolCall: ToolCall): string {
         case "install_dependency":
             return `${args.package_manager} install ${(args.packages as string[])?.join(" ") || ""}`;
         case "detect_environment":
-            return "扫描系统环境...";
+            return scanEnvText;
         case "browser_open":
         case "browser_screenshot_url":
         case "browser_extract_text":
