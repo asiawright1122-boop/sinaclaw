@@ -1,6 +1,7 @@
-import { motion } from "framer-motion";
-import { Bot, User, Copy, Check } from "lucide-react";
+import { motion, AnimatePresence } from "framer-motion";
+import { Bot, User, Copy, Check, RefreshCw } from "lucide-react";
 import { useState, useMemo } from "react";
+import AgentAvatar from "@/components/ui/AgentAvatar";
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
 import rehypeHighlight from "rehype-highlight";
@@ -9,9 +10,10 @@ import type { Message } from "@/store/chatStore";
 
 interface ChatMessageProps {
     message: Message;
+    onRetry?: () => void;
 }
 
-export default function ChatMessage({ message }: ChatMessageProps) {
+export default function ChatMessage({ message, onRetry }: ChatMessageProps) {
     const [copied, setCopied] = useState(false);
     const isUser = message.role === "user";
 
@@ -150,9 +152,8 @@ export default function ChatMessage({ message }: ChatMessageProps) {
                         <User className="w-4 h-4 text-white" />
                     </div>
                 ) : message.agentAvatar ? (
-                    /* 多 Agent 模式：显示 Agent emoji 头像 + 辉光边框 */
-                    <div className="w-8 h-8 rounded-lg bg-violet-500/10 border border-violet-500/20 flex items-center justify-center text-base relative">
-                        <span>{message.agentAvatar}</span>
+                    <div className="w-8 h-8 rounded-lg bg-violet-500/10 border border-violet-500/20 flex items-center justify-center relative">
+                        <AgentAvatar avatar={message.agentAvatar} size={18} className="text-violet-400" />
                         <div className="absolute -bottom-0.5 -right-0.5 w-2.5 h-2.5 bg-accent rounded-full border-2 border-card" />
                     </div>
                 ) : (
@@ -215,28 +216,47 @@ export default function ChatMessage({ message }: ChatMessageProps) {
                 )}
 
                 {/* 操作栏（hover 显示） */}
-                {!isUser && (
-                    <div className="opacity-0 group-hover:opacity-100 transition-opacity flex items-center gap-1 mt-2">
+                <div className="opacity-0 group-hover:opacity-100 transition-opacity flex items-center gap-1 mt-2">
+                    <button
+                        onClick={handleCopy}
+                        className="flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-xs text-muted-foreground hover:text-foreground hover:bg-black/[0.04] dark:hover:bg-white/[0.06] transition-colors"
+                    >
+                        <AnimatePresence mode="wait">
+                            {copied ? (
+                                <motion.span
+                                    key="copied"
+                                    initial={{ scale: 0.8, opacity: 0 }}
+                                    animate={{ scale: 1, opacity: 1 }}
+                                    exit={{ scale: 0.8, opacity: 0 }}
+                                    className="flex items-center gap-1.5 text-green-500"
+                                >
+                                    <Check className="w-3.5 h-3.5" />
+                                    已复制
+                                </motion.span>
+                            ) : (
+                                <motion.span
+                                    key="copy"
+                                    initial={{ scale: 0.8, opacity: 0 }}
+                                    animate={{ scale: 1, opacity: 1 }}
+                                    exit={{ scale: 0.8, opacity: 0 }}
+                                    className="flex items-center gap-1.5"
+                                >
+                                    <Copy className="w-3.5 h-3.5" />
+                                    复制
+                                </motion.span>
+                            )}
+                        </AnimatePresence>
+                    </button>
+                    {!isUser && onRetry && (
                         <button
-                            onClick={handleCopy}
+                            onClick={onRetry}
                             className="flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-xs text-muted-foreground hover:text-foreground hover:bg-black/[0.04] dark:hover:bg-white/[0.06] transition-colors"
                         >
-                            {copied ? (
-                                <>
-                                    <Check className="w-3.5 h-3.5 text-green-400" />
-                                    <span className="text-green-400">
-                                        已复制
-                                    </span>
-                                </>
-                            ) : (
-                                <>
-                                    <Copy className="w-3.5 h-3.5" />
-                                    <span>复制</span>
-                                </>
-                            )}
+                            <RefreshCw className="w-3.5 h-3.5" />
+                            重试
                         </button>
-                    </div>
-                )}
+                    )}
+                </div>
             </div>
         </motion.div >
     );

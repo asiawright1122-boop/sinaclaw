@@ -421,9 +421,15 @@ export default function ChatPage() {
                     className="flex-1 overflow-y-auto pt-6 px-4 no-scrollbar relative"
                 >
                     <div className="max-w-4xl mx-auto pb-6">
-                        {activeConversation.messages.map((msg) => (
+                        {activeConversation.messages.map((msg, idx) => (
                             <div key={msg.id}>
-                                <ChatMessage message={msg} />
+                                <ChatMessage
+                                    message={msg}
+                                    onRetry={msg.role === "assistant" && !isGenerating ? () => {
+                                        const prevUserMsg = [...activeConversation.messages].slice(0, idx).reverse().find(m => m.role === "user");
+                                        if (prevUserMsg) handleSend(prevUserMsg.content, prevUserMsg.images);
+                                    } : undefined}
+                                />
                                 {msg.toolCalls && msg.toolCalls.length > 0 && (
                                     <div className="ml-12 sm:ml-[72px] mr-4 sm:mr-6 mb-6">
                                         {msg.toolCalls.map((tc) => (
