@@ -1,6 +1,7 @@
 import { useRef, useEffect, useState, useCallback } from "react";
 import { Loader2, ZoomIn, ZoomOut, Maximize2 } from "lucide-react";
 import { getDocuments, type DocumentRow } from "@/lib/db";
+import { useTranslate } from "@/lib/i18n";
 
 interface GraphNode {
     id: string;
@@ -30,6 +31,7 @@ const COLORS = {
 };
 
 export default function GraphView() {
+    const t = useTranslate();
     const canvasRef = useRef<HTMLCanvasElement>(null);
     const containerRef = useRef<HTMLDivElement>(null);
     const [nodes, setNodes] = useState<GraphNode[]>([]);
@@ -98,7 +100,7 @@ export default function GraphView() {
                         graphEdges.push({
                             source: `doc_${docs[i].id}`,
                             target: `doc_${docs[j].id}`,
-                            label: "同期上传",
+                            label: t.knowledge.graphUploaded,
                         });
                     }
                 }
@@ -289,7 +291,7 @@ export default function GraphView() {
         return (
             <div className="flex-1 flex flex-col items-center justify-center text-muted-foreground">
                 <Loader2 className="w-6 h-6 animate-spin mb-3" />
-                <span className="text-sm font-medium">构建知识图谱...</span>
+                <span className="text-sm font-medium">{t.knowledge.graphBuilding}</span>
             </div>
         );
     }
@@ -297,7 +299,7 @@ export default function GraphView() {
     if (nodes.length === 0) {
         return (
             <div className="flex-1 flex flex-col items-center justify-center text-muted-foreground">
-                <span className="text-sm">暂无数据。上传文档后将自动生成知识图谱。</span>
+                <span className="text-sm">{t.knowledge.graphEmpty}</span>
             </div>
         );
     }
@@ -318,20 +320,20 @@ export default function GraphView() {
                 <button onClick={() => setZoom(z => Math.max(z / 1.2, 0.3))} className="p-2 hover:bg-muted/50 rounded-lg transition-colors cursor-pointer">
                     <ZoomOut className="w-4 h-4 text-muted-foreground" />
                 </button>
-                <button onClick={() => { setZoom(1); setOffset({ x: 0, y: 0 }); }} className="p-2 hover:bg-muted/50 rounded-lg transition-colors cursor-pointer" title="重置">
+                <button onClick={() => { setZoom(1); setOffset({ x: 0, y: 0 }); }} className="p-2 hover:bg-muted/50 rounded-lg transition-colors cursor-pointer" title={t.knowledge.graphReset}>
                     <Maximize2 className="w-4 h-4 text-muted-foreground" />
                 </button>
             </div>
             {/* 图例 */}
             <div className="absolute top-4 left-4 flex items-center gap-4 text-xs text-muted-foreground">
                 <span className="flex items-center gap-1.5">
-                    <span className="w-3 h-3 rounded-full bg-sky-500" /> 文档
+                    <span className="w-3 h-3 rounded-full bg-sky-500" /> {t.knowledge.graphDocument}
                 </span>
                 <span className="flex items-center gap-1.5">
-                    <span className="w-3 h-3 rounded-full bg-violet-400" /> 实体
+                    <span className="w-3 h-3 rounded-full bg-violet-400" /> {t.knowledge.graphEntity}
                 </span>
                 <span className="flex items-center gap-1.5">
-                    <span className="w-6 h-px bg-slate-400" /> 关联
+                    <span className="w-6 h-px bg-slate-400" /> {t.knowledge.graphRelation}
                 </span>
             </div>
             {/* 悬浮信息 */}
@@ -341,7 +343,7 @@ export default function GraphView() {
                         {nodesRef.current.find(n => n.id === hoveredNode)?.label}
                     </div>
                     <div className="text-xs text-muted-foreground mt-1">
-                        关联: {edges.filter(e => e.source === hoveredNode || e.target === hoveredNode).length} 条
+                        {t.knowledge.graphConnections.replace('{count}', String(edges.filter(e => e.source === hoveredNode || e.target === hoveredNode).length))}
                     </div>
                 </div>
             )}
