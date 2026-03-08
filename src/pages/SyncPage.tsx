@@ -134,7 +134,7 @@ export default function SyncPage() {
             {/* 云盘连接 */}
             <div className="bg-card/80 dark:bg-card/50 border border-border/50 dark:border-white/[0.06] rounded-xl p-5 space-y-4" style={{ boxShadow: 'var(--panel-shadow)' }}>
                 <h3 className="text-sm font-semibold text-foreground">{t.sync.cloudConnection}</h3>
-                <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
                     {(Object.keys(CLOUD_PROVIDERS) as CloudProvider[]).map((provider) => {
                         const info = CLOUD_PROVIDERS[provider];
                         const account = accounts[provider];
@@ -143,7 +143,7 @@ export default function SyncPage() {
                         return (
                             <div
                                 key={provider}
-                                className={`flex items-center justify-between p-3 rounded-lg border transition-all duration-150 ${
+                                className={`flex flex-col items-center gap-2 p-3 rounded-lg border transition-all duration-150 min-w-0 ${
                                     connected
                                         ? "border-emerald-500/30 bg-emerald-500/5"
                                         : "border-border/50 dark:border-white/[0.06] bg-black/[0.02] dark:bg-white/[0.03] hover:border-primary/20"
@@ -151,15 +151,11 @@ export default function SyncPage() {
                                 onClick={() => connected && setActiveProvider(provider)}
                                 role={connected ? "button" : undefined}
                             >
-                                <div className="flex items-center gap-2.5">
-                                    <IconById id={info.icon} size={20} />
-                                    <div>
-                                        <span className="text-xs font-medium text-foreground">{info.label}</span>
-                                        {connected && account && (
-                                            <p className="text-[10px] text-muted-foreground truncate max-w-[120px]">{account.email}</p>
-                                        )}
-                                    </div>
-                                </div>
+                                <IconById id={info.icon} size={22} />
+                                <span className="text-xs font-medium text-foreground truncate max-w-full">{info.label}</span>
+                                {connected && account && (
+                                    <p className="text-[10px] text-muted-foreground truncate max-w-full">{account.email}</p>
+                                )}
                                 {connected ? (
                                     <button
                                         onClick={(e) => { e.stopPropagation(); disconnectProvider(provider); }}
