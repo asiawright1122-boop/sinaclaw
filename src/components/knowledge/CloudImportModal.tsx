@@ -4,6 +4,7 @@ import { X, Cloud, Loader2, Folder, File as FileIcon, ChevronRight, Download } f
 import { useCloudStore } from "@/store/cloudStore";
 import { CLOUD_PROVIDERS, type CloudProvider, type CloudFile, listFiles, downloadFile } from "@/lib/cloud";
 import IconById from "@/components/ui/IconById";
+import { useTranslate } from "@/lib/i18n";
 import { readFile } from "@tauri-apps/plugin-fs";
 import { documentDir, join } from "@tauri-apps/api/path";
 
@@ -14,6 +15,7 @@ interface CloudImportModalProps {
 }
 
 export default function CloudImportModal({ isOpen, onClose, onImport }: CloudImportModalProps) {
+    const t = useTranslate();
     const { accounts } = useCloudStore();
     const connectedProviders = Object.entries(accounts).filter(([, acc]) => acc !== null).map(([p]) => p as CloudProvider);
 
@@ -70,7 +72,7 @@ export default function CloudImportModal({ isOpen, onClose, onImport }: CloudImp
             onClose();
         } catch (e) {
             console.error("云盘导入失败:", e);
-            alert("下载失败，请检查网络或后端日志。");
+            alert(t.knowledge.downloadFailed);
         } finally {
             setDownloadingId(null);
         }
@@ -101,8 +103,8 @@ export default function CloudImportModal({ isOpen, onClose, onImport }: CloudImp
                             <Cloud className="w-5 h-5" />
                         </div>
                         <div>
-                            <h2 className="text-xl font-bold">从云端导入</h2>
-                            <p className="text-xs text-muted-foreground mt-0.5">直接从 Google Drive, OneDrive 或 Dropbox 拉取文档</p>
+                            <h2 className="text-xl font-bold">{t.knowledge.cloudImportTitle}</h2>
+                            <p className="text-xs text-muted-foreground mt-0.5">{t.knowledge.cloudImportDesc}</p>
                         </div>
                     </div>
                     <button onClick={onClose} className="p-2 rounded-full hover:bg-muted/50 transition-colors">
@@ -116,7 +118,7 @@ export default function CloudImportModal({ isOpen, onClose, onImport }: CloudImp
                     <div className="w-48 border-r border-border/40 bg-black/[0.02] dark:bg-white/[0.02] p-3 flex flex-col gap-2 shrink-0 overflow-y-auto">
                         {connectedProviders.length === 0 ? (
                             <div className="text-xs text-muted-foreground p-3 text-center opacity-70">
-                                还没有绑定任何云盘。<br />请前往设置连接。
+                                {t.knowledge.noCloudBound.split('\n').map((line: string, i: number) => <span key={i}>{line}{i === 0 && <br />}</span>)}
                             </div>
                         ) : (
                             connectedProviders.map(p => (
@@ -148,7 +150,7 @@ export default function CloudImportModal({ isOpen, onClose, onImport }: CloudImp
                                         setFolderStack([]);
                                     }}
                                 >
-                                    根目录
+                                    {t.knowledge.rootDir}
                                 </button>
                                 {folderStack.map((f, idx) => (
                                     <div key={f.id || idx} className="flex items-center gap-1.5 shrink-0 text-foreground/70">
@@ -171,7 +173,7 @@ export default function CloudImportModal({ isOpen, onClose, onImport }: CloudImp
                         <div className="flex-1 p-2 overflow-y-auto no-scrollbar">
                             {!selectedProvider ? (
                                 <div className="h-full flex items-center justify-center text-sm text-muted-foreground opacity-50">
-                                    请在左侧选择云盘
+                                    {t.knowledge.selectCloud}
                                 </div>
                             ) : isLoading ? (
                                 <div className="h-full flex items-center justify-center">
@@ -179,7 +181,7 @@ export default function CloudImportModal({ isOpen, onClose, onImport }: CloudImp
                                 </div>
                             ) : files.length === 0 ? (
                                 <div className="h-full flex items-center justify-center text-sm text-muted-foreground opacity-50">
-                                    此文件夹是空的
+                                    {t.knowledge.folderEmpty}
                                 </div>
                             ) : (
                                 <div className="space-y-1">
