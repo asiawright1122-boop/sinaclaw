@@ -96,21 +96,19 @@ export default function ChatInput({ onSend }: ChatInputProps) {
     const processFile = async (file: File) => {
         setIsProcessingFile(true);
         try {
-            const parsingText = t.common.loading === "加载中..." ? `正在解析 ${file.name}...` : `Parsing ${file.name}...`;
+            const parsingText = t.chat.parsingFile.replace('{name}', file.name);
             setProcessStatus(parsingText);
             const text = await extractTextFromFile(file);
 
-            const chunkingText = t.common.loading === "加载中..." ? `正在分块...` : `Chunking...`;
+            const chunkingText = t.chat.chunking;
             setProcessStatus(chunkingText);
             const chunks = splitText(text, { chunkSize: 800, overlap: 150 });
 
-            const embeddingText = t.common.loading === "加载中..."
-                ? `正在生成向量 (${chunks.length} 块)...`
-                : `Generating embeddings (${chunks.length} chunks)...`;
+            const embeddingText = t.chat.generatingEmbeddings.replace('{count}', String(chunks.length));
             setProcessStatus(embeddingText);
             const embeddings = await generateEmbeddings(chunks);
 
-            const savingText = t.common.loading === "加载中..." ? `正在保存知识库...` : `Saving knowledge...`;
+            const savingText = t.chat.savingKnowledge;
             setProcessStatus(savingText);
             const doc = await saveDocument(file.name, file.type || "text/plain", file.size);
 
@@ -121,9 +119,7 @@ export default function ChatInput({ onSend }: ChatInputProps) {
 
             await saveChunks(doc.id, chunksToSave);
 
-            const successText = t.common.loading === "加载中..."
-                ? `文件 ${file.name} 已成功加入知识库！`
-                : `File ${file.name} added to knowledge base!`;
+            const successText = t.chat.fileAddedToKnowledge.replace('{name}', file.name);
             addToast(successText, "success");
 
         } catch (error) {
@@ -197,7 +193,7 @@ export default function ChatInput({ onSend }: ChatInputProps) {
             setIsRecording(true);
         } catch (err) {
             console.error("无法开启录音:", err);
-            addToast("无法访问麦克风", "error");
+            addToast(t.chat.cannotAccessMic, "error");
         }
     };
 
@@ -211,12 +207,12 @@ export default function ChatInput({ onSend }: ChatInputProps) {
 
     const transcribeAudio = async (blob: Blob) => {
         if (!apiKey) {
-            addToast("请先在设置中配置 API Key", "error");
+            addToast(t.chat.configureApiKeyFirst, "error");
             return;
         }
 
         setIsProcessingFile(true);
-        setProcessStatus("正在转录语音...");
+        setProcessStatus(t.chat.transcribing);
 
         try {
             const formData = new FormData();
@@ -234,7 +230,7 @@ export default function ChatInput({ onSend }: ChatInputProps) {
 
             if (!response.ok) {
                 const errData = await response.json();
-                throw new Error(errData.error?.message || "转录失败");
+                throw new Error(errData.error?.message || t.chat.transcriptionFailed);
             }
 
             const data = await response.json();
@@ -243,7 +239,7 @@ export default function ChatInput({ onSend }: ChatInputProps) {
             }
         } catch (error) {
             console.error("STT Error:", error);
-            addToast("语音转文字失败: " + (error instanceof Error ? error.message : String(error)), "error");
+            addToast(t.chat.sttFailed.replace('{error}', error instanceof Error ? error.message : String(error)), "error");
         } finally {
             setIsProcessingFile(false);
             setProcessStatus("");
@@ -271,10 +267,10 @@ export default function ChatInput({ onSend }: ChatInputProps) {
                     const ext = "." + file.name.split(".").pop()?.toLowerCase();
                     if (DATA_FILE_EXTENSIONS.includes(ext)) {
                         // 数据文件 → 自动提示分析
-                        const prompt = `请分析这个数据文件: ${file.name}`;
+                        const prompt = t.chat.analyzeFilePrompt.replace('{name}', file.name);
                         setInputValue(prompt);
                         processFile(file);
-                        addToast(`检测到数据文件 ${file.name}，已自动开启分析模式`, "info");
+                        addToast(t.chat.dataFileDetected.replace('{name}', file.name), "info");
                     } else {
                         processFile(file);
                     }
@@ -365,7 +361,7 @@ export default function ChatInput({ onSend }: ChatInputProps) {
                     <div className="absolute bottom-full mb-2 left-4 right-4 bg-card dark:bg-card border border-border/60 dark:border-white/[0.08] rounded-xl overflow-hidden z-50 animate-in slide-in-from-bottom-2 duration-200" style={{ boxShadow: 'var(--panel-shadow)' }}>
                         <div className="px-3 py-2 border-b border-border/40 flex items-center gap-2">
                             <AtSign className="w-3.5 h-3.5 text-primary" />
-                            <span className="text-xs font-semibold text-muted-foreground">选择 Agent</span>
+                            <span className="text-xs font-semibold text-muted-foreground">{t.chat.selectAgent}</span>
                         </div>
                         <div className="max-h-48 overflow-y-auto">
                             {agents
@@ -390,7 +386,7 @@ export default function ChatInput({ onSend }: ChatInputProps) {
                                     </button>
                                 ))}
                             {agents.filter(a => a.role === "primary" && a.name.toLowerCase().includes(mentionFilter.toLowerCase())).length === 0 && (
-                                <div className="px-4 py-3 text-xs text-muted-foreground text-center">无匹配的 Agent</div>
+                                <div className="px-4 py-3 text-xs text-muted-foreground text-center">{t.chat.noMatchingAgent}</div>
                             )}
                         </div>
                     </div>
@@ -407,7 +403,7 @@ export default function ChatInput({ onSend }: ChatInputProps) {
                                 <Plus className="w-4 h-4" />
                             </button>
                         </Tooltip>
-                        <Tooltip content="添加图片">
+                        <Tooltip content={t.chat.addImage}>
                             <button className="p-2 rounded-lg bg-transparent hover:bg-black/[0.04] dark:hover:bg-white/[0.05] text-muted-foreground hover:text-foreground transition-all duration-150"
                                 onClick={() => imageInputRef.current?.click()}
                             >
@@ -415,7 +411,7 @@ export default function ChatInput({ onSend }: ChatInputProps) {
                             </button>
                         </Tooltip>
                         {/* 数据分析快捷入口 */}
-                        <Tooltip content="数据分析">
+                        <Tooltip content={t.chat.dataAnalysis}>
                             <button
                                 className="p-2 rounded-lg bg-transparent hover:bg-accent/10 text-muted-foreground hover:text-accent transition-all duration-150"
                                 onClick={() => {
@@ -428,7 +424,7 @@ export default function ChatInput({ onSend }: ChatInputProps) {
                                 <FileSpreadsheet className="w-4 h-4" />
                             </button>
                         </Tooltip>
-                        <Tooltip content="按住说话">
+                        <Tooltip content={t.chat.holdToSpeak}>
                             <button
                                 onMouseDown={startRecording}
                                 onMouseUp={stopRecording}
