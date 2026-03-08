@@ -470,6 +470,9 @@ export const translations = {
                     "一切全自动，你只需要看着就行！"
                 ]
             },
+            copied: "已复制",
+            copy: "复制",
+            retry: "重试",
             addImage: "添加图片",
             dataAnalysis: "数据分析",
             holdToSpeak: "按住说话",
@@ -1053,6 +1056,9 @@ export const translations = {
                     "Everything is automated, you just watch!"
                 ]
             },
+            copied: "Copied",
+            copy: "Copy",
+            retry: "Retry",
             addImage: "Add image",
             dataAnalysis: "Data analysis",
             holdToSpeak: "Hold to speak",

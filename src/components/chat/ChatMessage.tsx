@@ -7,8 +7,10 @@ import remarkGfm from "remark-gfm";
 import rehypeHighlight from "rehype-highlight";
 import "highlight.js/styles/github-dark-dimmed.css";
 import type { Message } from "@/store/chatStore";
+import { useTranslate } from "@/lib/i18n";
 
 function CodeBlock({ children, ...props }: any) {
+    const t = useTranslate();
     const [codeCopied, setCodeCopied] = useState(false);
     const handleCodeCopy = () => {
         const text = (children as any)?.props?.children || "";
@@ -28,7 +30,7 @@ function CodeBlock({ children, ...props }: any) {
                 onClick={handleCodeCopy}
                 className="absolute top-2 right-2 opacity-0 group-hover/code:opacity-100 transition-all px-2 py-1 rounded-md bg-white/10 hover:bg-white/20 text-xs text-white/60 hover:text-white/90 flex items-center gap-1"
             >
-                {codeCopied ? <><Check className="w-3 h-3 text-green-400" />已复制</> : <><Copy className="w-3 h-3" />复制</>}
+                {codeCopied ? <><Check className="w-3 h-3 text-green-400" />{t.chat.copied}</> : <><Copy className="w-3 h-3" />{t.chat.copy}</>}
             </button>
         </div>
     );
@@ -40,6 +42,7 @@ interface ChatMessageProps {
 }
 
 export default function ChatMessage({ message, onRetry }: ChatMessageProps) {
+    const t = useTranslate();
     const [copied, setCopied] = useState(false);
     const isUser = message.role === "user";
 
@@ -236,7 +239,7 @@ export default function ChatMessage({ message, onRetry }: ChatMessageProps) {
                                     className="flex items-center gap-1.5 text-green-500"
                                 >
                                     <Check className="w-3.5 h-3.5" />
-                                    已复制
+                                    {t.chat.copied}
                                 </motion.span>
                             ) : (
                                 <motion.span
@@ -247,7 +250,7 @@ export default function ChatMessage({ message, onRetry }: ChatMessageProps) {
                                     className="flex items-center gap-1.5"
                                 >
                                     <Copy className="w-3.5 h-3.5" />
-                                    复制
+                                    {t.chat.copy}
                                 </motion.span>
                             )}
                         </AnimatePresence>
@@ -258,7 +261,7 @@ export default function ChatMessage({ message, onRetry }: ChatMessageProps) {
                             className="flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-xs text-muted-foreground hover:text-foreground hover:bg-black/[0.04] dark:hover:bg-white/[0.06] transition-colors"
                         >
                             <RefreshCw className="w-3.5 h-3.5" />
-                            重试
+                            {t.chat.retry}
                         </button>
                     )}
                 </div>
