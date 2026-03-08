@@ -7,6 +7,7 @@
 import { useState, lazy, Suspense } from "react";
 import { motion } from "framer-motion";
 import { Radio, Server, Cpu, Network } from "lucide-react";
+import { useTranslate } from "@/lib/i18n";
 
 const GatewayPage = lazy(() => import("@/pages/GatewayPage"));
 const ChannelsPage = lazy(() => import("@/pages/ChannelsPage"));
@@ -14,10 +15,10 @@ const DevicesPage = lazy(() => import("@/pages/DevicesPage"));
 const GatewayClusterPage = lazy(() => import("@/pages/GatewayClusterPage"));
 
 const TABS = [
-    { id: "gateway", label: "Gateway", icon: Server },
-    { id: "channels", label: "通道", icon: Radio },
-    { id: "devices", label: "设备", icon: Cpu },
-    { id: "cluster", label: "集群", icon: Network },
+    { id: "gateway", labelKey: "gateway", icon: Server },
+    { id: "channels", labelKey: "tabChannels", icon: Radio },
+    { id: "devices", labelKey: "tabDevices", icon: Cpu },
+    { id: "cluster", labelKey: "tabCluster", icon: Network },
 ] as const;
 
 type TabId = (typeof TABS)[number]["id"];
@@ -31,6 +32,13 @@ function TabLoader() {
 }
 
 export default function ConnectionsPage() {
+    const t = useTranslate();
+    const TAB_LABELS: Record<string, string> = {
+        gateway: "Gateway",
+        tabChannels: t.connections.tabChannels,
+        tabDevices: t.connections.tabDevices,
+        tabCluster: t.connections.tabCluster,
+    };
     const [activeTab, setActiveTab] = useState<TabId>("gateway");
 
     return (
@@ -42,8 +50,8 @@ export default function ConnectionsPage() {
                         <Radio className="w-4.5 h-4.5 text-primary" />
                     </div>
                     <div>
-                        <h1 className="text-lg font-semibold text-foreground">连接与通道</h1>
-                        <p className="text-[12px] text-muted-foreground">管理 Gateway、消息通道、设备与集群</p>
+                        <h1 className="text-lg font-semibold text-foreground">{t.connections.title}</h1>
+                        <p className="text-[12px] text-muted-foreground">{t.connections.subtitle}</p>
                     </div>
                 </div>
 
@@ -62,7 +70,7 @@ export default function ConnectionsPage() {
                                 }`}
                             >
                                 <Icon className="w-3.5 h-3.5" />
-                                <span className="hidden sm:inline">{tab.label}</span>
+                                <span className="hidden sm:inline">{TAB_LABELS[tab.labelKey]}</span>
                             </button>
                         );
                     })}

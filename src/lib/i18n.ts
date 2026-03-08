@@ -119,6 +119,13 @@ export const translations = {
             myAgents: "我的 Agent",
             templateMarket: "模板市场",
         },
+        connections: {
+            title: "连接与通道",
+            subtitle: "管理 Gateway、消息通道、设备与集群",
+            tabChannels: "通道",
+            tabDevices: "设备",
+            tabCluster: "集群",
+        },
         gatewayCluster: {
             title: "Gateway 集群",
             subtitle: "多 Gateway 连接与监控",
@@ -651,6 +658,13 @@ export const translations = {
             copyAsNew: "Copy as New",
             myAgents: "My Agents",
             templateMarket: "Template Market",
+        },
+        connections: {
+            title: "Connections & Channels",
+            subtitle: "Manage Gateway, channels, devices & cluster",
+            tabChannels: "Channels",
+            tabDevices: "Devices",
+            tabCluster: "Cluster",
         },
         gatewayCluster: {
             title: "Gateway Cluster",
