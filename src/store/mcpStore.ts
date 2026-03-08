@@ -5,7 +5,7 @@ import { invoke } from "@tauri-apps/api/core";
 export interface MCPTool {
     name: string;
     description: string;
-    input_schema: any;
+    input_schema: Record<string, unknown>;
 }
 
 export interface MCPServerConfig {

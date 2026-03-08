@@ -10,33 +10,13 @@ import {
     archiveConversation as dbArchiveConversation,
     searchConversations as dbSearchConversations,
 } from "@/lib/db";
-import { sendMessage, onStreamChunk } from "@/lib/tauri";
-import { useSettingsStore } from "@/store/settingsStore";
-import { PROVIDER_INFO } from "@/store/settingsStore";
 import { useAgentStore } from "@/store/agentStore";
+import { toMessageRole } from "./chatTypes";
+import type { Message, Conversation } from "./chatTypes";
+import { generateSmartTitle } from "./chatTitleGenerator";
 
-export interface Message {
-    id: string;
-    role: "user" | "assistant" | "system";
-    content: string;
-    timestamp: number;
-    toolCalls?: import("@/lib/agent").ToolCall[];
-    agentName?: string;   // Multi-Agent: 发送此消息的 Agent 名称
-    agentAvatar?: string; // Multi-Agent: Agent 头像 emoji
-    images?: string[];
-}
-
-export interface Conversation {
-    id: string;
-    title: string;
-    agentId: string;
-    pinned: boolean;
-    archived: boolean;
-    messages: Message[];
-    createdAt: number;
-    updatedAt: number;
-    isMessagesLoaded: boolean;
-}
+// Re-export types for backward compatibility
+export type { Message, Conversation } from "./chatTypes";
 
 interface ChatState {
     conversations: Conversation[];
@@ -62,65 +42,6 @@ interface ChatState {
     pinConversation: (id: string, pinned: boolean) => Promise<void>;
     archiveConversation: (id: string) => Promise<void>;
     searchConversations: (query: string) => Promise<Conversation[]>;
-}
-
-function toMessageRole(role: string): Message["role"] {
-    if (role === "user" || role === "assistant" || role === "system") {
-        return role;
-    }
-    return "assistant";
-}
-
-// ── LLM 自动标题生成 ────────────────────────────────────────
-async function generateSmartTitle(conversationId: string, userMessage: string) {
-    try {
-        const settings = useSettingsStore.getState();
-        if (!settings.apiKey || !settings.provider) return;
-
-        const providerInfo = PROVIDER_INFO[settings.provider];
-        if (!providerInfo) return;
-
-        let generatedTitle = "";
-
-        const unlisten = await onStreamChunk((chunk) => {
-            if (chunk.done) {
-                unlisten();
-                // 清理标题（去掉引号和多余空白）
-                const title = generatedTitle.replace(/["""'']/g, "").trim().slice(0, 20);
-                if (title.length >= 2) {
-                    // 更新 store 和 DB
-                    updateConversationTitle(conversationId, title).catch(console.error);
-                    useChatStore.setState((state) => ({
-                        conversations: state.conversations.map((c) =>
-                            c.id === conversationId ? { ...c, title } : c
-                        ),
-                    }));
-                }
-                return;
-            }
-            if (chunk.content) {
-                generatedTitle += chunk.content;
-            }
-        });
-
-        await sendMessage({
-            messages: [
-                {
-                    role: "system",
-                    content: "你是一个标题生成器。给用户的消息生成一个简短的中文标题，不超过15个字。只输出标题本身，不要加引号、标点或解释。",
-                },
-                { role: "user", content: userMessage.slice(0, 200) },
-            ],
-            api_key: settings.apiKey,
-            provider: settings.provider,
-            model: settings.model,
-            temperature: 0.3,
-            max_tokens: 30,
-        });
-    } catch (e) {
-        // LLM 调用失败时静默降级（截断标题已设置）
-        console.warn("标题生成失败:", e);
-    }
 }
 
 export const useChatStore = create<ChatState>((set, get) => ({
@@ -268,7 +189,13 @@ export const useChatStore = create<ChatState>((set, get) => ({
                         updateConversationTitle(conversationId, newTitle).catch(console.error);
 
                         // 异步调用 LLM 生成更好的标题
-                        generateSmartTitle(conversationId, content);
+                        generateSmartTitle(conversationId, content, (title) => {
+                            useChatStore.setState((state) => ({
+                                conversations: state.conversations.map((c) =>
+                                    c.id === conversationId ? { ...c, title } : c
+                                ),
+                            }));
+                        });
                     }
 
                     return {

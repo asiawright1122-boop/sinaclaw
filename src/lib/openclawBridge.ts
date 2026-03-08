@@ -9,6 +9,7 @@
  */
 
 import { invoke } from "@tauri-apps/api/core";
+import * as cli from "./openclawCliCommands";
 
 export interface GatewayStatus {
     running: boolean;
@@ -223,96 +224,20 @@ export const openclawBridge = {
         return true;
     },
 
-    /**
-     * 请求 Gateway 执行 CLI 命令
-     */
-    async runCliCommand(command: string): Promise<string> {
-        return invoke<string>("openclaw_run_cli", { command });
-    },
-
-    /**
-     * 安装 ClawHub 技能
-     */
-    async installSkill(skillName: string): Promise<string> {
-        return this.runCliCommand(`plugins install ${skillName}`);
-    },
-
-    /**
-     * 列出已安装的技能
-     */
-    async listSkills(): Promise<string> {
-        return this.runCliCommand("plugins list");
-    },
-
-    /**
-     * 运行 doctor 诊断
-     */
-    async runDoctor(): Promise<string> {
-        return this.runCliCommand("doctor");
-    },
-
-    /**
-     * 设置 OpenClaw 配置
-     */
-    async setConfig(key: string, value: string): Promise<string> {
-        return this.runCliCommand(`config set ${key} "${value}"`);
-    },
-
-    /**
-     * 读取 OpenClaw 配置
-     */
-    async getConfig(key: string): Promise<string> {
-        return this.runCliCommand(`config get ${key}`);
-    },
-
-    /**
-     * 渠道登录（WhatsApp/Telegram/Discord 等）
-     */
-    async channelLogin(channel?: string): Promise<string> {
-        return this.runCliCommand(channel ? `channels login ${channel}` : "channels login");
-    },
-
-    /**
-     * 渠道登出
-     */
-    async channelLogout(channel: string): Promise<string> {
-        return this.runCliCommand(`channels logout ${channel}`);
-    },
-
-    /**
-     * 列出所有渠道状态
-     */
-    async listChannels(): Promise<string> {
-        return this.runCliCommand("channels list");
-    },
-
-    /**
-     * 卸载技能
-     */
-    async uninstallSkill(skillName: string): Promise<string> {
-        return this.runCliCommand(`plugins uninstall ${skillName}`);
-    },
-
-    /**
-     * 运行设置向导
-     */
-    async runWizard(): Promise<string> {
-        return this.runCliCommand("wizard");
-    },
-
-    /**
-     * 直接向 Agent 发送消息（CLI 模式）
-     */
-    async agentSend(message: string): Promise<string> {
-        return this.runCliCommand(`send "${message}"`);
-    },
-
-    /**
-     * 获取 Gateway 状态（通过 Rust 命令）
-     */
-    async getRustGatewayStatus(): Promise<Record<string, unknown>> {
-        return invoke<Record<string, unknown>>("openclaw_gateway_status");
-    },
+    // ── CLI 命令快捷方法（委托到 openclawCliCommands）────────
+    runCliCommand: cli.runCliCommand,
+    installSkill: cli.installSkill,
+    listSkills: cli.listSkills,
+    runDoctor: cli.runDoctor,
+    setConfig: cli.setConfig,
+    getConfig: cli.getConfig,
+    channelLogin: cli.channelLogin,
+    channelLogout: cli.channelLogout,
+    listChannels: cli.listChannels,
+    uninstallSkill: cli.uninstallSkill,
+    runWizard: cli.runWizard,
+    agentSend: cli.agentSend,
+    getRustGatewayStatus: cli.getRustGatewayStatus,
 
     /**
      * 监听 Gateway 事件

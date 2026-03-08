@@ -177,8 +177,8 @@ class SkillManager {
             }
 
             return output.stdout.trim() || `[OK] 技能 [${skillName}] 已成功执行。无标准输出回显。`;
-        } catch (e: any) {
-            return `[ERROR] 技能 [${skillName}] 调用失败:\n${e.message || String(e)}`;
+        } catch (e: unknown) {
+            return `[ERROR] 技能 [${skillName}] 调用失败:\n${e instanceof Error ? e.message : String(e)}`;
         }
     }
 }

@@ -158,9 +158,9 @@ export class SwarmRouter {
                         completed.add(subtask.id);
                         results.set(subtask.id, result);
                         this.onEvent({ type: "subtask_done", plan: this.plan!, subtaskId: subtask.id });
-                    } catch (e: any) {
+                    } catch (e: unknown) {
                         subtask.status = "error";
-                        subtask.result = e.message;
+                        subtask.result = e instanceof Error ? e.message : String(e);
                         completed.add(subtask.id);
                         this.onEvent({ type: "subtask_error", plan: this.plan!, subtaskId: subtask.id });
                     }
