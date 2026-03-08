@@ -166,7 +166,7 @@ export default function ChatPage() {
                 });
             } catch (error) {
                 const errorMsg = error instanceof Error ? error.message : String(error);
-                updateLocalLastAssistantMessage(convId!, `**[ERROR] 初始化深研失败**: ${errorMsg}`);
+                updateLocalLastAssistantMessage(convId!, `**[ERROR] ${t.chat.deepResearchFailed}**: ${errorMsg}`);
                 setIsGenerating(false);
             }
             return;
@@ -234,7 +234,7 @@ export default function ChatPage() {
                         setIsGenerating(false);
                     },
                     onError: (error) => {
-                        updateLocalLastAssistantMessage(convId!, `**[ERROR] Gateway 错误**: ${error}`);
+                        updateLocalLastAssistantMessage(convId!, `**[ERROR] ${t.chat.gatewayError}**: ${error}`);
                         addMessageToDb(convId!, "assistant", `**[ERROR]**: ${error}`).catch(console.error);
                         setIsGenerating(false);
                     },
@@ -242,7 +242,7 @@ export default function ChatPage() {
             );
 
             if (!sent) {
-                updateLocalLastAssistantMessage(convId!, "**[ERROR]** Gateway 连接已断开，请检查 OpenClaw 服务状态。");
+                updateLocalLastAssistantMessage(convId!, `**[ERROR]** ${t.chat.gatewayDisconnected}`);
                 setIsGenerating(false);
             }
         } else {
@@ -363,7 +363,7 @@ export default function ChatPage() {
                                 className="absolute top-full left-0 mt-1.5 w-64 bg-card dark:bg-card border border-border/60 dark:border-white/[0.08] rounded-xl py-1.5 z-50" style={{ boxShadow: 'var(--panel-shadow)' }}
                             >
                                 <div className="px-3 py-1.5 text-[11px] font-bold uppercase tracking-wider text-muted-foreground">
-                                    切换 Agent
+                                    {t.chat.switchAgent}
                                 </div>
                                 <div className="max-h-[300px] overflow-y-auto no-scrollbar">
                                     {agents.filter(a => a.role === 'primary').map((agent) => (
@@ -390,7 +390,7 @@ export default function ChatPage() {
                                         onClick={() => { setShowAgentPicker(false); navigate("/settings?tab=agents"); }}
                                     >
                                         <Settings className="w-3.5 h-3.5" />
-                                        管理 Agent →
+                                        {t.chat.manageAgents}
                                     </button>
                                 </div>
                             </motion.div>
@@ -453,7 +453,7 @@ export default function ChatPage() {
                                 style={{ boxShadow: 'var(--panel-shadow)' }}
                             >
                                 <ChevronDown className="w-3.5 h-3.5" />
-                                滚动到底部
+                                {t.chat.scrollToBottom}
                             </motion.button>
                         )}
                     </AnimatePresence>

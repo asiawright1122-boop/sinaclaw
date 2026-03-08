@@ -396,7 +396,13 @@ export const translations = {
                     "自动修复编译错误",
                     "一切全自动，你只需要看着就行！"
                 ]
-            }
+            },
+            switchAgent: "切换 Agent",
+            manageAgents: "管理 Agent →",
+            scrollToBottom: "滚动到底部",
+            gatewayError: "Gateway 错误",
+            gatewayDisconnected: "Gateway 连接已断开，请检查 OpenClaw 服务状态。",
+            deepResearchFailed: "初始化深研失败",
         },
         knowledge: {
             title: "知识库",
@@ -883,7 +889,13 @@ export const translations = {
                     "Automatically fix compilation errors",
                     "Everything is automated, you just watch!"
                 ]
-            }
+            },
+            switchAgent: "Switch Agent",
+            manageAgents: "Manage Agents →",
+            scrollToBottom: "Scroll to bottom",
+            gatewayError: "Gateway Error",
+            gatewayDisconnected: "Gateway disconnected. Please check OpenClaw service status.",
+            deepResearchFailed: "Deep research initialization failed",
         },
         knowledge: {
             title: "Knowledge Base",
