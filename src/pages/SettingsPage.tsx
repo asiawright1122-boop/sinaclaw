@@ -807,7 +807,7 @@ export default function SettingsPage() {
                                 <div className="flex items-center justify-between">
                                     <div>
                                         <h2 className="text-2xl font-black tracking-tight">{t.extensions.addServer}</h2>
-                                        <p className="text-sm text-muted-foreground mt-1">Connect new tools to your AI agent.</p>
+                                        <p className="text-sm text-muted-foreground mt-1">{t.extensions.addServerDesc}</p>
                                     </div>
                                     <button
                                         onClick={() => setIsAddExtModalOpen(false)}
@@ -844,7 +844,7 @@ export default function SettingsPage() {
                                                                 p.name === "Slack" ? t.extensions.slackDesc :
                                                                     p.name === "Browser Fetch" ? t.extensions.fetchDesc :
                                                                         p.name === "PostgreSQL" ? t.extensions.postgresDesc :
-                                                                            p.name === "OpenClaw Interpreter" ? "Python 代码沙盒 · 数据分析 · 图表生成" : ""}
+                                                                            p.name === "OpenClaw Interpreter" ? t.extensions.interpreterDesc : ""}
                                                     </div>
                                                 </div>
                                             </button>

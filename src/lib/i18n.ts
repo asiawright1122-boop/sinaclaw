@@ -84,6 +84,8 @@ export const translations = {
             slackDesc: "发送消息、阅读频道内容与通知。",
             fetchDesc: "网页抓取与全网实时信息检索。",
             postgresDesc: "直接查询您的 PostgreSQL 数据库。",
+            interpreterDesc: "Python 代码沙盒 · 数据分析 · 图表生成",
+            addServerDesc: "连接新工具到您的 AI Agent。",
         },
         sidebar: {
             knowledge: "知识库",
@@ -309,6 +311,8 @@ export const translations = {
             slackDesc: "Send messages, read channels and notifications.",
             fetchDesc: "Web scraping and real-time information retrieval.",
             postgresDesc: "Query your PostgreSQL databases directly.",
+            interpreterDesc: "Python sandbox · Data analysis · Chart generation",
+            addServerDesc: "Connect new tools to your AI agent.",
         },
         sidebar: {
             knowledge: "Knowledge",
