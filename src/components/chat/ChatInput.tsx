@@ -398,7 +398,7 @@ export default function ChatInput({ onSend }: ChatInputProps) {
                     <div className="flex items-center space-x-2">
                         <button
                             onClick={() => fileInputRef.current?.click()}
-                            className="p-2 rounded-lg bg-black/[0.03] dark:bg-white/[0.04] border border-border/50 dark:border-white/[0.06] hover:bg-black/[0.06] dark:hover:bg-white/[0.08] text-muted-foreground hover:text-foreground transition-all duration-150 group relative"
+                            className="p-2 rounded-lg bg-black/[0.03] dark:bg-white/[0.04] border border-border/50 dark:border-white/[0.06] hover:bg-black/[0.06] dark:hover:bg-white/[0.08] text-muted-foreground hover:text-foreground transition-all duration-150 active:scale-[0.90] group relative"
                             disabled={isProcessingFile}
                         >
                             <Plus className="w-4 h-4" />
@@ -447,7 +447,7 @@ export default function ChatInput({ onSend }: ChatInputProps) {
                     {isGenerating ? (
                         <button
                             onClick={() => { }} // Stop logic can be added later
-                            className="bg-destructive hover:bg-destructive/90 text-destructive-foreground px-4 py-2 rounded-xl font-semibold text-sm flex items-center space-x-2 transition-all duration-150"
+                            className="bg-destructive hover:bg-destructive/90 text-destructive-foreground px-4 py-2 rounded-xl font-semibold text-sm flex items-center space-x-2 transition-all duration-150 active:scale-[0.95]"
                         >
                             <StopCircle className="w-4 h-4" />
                             <span>{t.chat.stop}</span>
@@ -456,7 +456,7 @@ export default function ChatInput({ onSend }: ChatInputProps) {
                         <button
                             onClick={handleSend}
                             disabled={(!inputValue.trim() && pendingImages.length === 0) || isProcessingFile}
-                            className="bg-primary hover:bg-primary/90 text-primary-foreground px-4 py-2 rounded-xl font-semibold text-sm flex items-center space-x-2 transition-all duration-150 shadow-sm disabled:opacity-40"
+                            className="bg-primary hover:bg-primary/90 text-primary-foreground px-4 py-2 rounded-xl font-semibold text-sm flex items-center space-x-2 transition-all duration-150 shadow-sm disabled:opacity-40 active:scale-[0.95]"
                         >
                             <span>{t.chat.send}</span>
                             <Send className="w-4 h-4 ml-1" />
