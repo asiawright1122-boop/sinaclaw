@@ -139,7 +139,7 @@ export default function ChatMessage({ message }: ChatMessageProps) {
             initial={{ opacity: 0, y: 10 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.3 }}
-            className={`flex gap-4 px-5 py-5 mb-3 rounded-2xl group transition-all duration-200 ${isUser ? "bg-transparent hover:bg-black/[0.02] dark:hover:bg-white/[0.02]" : "bg-card/70 dark:bg-card/40 border border-border/40 dark:border-white/[0.06]"
+            className={`flex gap-3 sm:gap-4 px-4 py-4 sm:px-5 sm:py-5 mb-3 rounded-2xl group transition-all duration-200 ${isUser ? "bg-transparent hover:bg-black/[0.02] dark:hover:bg-white/[0.02]" : "bg-card/70 dark:bg-card/40 border border-border/40 dark:border-white/[0.06]"
                 }`}
             style={!isUser ? { boxShadow: 'var(--panel-shadow)' } : undefined}
         >
@@ -191,7 +191,7 @@ export default function ChatMessage({ message }: ChatMessageProps) {
                                         key={i}
                                         src={img}
                                         alt=""
-                                        className="max-w-[200px] max-h-[200px] object-cover rounded-xl border border-white/20 shadow-md cursor-pointer hover:scale-105 transition-transform"
+                                        className="max-w-[200px] max-h-[200px] object-cover rounded-xl border border-border/60 dark:border-white/[0.12] shadow-md cursor-pointer hover:scale-105 transition-transform"
                                         onClick={() => window.open(img, '_blank')}
                                     />
                                 ))}

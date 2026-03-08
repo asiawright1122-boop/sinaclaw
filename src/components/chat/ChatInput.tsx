@@ -327,7 +327,7 @@ export default function ChatInput({ onSend }: ChatInputProps) {
                     <div className="flex gap-2 px-4 pt-2 flex-wrap">
                         {pendingImages.map((img, i) => (
                             <div key={i} className="relative group">
-                                <img src={img} alt="" className="w-16 h-16 object-cover rounded-xl border border-white/20" />
+                                <img src={img} alt="" className="w-16 h-16 object-cover rounded-xl border border-border/60 dark:border-white/[0.12]" />
                                 <button
                                     onClick={() => setPendingImages(prev => prev.filter((_, idx) => idx !== i))}
                                     className="absolute -top-1.5 -right-1.5 w-5 h-5 bg-destructive text-destructive-foreground rounded-full text-xs flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity"

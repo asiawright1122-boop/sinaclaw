@@ -414,7 +414,7 @@ export default function ChatPage() {
                             <div key={msg.id}>
                                 <ChatMessage message={msg} />
                                 {msg.toolCalls && msg.toolCalls.length > 0 && (
-                                    <div className="ml-[72px] mr-6 mb-6">
+                                    <div className="ml-12 sm:ml-[72px] mr-4 sm:mr-6 mb-6">
                                         {msg.toolCalls.map((tc) => (
                                             <ToolCallBlock key={tc.id} toolCall={tc} />
                                         ))}
@@ -479,7 +479,7 @@ export default function ChatPage() {
                         initial={{ y: 20, opacity: 0 }}
                         animate={{ y: 0, opacity: 1 }}
                         transition={{ duration: 0.5, delay: 0.5 }}
-                        className="grid grid-cols-2 gap-3 max-w-xl mx-auto mb-4 w-full px-4"
+                        className="grid grid-cols-1 sm:grid-cols-2 gap-3 max-w-xl mx-auto mb-4 w-full px-4"
                     >
                         {[
                             { key: "diagnose", text: t.chat.suggestions.diagnose },
