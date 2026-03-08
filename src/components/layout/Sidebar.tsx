@@ -7,6 +7,7 @@ import { useSettingsStore } from "@/store/settingsStore";
 import { translations } from "@/lib/i18n";
 import { useInboxStore } from "@/store/inboxStore";
 import { useChannelStore } from "@/store/channelStore";
+import { ConversationSkeleton } from "@/components/ui/Skeleton";
 
 export default function Sidebar() {
     const inboxTotalUnread = useInboxStore((s) => s.totalUnread);
@@ -207,9 +208,7 @@ export default function Sidebar() {
             {/* 对话列表 — 核心区域 */}
             <div className="flex-1 overflow-y-auto no-scrollbar space-y-0.5">
                 {isInitializing ? (
-                    <div className="px-3 py-8 text-xs text-muted-foreground animate-pulse text-center">
-                        Loading...
-                    </div>
+                    <ConversationSkeleton count={6} />
                 ) : displayConversations.length === 0 ? (
                     <div className="px-3 py-8 text-center">
                         <p className="text-xs text-muted-foreground/50">

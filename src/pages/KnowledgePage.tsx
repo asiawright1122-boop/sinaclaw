@@ -10,6 +10,7 @@ import { splitText } from "@/lib/textSplitter";
 import { generateEmbeddings } from "@/lib/embeddings";
 import CloudImportModal from "@/components/knowledge/CloudImportModal";
 import GraphView from "@/components/knowledge/GraphView";
+import { DocumentSkeleton } from "@/components/ui/Skeleton";
 
 export default function KnowledgePage() {
     const [documents, setDocuments] = useState<DocumentRow[]>([]);
@@ -305,9 +306,8 @@ export default function KnowledgePage() {
                                 </div>
 
                                 {isLoading ? (
-                                    <div className="absolute inset-0 flex flex-col items-center justify-center text-muted-foreground">
-                                        <Loader2 className="w-6 h-6 animate-spin mb-3 text-muted-foreground" />
-                                        <span className="text-[12px] font-medium tracking-wide">{t.syncing}</span>
+                                    <div className="p-6">
+                                        <DocumentSkeleton count={4} />
                                     </div>
                                 ) : documents.length === 0 ? (
                                     <div className="absolute inset-0 flex flex-col items-center justify-center p-12 text-center text-muted-foreground">
