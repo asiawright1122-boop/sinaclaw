@@ -14,6 +14,7 @@ import {
     ChevronDown,
     Copy,
     Check,
+    Loader2,
 } from "lucide-react";
 import { useGatewayStore, type GatewayLogEntry } from "@/store/gatewayStore";
 
@@ -181,6 +182,33 @@ export default function GatewayPage() {
 
     const isRunning = status?.running ?? false;
 
+    // CLI 功能（从 OpenClawManager 合并）
+    const [cliCommand, setCliCommand] = useState("");
+    const [cliOutput, setCliOutput] = useState("");
+    const [cliRunning, setCliRunning] = useState(false);
+
+    const quickCommands = [
+        { label: "诊断", cmd: "doctor" },
+        { label: "渠道列表", cmd: "channels list" },
+        { label: "技能列表", cmd: "plugins list" },
+        { label: "配置查看", cmd: "config list" },
+    ];
+
+    const handleRunCli = async () => {
+        if (!cliCommand.trim()) return;
+        setCliRunning(true);
+        try {
+            const { invoke } = await import("@tauri-apps/api/core");
+            const result = await invoke<string>("openclaw_run_cli", { command: cliCommand.trim() });
+            setCliOutput(result);
+        } catch (err) {
+            setCliOutput(`命令失败: ${err}`);
+        } finally {
+            setCliRunning(false);
+            setCliCommand("");
+        }
+    };
+
     return (
         <motion.div
             initial={{ opacity: 0, y: 10 }}
@@ -298,6 +326,57 @@ export default function GatewayPage() {
                     <pre className="text-xs font-mono text-foreground/80 overflow-x-auto whitespace-pre-wrap break-all">
                         {JSON.stringify(status.health, null, 2)}
                     </pre>
+                </motion.div>
+            )}
+
+            {/* OpenClaw CLI */}
+            {isRunning && (
+                <motion.div
+                    initial={{ opacity: 0 }}
+                    animate={{ opacity: 1 }}
+                    transition={{ delay: 0.15 }}
+                    className="bg-card/80 dark:bg-card/50 border border-border/50 dark:border-white/[0.06] rounded-xl p-5 space-y-4" style={{ boxShadow: 'var(--panel-shadow)' }}
+                >
+                    <div className="flex items-center gap-2 text-xs font-semibold text-muted-foreground">
+                        <Terminal className="w-3.5 h-3.5" />
+                        OpenClaw CLI
+                    </div>
+
+                    <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
+                        {quickCommands.map(qc => (
+                            <button
+                                key={qc.cmd}
+                                onClick={() => setCliCommand(qc.cmd)}
+                                className="px-3 py-2 rounded-lg text-[12px] font-medium bg-black/[0.03] dark:bg-white/[0.04] border border-border/40 dark:border-white/[0.06] hover:bg-black/[0.06] dark:hover:bg-white/[0.08] transition-colors text-muted-foreground hover:text-foreground"
+                            >
+                                {qc.label}
+                            </button>
+                        ))}
+                    </div>
+
+                    <div className="flex gap-2">
+                        <input
+                            type="text"
+                            placeholder="openclaw CLI 命令（如 channels add telegram）..."
+                            value={cliCommand}
+                            onChange={e => setCliCommand(e.target.value)}
+                            onKeyDown={e => e.key === 'Enter' && handleRunCli()}
+                            className="flex-1 bg-black/[0.03] dark:bg-white/[0.04] border border-border/50 dark:border-white/[0.06] rounded-lg px-4 py-2 text-[13px] outline-none focus:border-primary/40 focus:ring-1 focus:ring-primary/20 font-mono transition-all"
+                        />
+                        <button
+                            onClick={handleRunCli}
+                            disabled={!cliCommand.trim() || cliRunning}
+                            className="px-4 py-2 rounded-lg bg-primary/10 text-primary text-[13px] font-semibold hover:bg-primary/15 disabled:opacity-40 transition-all"
+                        >
+                            {cliRunning ? <Loader2 className="w-4 h-4 animate-spin" /> : '执行'}
+                        </button>
+                    </div>
+
+                    {cliOutput && (
+                        <pre className="text-[12px] text-muted-foreground bg-black/5 dark:bg-white/5 rounded-xl px-4 py-3 font-mono whitespace-pre-wrap max-h-[300px] overflow-y-auto no-scrollbar">
+                            {cliOutput}
+                        </pre>
+                    )}
                 </motion.div>
             )}
         </motion.div>

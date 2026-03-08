@@ -1,13 +1,11 @@
 import { useState, useRef, useEffect, lazy, Suspense, useMemo } from "react";
 import { useSearchParams } from "react-router-dom";
 import { motion, AnimatePresence } from "framer-motion";
-import { Key, Globe, Zap, ChevronDown, Settings, Brain, Heart } from "lucide-react";
+import { Key, Globe, Zap, ChevronDown, Settings, Brain } from "lucide-react";
 import { useSettingsStore, MODEL_OPTIONS, PROVIDER_INFO, type AIProvider } from "@/store/settingsStore";
 import { useCloudStore } from "@/store/cloudStore";
 import { useMCPStore } from "@/store/mcpStore";
 import { useTranslate } from "@/lib/i18n";
-import CloudConnector from "@/components/cloud/CloudConnector";
-import { CLOUD_PROVIDERS, formatSize } from "@/lib/cloud";
 import {
     OpenAIAppIcon,
     AnthropicAppIcon,
@@ -16,9 +14,6 @@ import {
     MiniMaxAppIcon,
     ZhipuAppIcon,
     LocalAppIcon,
-    GoogleDriveIcon,
-    DropboxIcon,
-    OneDriveIcon,
     NotionIcon,
     GithubIcon,
     SlackIcon,
@@ -177,157 +172,6 @@ function MemoryManager() {
     );
 }
 
-function OpenClawManager() {
-    const [gwStatus, setGwStatus] = useState<{ running: boolean; version: string; pid?: number }>({ running: false, version: "" });
-    const [cliOutput, setCliOutput] = useState("");
-    const [cliCommand, setCliCommand] = useState("");
-    const [isRunning, setIsRunning] = useState(false);
-
-    const checkStatus = async () => {
-        try {
-            const { invoke } = await import("@tauri-apps/api/core");
-            const status = await invoke<{ running: boolean; version: string; pid?: number }>("openclaw_gateway_status");
-            setGwStatus(status);
-        } catch {}
-    };
-
-    useEffect(() => {
-        checkStatus();
-        const interval = setInterval(checkStatus, 5000);
-        return () => clearInterval(interval);
-    }, []);
-
-    const handleStart = async () => {
-        setIsRunning(true);
-        setCliOutput("启动 Gateway 中...");
-        try {
-            const { invoke } = await import("@tauri-apps/api/core");
-            const result = await invoke<string>("openclaw_start_gateway");
-            setCliOutput(result);
-            await checkStatus();
-            const { openclawBridge } = await import("@/lib/openclawBridge");
-            openclawBridge.connectWs();
-        } catch (err) {
-            setCliOutput(`启动失败: ${err}`);
-        } finally {
-            setIsRunning(false);
-        }
-    };
-
-    const handleStop = async () => {
-        try {
-            const { invoke } = await import("@tauri-apps/api/core");
-            await invoke("openclaw_stop_gateway");
-            setCliOutput("Gateway 已停止");
-            await checkStatus();
-        } catch (err) {
-            setCliOutput(`停止失败: ${err}`);
-        }
-    };
-
-    const handleRunCli = async () => {
-        if (!cliCommand.trim()) return;
-        setIsRunning(true);
-        try {
-            const { invoke } = await import("@tauri-apps/api/core");
-            const result = await invoke<string>("openclaw_run_cli", { command: cliCommand.trim() });
-            setCliOutput(result);
-        } catch (err) {
-            setCliOutput(`命令失败: ${err}`);
-        } finally {
-            setIsRunning(false);
-            setCliCommand("");
-        }
-    };
-
-    const quickCommands = [
-        { label: "诊断", cmd: "doctor" },
-        { label: "渠道列表", cmd: "channels list" },
-        { label: "技能列表", cmd: "plugins list" },
-        { label: "配置查看", cmd: "config list" },
-    ];
-
-    return (
-        <motion.div
-            initial={{ opacity: 0, y: 10 }}
-            animate={{ opacity: 1, y: 0 }}
-            exit={{ opacity: 0, y: -10 }}
-            className="space-y-6"
-        >
-            <motion.section className="bg-card/80 dark:bg-card/50 border border-border/50 dark:border-white/[0.06] rounded-2xl p-5 space-y-4" style={{ boxShadow: 'var(--panel-shadow)' }}>
-                <div className="flex items-center justify-between">
-                    <div className="flex items-center gap-3">
-                        <div className={`w-9 h-9 rounded-lg flex items-center justify-center ${gwStatus.running ? 'bg-accent/10 border border-accent/20' : 'bg-destructive/10 border border-destructive/20'}`}>
-                            <Heart className={`w-4.5 h-4.5 ${gwStatus.running ? 'text-accent' : 'text-destructive'}`} />
-                        </div>
-                        <div>
-                            <h2 className="text-[17px] font-bold">OpenClaw Gateway</h2>
-                            <p className="text-[13px] text-muted-foreground mt-0.5">
-                                {gwStatus.running
-                                    ? `运行中 · v${gwStatus.version || 'unknown'} · 端口 18789`
-                                    : '未运行 · 启动 Gateway 以解锁完整功能'}
-                            </p>
-                        </div>
-                    </div>
-                    <button
-                        onClick={gwStatus.running ? handleStop : handleStart}
-                        disabled={isRunning}
-                        className={`px-4 py-2 rounded-lg text-[13px] font-semibold transition-all duration-150 ${gwStatus.running
-                            ? 'bg-destructive/10 text-destructive hover:bg-destructive/15'
-                            : 'bg-primary text-primary-foreground hover:bg-primary/90'
-                        } disabled:opacity-40`}
-                    >
-                        {isRunning ? '处理中...' : gwStatus.running ? '停止' : '启动 Gateway'}
-                    </button>
-                </div>
-
-                {gwStatus.running && (
-                    <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
-                        {quickCommands.map(qc => (
-                            <button
-                                key={qc.cmd}
-                                onClick={() => { setCliCommand(qc.cmd); }}
-                                className="px-3 py-2 rounded-lg text-[12px] font-medium bg-black/[0.03] dark:bg-white/[0.04] border border-border/40 dark:border-white/[0.06] hover:bg-black/[0.06] dark:hover:bg-white/[0.08] transition-colors text-muted-foreground hover:text-foreground"
-                            >
-                                {qc.label}
-                            </button>
-                        ))}
-                    </div>
-                )}
-
-                <div className="flex gap-2">
-                    <input
-                        type="text"
-                        placeholder="openclaw CLI 命令（如 channels add telegram）..."
-                        value={cliCommand}
-                        onChange={e => setCliCommand(e.target.value)}
-                        onKeyDown={e => e.key === 'Enter' && handleRunCli()}
-                        className="flex-1 bg-black/[0.03] dark:bg-white/[0.04] border border-border/50 dark:border-white/[0.06] rounded-lg px-4 py-2 text-[13px] outline-none focus:border-primary/40 focus:ring-1 focus:ring-primary/20 font-mono transition-all"
-                    />
-                    <button
-                        onClick={handleRunCli}
-                        disabled={!cliCommand.trim() || isRunning}
-                        className="px-4 py-2 rounded-lg bg-primary/10 text-primary text-[13px] font-semibold hover:bg-primary/15 disabled:opacity-40 transition-all"
-                    >
-                        {isRunning ? <Loader2 className="w-4 h-4 animate-spin" /> : '执行'}
-                    </button>
-                </div>
-
-                {cliOutput && (
-                    <pre className="text-[12px] text-muted-foreground bg-black/5 dark:bg-white/5 rounded-xl px-4 py-3 font-mono whitespace-pre-wrap max-h-[300px] overflow-y-auto no-scrollbar">
-                        {cliOutput}
-                    </pre>
-                )}
-
-                <div className="text-[12px] text-muted-foreground bg-primary/[0.04] border border-primary/10 rounded-lg p-4 space-y-1">
-                    <p><strong>Gateway 提供：</strong>22 个消息渠道（WhatsApp/Telegram/Discord/Slack/Signal 等）、5700+ ClawHub 技能、完整的 Memory/Heartbeat/Browser 自动化。</p>
-                    <p><strong>Fallback 模式：</strong>Gateway 未运行时，Sinaclaw 自动使用内置 Agent 引擎（功能有限但可用）。</p>
-                </div>
-            </motion.section>
-        </motion.div>
-    );
-}
-
 export default function SettingsPage() {
     const {
         apiKey,
@@ -372,16 +216,15 @@ export default function SettingsPage() {
 
     // Tabs 逻辑
     const [searchParams] = useSearchParams();
-    const validTabs = ["api", "cloud", "ext", "memory", "openclaw", "usage", "sync", "security", "agents", "knowledge", "skills", "connections"] as const;
+    const validTabs = ["api", "ext", "memory", "usage", "sync", "security", "agents", "knowledge", "skills", "connections"] as const;
     type TabId = typeof validTabs[number];
     const initialTab = useMemo(() => {
         const t = searchParams.get("tab");
         return (t && validTabs.includes(t as TabId)) ? t as TabId : "api";
     }, []);
     const [activeTab, setActiveTab] = useState<TabId>(initialTab);
-    const { accounts, initCloudAccounts, disconnectProvider } = useCloudStore();
+    const { initCloudAccounts } = useCloudStore();
     useEffect(() => { initCloudAccounts(); }, [initCloudAccounts]);
-    const connectedProviders = Object.entries(accounts).filter(([, acc]) => acc !== null);
 
     const handleAddPreset = async (preset: typeof MCP_PRESETS[0]) => {
         await useMCPStore.getState().addServer(preset);
@@ -433,10 +276,8 @@ export default function SettingsPage() {
             label: "通用",
             items: [
                 { id: "api" as const, icon: Settings, label: t.settings.apiTab },
-                { id: "cloud" as const, icon: Globe, label: t.settings.cloudTab },
                 { id: "ext" as const, icon: Zap, label: t.settings.extTab },
                 { id: "memory" as const, icon: Brain, label: t.settings.memoryTab },
-                { id: "openclaw" as const, icon: Heart, label: "OpenClaw" },
             ],
         },
         {
@@ -847,66 +688,6 @@ export default function SettingsPage() {
                     </motion.div>
                 )}
 
-                {activeTab === "cloud" && (
-                    <motion.div
-                        initial={{ opacity: 0, y: 10 }}
-                        animate={{ opacity: 1, y: 0 }}
-                        exit={{ opacity: 0, y: -10 }}
-                    >
-                        <motion.section
-                            className="bg-card/80 dark:bg-card/50 border border-border/50 dark:border-white/[0.06] rounded-xl p-6 space-y-5" style={{ boxShadow: 'var(--panel-shadow)' }}
-                        >
-                            <div className="flex items-center gap-3 mb-6">
-                                <div className="w-9 h-9 rounded-lg bg-primary/[0.06] border border-border/50 flex items-center justify-center">
-                                    <Globe className="w-4.5 h-4.5 text-primary" />
-                                </div>
-                                <div>
-                                    <h2 className="text-[17px] font-bold">Authorized Cloud Drives</h2>
-                                    <p className="text-[13px] text-muted-foreground mt-0.5">Manage your connected cloud storage accounts.</p>
-                                </div>
-                            </div>
-
-                            {/* Cloud Connected List */}
-                            {connectedProviders.length > 0 && (
-                                <div className="grid grid-cols-1 gap-3 mb-6">
-                                    {connectedProviders.map(([p, acc]) => {
-                                        const info = CLOUD_PROVIDERS[p as keyof typeof CLOUD_PROVIDERS];
-                                        return (
-                                            <div key={p} className="flex items-center justify-between p-4 rounded-xl border border-border/50 dark:border-white/[0.06] bg-card/60 dark:bg-card/40">
-                                                <div className="flex items-center gap-3">
-                                                    <div className="w-10 h-10 rounded-xl flex items-center justify-center p-2 bg-muted/20">
-                                                        {p === "google_drive" && <GoogleDriveIcon className="w-full h-full" />}
-                                                        {p === "dropbox" && <DropboxIcon className="w-full h-full" />}
-                                                        {p === "onedrive" && <OneDriveIcon className="w-full h-full" />}
-                                                    </div>
-                                                    <div>
-                                                        <div className="font-semibold text-[15px]">{info.label}</div>
-                                                        <div className="text-[12px] text-muted-foreground">Used: {formatSize((acc as any).used_space)}</div>
-                                                    </div>
-                                                </div>
-                                                <button
-                                                    onClick={async () => {
-                                                        if (confirm(`Are you sure you want to disconnect ${info.label}?`)) {
-                                                            await disconnectProvider(p as keyof typeof CLOUD_PROVIDERS);
-                                                        }
-                                                    }}
-                                                    className="px-4 py-2 rounded-xl text-[13px] font-bold bg-destructive/10 text-destructive hover:bg-destructive/20 transition-colors cursor-pointer"
-                                                >
-                                                    Disconnect
-                                                </button>
-                                            </div>
-                                        );
-                                    })}
-                                </div>
-                            )}
-
-                            {/* CloudConnector handles new connections */}
-                            <h3 className="text-[14px] font-bold text-muted-foreground mb-3 tracking-wider">Add New Connection</h3>
-                            <CloudConnector accounts={accounts} />
-                        </motion.section>
-                    </motion.div>
-                )}
-
                 {activeTab === "ext" && (
                     <motion.div
                         initial={{ opacity: 0, y: 10 }}
@@ -985,10 +766,6 @@ export default function SettingsPage() {
 
                 {activeTab === "memory" && (
                     <MemoryManager />
-                )}
-
-                {activeTab === "openclaw" && (
-                    <OpenClawManager />
                 )}
 
                 {activeTab === "usage" && (

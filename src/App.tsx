@@ -45,6 +45,7 @@ function App() {
               <Route path="devices" element={<Navigate to="/settings?tab=connections" replace />} />
               <Route path="automation" element={<Navigate to="/settings?tab=agents" replace />} />
               <Route path="usage" element={<Navigate to="/settings?tab=usage" replace />} />
+              <Route path="cloud" element={<Navigate to="/settings?tab=sync" replace />} />
               <Route path="sync" element={<Navigate to="/settings?tab=sync" replace />} />
               <Route path="models" element={<Navigate to="/settings?tab=api" replace />} />
               <Route path="security" element={<Navigate to="/settings?tab=security" replace />} />
