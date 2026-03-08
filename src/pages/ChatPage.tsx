@@ -35,6 +35,8 @@ export default function ChatPage() {
     const activeConversation = conversations.find((c) => c.id === activeConversationId);
     const hasMessages = activeConversation && activeConversation.messages.length > 0;
     const messagesEndRef = useRef<HTMLDivElement>(null);
+    const messagesContainerRef = useRef<HTMLDivElement>(null);
+    const [showScrollBtn, setShowScrollBtn] = useState(false);
 
     // 自动滚动到底部
     useEffect(() => {
@@ -408,7 +410,15 @@ export default function ChatPage() {
             <div className={`flex-1 flex flex-col overflow-hidden ${showCanvas ? 'w-1/2' : 'w-full'} transition-all duration-300`}>
             {/* 消息区域 */}
             {hasMessages ? (
-                <div className="flex-1 overflow-y-auto pt-6 px-4 no-scrollbar">
+                <div
+                    ref={messagesContainerRef}
+                    onScroll={() => {
+                        const el = messagesContainerRef.current;
+                        if (!el) return;
+                        setShowScrollBtn(el.scrollHeight - el.scrollTop - el.clientHeight > 200);
+                    }}
+                    className="flex-1 overflow-y-auto pt-6 px-4 no-scrollbar relative"
+                >
                     <div className="max-w-4xl mx-auto pb-6">
                         {activeConversation.messages.map((msg) => (
                             <div key={msg.id}>
@@ -425,6 +435,21 @@ export default function ChatPage() {
                         {isGenerating && <TypingIndicator />}
                         <div ref={messagesEndRef} />
                     </div>
+                    <AnimatePresence>
+                        {showScrollBtn && (
+                            <motion.button
+                                initial={{ opacity: 0, scale: 0.8 }}
+                                animate={{ opacity: 1, scale: 1 }}
+                                exit={{ opacity: 0, scale: 0.8 }}
+                                onClick={() => messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' })}
+                                className="sticky bottom-4 left-1/2 -translate-x-1/2 mx-auto flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-card border border-border/60 dark:border-white/[0.08] text-muted-foreground hover:text-foreground text-xs font-medium transition-colors active:scale-[0.95]"
+                                style={{ boxShadow: 'var(--panel-shadow)' }}
+                            >
+                                <ChevronDown className="w-3.5 h-3.5" />
+                                滚动到底部
+                            </motion.button>
+                        )}
+                    </AnimatePresence>
                 </div>
             ) : (
                 <div className="flex-1 flex flex-col justify-center items-center text-center overflow-y-auto p-4 no-scrollbar">
