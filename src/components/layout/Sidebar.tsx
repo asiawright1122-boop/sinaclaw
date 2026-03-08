@@ -108,7 +108,7 @@ export default function Sidebar() {
     const renderConvItem = (conv: typeof conversations[0]) => (
         <div
             key={conv.id}
-            className={`w-full flex items-center justify-between gap-2 px-3 py-2 rounded-xl text-[13px] transition-all duration-200 cursor-pointer group ${activeConversationId === conv.id
+            className={`w-full flex items-center justify-between gap-2 px-3 py-2 rounded-xl text-[13px] transition-all duration-200 cursor-pointer group active:scale-[0.98] ${activeConversationId === conv.id
                 ? "bg-secondary/60 text-foreground font-medium"
                 : "text-muted-foreground hover:bg-secondary/40 hover:text-foreground"
                 }`}

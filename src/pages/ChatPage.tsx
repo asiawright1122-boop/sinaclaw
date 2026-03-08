@@ -490,7 +490,7 @@ export default function ChatPage() {
                             <div
                                 key={i}
                                 onClick={() => setInputValue(s.text)}
-                                className="p-3.5 rounded-xl border border-border/60 dark:border-white/[0.06] bg-card/60 dark:bg-white/[0.02] text-[13px] font-medium text-muted-foreground hover:bg-card dark:hover:bg-white/[0.04] hover:text-foreground cursor-pointer transition-all duration-200 hover:shadow-sm hover:-translate-y-px"
+                                className="p-3.5 rounded-xl border border-border/60 dark:border-white/[0.06] bg-card/60 dark:bg-white/[0.02] text-[13px] font-medium text-muted-foreground hover:bg-card dark:hover:bg-white/[0.04] hover:text-foreground cursor-pointer transition-all duration-200 hover:shadow-sm hover:-translate-y-px active:scale-[0.97]"
                             >
                                 {s.text}
                             </div>
