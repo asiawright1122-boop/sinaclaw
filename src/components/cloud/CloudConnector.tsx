@@ -7,6 +7,7 @@ import {
     formatSize,
 } from "@/lib/cloud";
 import { useCloudStore } from "@/store/cloudStore";
+import { useTranslate } from "@/lib/i18n";
 import {
     GoogleDriveIcon,
     DropboxIcon,
@@ -20,6 +21,7 @@ interface CloudConnectorProps {
 }
 
 export default function CloudConnector({ accounts }: CloudConnectorProps) {
+    const t = useTranslate();
     const { connectProvider, disconnectProvider, loading, error } = useCloudStore();
 
     return (
@@ -51,7 +53,7 @@ export default function CloudConnector({ accounts }: CloudConnectorProps) {
                                         {account.email} · {formatSize(account.used_space)} / {formatSize(account.total_space)}
                                     </div>
                                 ) : (
-                                    <div className="text-xs text-muted-foreground/50">未连接</div>
+                                    <div className="text-xs text-muted-foreground/50">{t.knowledge.notConnected}</div>
                                 )}
                             </div>
                         </div>
@@ -62,7 +64,7 @@ export default function CloudConnector({ accounts }: CloudConnectorProps) {
                                 className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium border border-red-500/20 text-red-400 hover:bg-red-500/10 transition-colors cursor-pointer"
                             >
                                 <Unlink className="w-3 h-3" />
-                                断开
+                                {t.knowledge.disconnect}
                             </button>
                         ) : (
                             <button
@@ -75,7 +77,7 @@ export default function CloudConnector({ accounts }: CloudConnectorProps) {
                                 ) : (
                                     <Link2 className="w-3 h-3" />
                                 )}
-                                连接
+                                {t.knowledge.connect}
                             </button>
                         )}
                     </motion.div>

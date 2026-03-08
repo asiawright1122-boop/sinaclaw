@@ -1,6 +1,8 @@
 import { motion } from "framer-motion";
+import { useTranslate } from "@/lib/i18n";
 
 export default function TypingIndicator() {
+    const t = useTranslate();
     return (
         <div className="flex gap-4 px-4 py-6 bg-white/[0.02]">
             <div className="shrink-0 mt-1">
@@ -27,7 +29,7 @@ export default function TypingIndicator() {
                             className="w-2 h-2 rounded-full bg-primary/60"
                         />
                     ))}
-                    <span className="ml-2 text-sm text-muted-foreground">正在思考…</span>
+                    <span className="ml-2 text-sm text-muted-foreground">{t.chat.thinking}</span>
                 </div>
             </div>
         </div>
