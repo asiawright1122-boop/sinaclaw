@@ -94,7 +94,7 @@ export class SwarmRouter {
         if (match) json = match[1].trim();
 
         const parsed = JSON.parse(json);
-        const subtasks: SubTask[] = (parsed.subtasks || []).map((st: any) => ({
+        const subtasks: SubTask[] = (parsed.subtasks || []).map((st: Omit<SubTask, "status">) => ({
             ...st,
             status: "pending" as const,
         }));

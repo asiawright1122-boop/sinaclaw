@@ -63,7 +63,7 @@ export default function ChatMessage({ message, onRetry }: ChatMessageProps) {
     const components = useMemo(
         () => ({
             // 代码块
-            pre({ children, ...props }: any) {
+            pre({ children, ...props }: React.HTMLAttributes<HTMLPreElement>) {
                 return <CodeBlock {...props}>{children}</CodeBlock>;
             },
             // 内联代码
@@ -71,7 +71,7 @@ export default function ChatMessage({ message, onRetry }: ChatMessageProps) {
                 className,
                 children,
                 ...props
-            }: any) {
+            }: React.HTMLAttributes<HTMLElement>) {
                 const isInline = !className;
                 if (isInline) {
                     return (
@@ -90,7 +90,7 @@ export default function ChatMessage({ message, onRetry }: ChatMessageProps) {
                 );
             },
             // 表格
-            table({ children, ...props }: any) {
+            table({ children, ...props }: React.HTMLAttributes<HTMLTableElement>) {
                 return (
                     <div className="overflow-x-auto my-3 rounded-lg border border-border/60 dark:border-white/[0.08]">
                         <table
@@ -102,7 +102,7 @@ export default function ChatMessage({ message, onRetry }: ChatMessageProps) {
                     </div>
                 );
             },
-            th({ children, ...props }: any) {
+            th({ children, ...props }: React.HTMLAttributes<HTMLTableCellElement>) {
                 return (
                     <th
                         className="px-4 py-2 text-left font-semibold bg-black/[0.03] dark:bg-white/[0.04] border-b border-border/60 dark:border-white/[0.08]"
@@ -112,7 +112,7 @@ export default function ChatMessage({ message, onRetry }: ChatMessageProps) {
                     </th>
                 );
             },
-            td({ children, ...props }: any) {
+            td({ children, ...props }: React.HTMLAttributes<HTMLTableCellElement>) {
                 return (
                     <td
                         className="px-4 py-2 border-b border-border/30 dark:border-white/5"
@@ -123,7 +123,7 @@ export default function ChatMessage({ message, onRetry }: ChatMessageProps) {
                 );
             },
             // 链接
-            a({ children, href, ...props }: any) {
+            a({ children, href, ...props }: React.AnchorHTMLAttributes<HTMLAnchorElement>) {
                 return (
                     <a
                         href={href}
@@ -137,7 +137,7 @@ export default function ChatMessage({ message, onRetry }: ChatMessageProps) {
                 );
             },
             // 引用块
-            blockquote({ children, ...props }: any) {
+            blockquote({ children, ...props }: React.HTMLAttributes<HTMLQuoteElement>) {
                 return (
                     <blockquote
                         className="border-l-4 border-primary/40 pl-4 my-3 text-foreground/70 italic"

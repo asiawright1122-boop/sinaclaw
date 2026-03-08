@@ -1,5 +1,6 @@
 import { motion } from "framer-motion";
 import { X } from "lucide-react";
+import { GATEWAY_PORT } from "@/lib/openclawBridge";
 
 interface ChatCanvasProps {
     onClose: () => void;
@@ -26,7 +27,7 @@ export default function ChatCanvas({ onClose }: ChatCanvasProps) {
                 </div>
                 <div className="flex-1 overflow-hidden">
                     <iframe
-                        src="http://127.0.0.1:18789/__openclaw__/canvas/"
+                        src={`http://127.0.0.1:${GATEWAY_PORT}/__openclaw__/canvas/`}
                         className="w-full h-full border-0"
                         title="Canvas"
                     />

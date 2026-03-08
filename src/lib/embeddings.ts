@@ -1,4 +1,5 @@
 import { useSettingsStore, type AIProvider } from "@/store/settingsStore";
+import { OLLAMA_BASE } from "@/lib/localModelManager";
 
 // 各家模型对应的默认 Embedding 模型名称
 const EMBEDDING_MODELS: Record<AIProvider, string> = {
@@ -79,7 +80,7 @@ function getBaseUrl(provider: AIProvider): string {
     const urls: Record<string, string> = {
         openai: "https://api.openai.com/v1/embeddings",
         zhipu: "https://open.bigmodel.cn/api/paas/v4/embeddings",
-        local: "http://localhost:11434/api/embeddings", // Ollama API
+        local: `${OLLAMA_BASE}/api/embeddings`, // Ollama API
         google: "https://generativelanguage.googleapis.com/v1beta", // 拼凑路径
     };
     return urls[provider] || "";
@@ -123,8 +124,8 @@ async function fetchOpenAIEmbeddings(baseUrl: string, apiKey: string, model: str
 
     const data = await res.json();
     // 确保顺序正确
-    const sorted = [...data.data].sort((a: any, b: any) => a.index - b.index);
-    return sorted.map((item: any) => item.embedding as number[]);
+    const sorted = [...data.data].sort((a: { index: number }, b: { index: number }) => a.index - b.index);
+    return sorted.map((item: { embedding: number[] }) => item.embedding);
 }
 
 async function fetchGoogleEmbeddings(baseUrl: string, apiKey: string, model: string, input: string[]): Promise<number[][]> {
@@ -148,5 +149,5 @@ async function fetchGoogleEmbeddings(baseUrl: string, apiKey: string, model: str
     }
 
     const data = await res.json();
-    return data.embeddings.map((item: any) => item.values as number[]);
+    return data.embeddings.map((item: { values: number[] }) => item.values);
 }

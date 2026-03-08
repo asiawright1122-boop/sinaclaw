@@ -7,7 +7,7 @@
  * 3. 获取模型详情（大小、参数量、量化等级）
  */
 
-const OLLAMA_BASE = "http://127.0.0.1:11434";
+export const OLLAMA_BASE = "http://127.0.0.1:11434";
 
 export interface OllamaModel {
     name: string;
@@ -60,7 +60,7 @@ export async function listModels(): Promise<OllamaModel[]> {
     const data = await res.json();
     if (!data.models || !Array.isArray(data.models)) return [];
 
-    return data.models.map((m: any) => {
+    return data.models.map((m: { name: string; size?: number; digest?: string; modified_at?: string; details?: { parameter_size?: string; quantization_level?: string; family?: string } }) => {
         const parts = m.name.split(":");
         return {
             name: parts[0],

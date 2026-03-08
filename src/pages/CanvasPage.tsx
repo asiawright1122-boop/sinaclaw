@@ -13,7 +13,8 @@ import {
 import { useGatewayStore } from "@/store/gatewayStore";
 import { useTranslate } from "@/lib/i18n";
 
-const GATEWAY_PORT = 18789;
+import { GATEWAY_PORT } from "@/lib/openclawBridge";
+
 const CANVAS_URL = `http://127.0.0.1:${GATEWAY_PORT}/__openclaw__/canvas/`;
 
 type Tab = "canvas" | "artifact";

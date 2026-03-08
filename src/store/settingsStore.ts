@@ -1,5 +1,6 @@
 import { create } from "zustand";
 import { load } from "@tauri-apps/plugin-store";
+import { OLLAMA_BASE } from "@/lib/localModelManager";
 
 export type AIProvider = "openai" | "anthropic" | "google" | "deepseek" | "minimax" | "zhipu" | "local";
 
@@ -74,7 +75,7 @@ export const PROVIDER_INFO: Record<AIProvider, { label: string; color: string; a
   local: {
     label: "Local",
     color: "#9ca3af",
-    apiUrl: "http://localhost:11434/v1/chat/completions",
+    apiUrl: `${OLLAMA_BASE}/v1/chat/completions`,
     format: "openai",
   },
 };
@@ -207,11 +208,11 @@ export const useSettingsStore = create<SettingsState>((set) => ({
 
   refreshLocalModels: async () => {
     try {
-      const res = await fetch("http://127.0.0.1:11434/api/tags");
+      const res = await fetch(`${OLLAMA_BASE}/api/tags`);
       if (res.ok) {
         const data = await res.json();
         if (data.models && Array.isArray(data.models)) {
-          const models = data.models.map((m: any) => ({
+          const models = data.models.map((m: { name: string }) => ({
             id: m.name,
             name: m.name,
           }));

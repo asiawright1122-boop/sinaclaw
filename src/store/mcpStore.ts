@@ -138,7 +138,7 @@ export const useMCPStore = create<MCPState>()(
             },
             getActiveToolsAsSchema: () => {
                 const { servers } = get();
-                const activeTools: any[] = [];
+                const activeTools: { type: string; function: { name: string; description: string; parameters: Record<string, unknown> } }[] = [];
 
                 servers.forEach((server) => {
                     if (server.status === "active" && server.tools) {

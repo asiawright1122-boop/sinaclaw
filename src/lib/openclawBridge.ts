@@ -26,7 +26,7 @@ export interface GatewayEvent {
 
 type GatewayEventListener = (event: GatewayEvent) => void;
 
-const GATEWAY_PORT = 18789;
+export const GATEWAY_PORT = 18789;
 const GATEWAY_WS_URL = `ws://127.0.0.1:${GATEWAY_PORT}`;
 
 let ws: WebSocket | null = null;
