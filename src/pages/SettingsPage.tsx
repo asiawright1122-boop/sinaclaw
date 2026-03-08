@@ -940,18 +940,18 @@ export default function SettingsPage() {
                                 {servers.length > 0 ? (
                                     servers.map((s) => (
                                         <div key={s.id} className="flex items-center justify-between p-5 rounded-xl border border-border/50 dark:border-white/[0.06] bg-card/60 dark:bg-card/40 group">
-                                            <div className="flex items-center gap-4">
-                                                <div className={`w-12 h-12 rounded-xl flex items-center justify-center border transition-colors ${s.status === 'active' ? 'bg-primary/10 border-primary/20 text-primary' : 'bg-muted/20 border-border/50 text-muted-foreground'}`}>
+                                            <div className="flex items-center gap-4 min-w-0 flex-1">
+                                                <div className={`w-12 h-12 rounded-xl flex items-center justify-center border transition-colors shrink-0 ${s.status === 'active' ? 'bg-primary/10 border-primary/20 text-primary' : 'bg-muted/20 border-border/50 text-muted-foreground'}`}>
                                                     <Zap className="w-6 h-6" />
                                                 </div>
-                                                <div>
+                                                <div className="min-w-0">
                                                     <div className="flex items-center gap-2">
                                                         <span className="font-bold text-[16px]">{s.name}</span>
                                                         <span className={`text-[10px] px-1.5 py-0.5 rounded-full font-bold uppercase tracking-wider ${s.status === 'active' ? 'bg-green-500/20 text-green-600' : 'bg-red-500/10 text-muted-foreground'}`}>
                                                             {s.status === 'active' ? t.extensions.active : t.extensions.inactive}
                                                         </span>
                                                     </div>
-                                                    <div className="text-[12px] text-muted-foreground font-mono mt-0.5 opacity-60">{s.url}</div>
+                                                    <div className="text-[12px] text-muted-foreground font-mono mt-0.5 opacity-60 truncate max-w-[300px]">{s.url}</div>
                                                     <div className="text-[11px] font-bold text-primary mt-1">{t.extensions.toolsFound.replace('{count}', s.toolCount.toString())}</div>
                                                 </div>
                                             </div>
